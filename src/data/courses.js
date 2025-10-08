@@ -1,0 +1,108 @@
+// src/data/courses.js
+
+export const courses = [
+  {
+    id: "pezula",
+    name: "Pezula Championship",
+    holes: [
+      // holeNumber, par, strokeIndex (null = unknown, fill later)
+      { holeNumber: 1, par: 5, strokeIndex: 3 },
+      { holeNumber: 2, par: 4, strokeIndex: 7 },
+      { holeNumber: 3, par: 3, strokeIndex: 17 },
+      { holeNumber: 4, par: 4, strokeIndex: 13 },
+      { holeNumber: 5, par: 3, strokeIndex: 9 },
+      { holeNumber: 6, par: 4, strokeIndex: 5 },
+      { holeNumber: 7, par: 4, strokeIndex: 1 },
+      { holeNumber: 8, par: 4, strokeIndex: 11 },
+      { holeNumber: 9, par: 5, strokeIndex: 15 },
+      { holeNumber: 10, par: 4, strokeIndex: 12 },
+      { holeNumber: 11, par: 3, strokeIndex: 16 },
+      { holeNumber: 12, par: 4, strokeIndex: 2 },
+      { holeNumber: 13, par: 5, strokeIndex: 6 },
+      { holeNumber: 14, par: 4, strokeIndex: 10 },
+      { holeNumber: 15, par: 3, strokeIndex: 14 },
+      { holeNumber: 16, par: 4, strokeIndex: 4 },
+      { holeNumber: 17, par: 4, strokeIndex: 18 },
+      { holeNumber: 18, par: 5, strokeIndex: 8 },
+    ],
+  },
+
+  {
+    id: "george_country_club",
+    name: "George Country Club",
+    holes: [
+      // example: hole 11 is par 5, strokeIndex 10 for Yellow tee (you might use “Yellow” stroke index column)
+      { holeNumber: 1, par: 4, strokeIndex: 9 },
+      { holeNumber: 2, par: 5, strokeIndex: 7 },
+      { holeNumber: 3, par: 4, strokeIndex: 3 },
+      { holeNumber: 4, par: 4, strokeIndex: 17 },
+      { holeNumber: 5, par: 4, strokeIndex: 11 },
+      { holeNumber: 6, par: 3, strokeIndex: 15 },
+      { holeNumber: 7, par: 4, strokeIndex: 1 },
+      { holeNumber: 8, par: 4, strokeIndex: 13 },
+      { holeNumber: 9, par: 4, strokeIndex: 5 },
+      { holeNumber: 10, par: 4, strokeIndex: 6 },
+      { holeNumber: 11, par: 5, strokeIndex: 10 },
+      { holeNumber: 12, par: 4, strokeIndex: 8 },
+      { holeNumber: 13, par: 3, strokeIndex: 18 },
+      { holeNumber: 14, par: 5, strokeIndex: 16 },
+      { holeNumber: 15, par: 3, strokeIndex: 14 },
+      { holeNumber: 16, par: 5, strokeIndex: 12 },
+      { holeNumber: 17, par: 3, strokeIndex: 4 },
+      { holeNumber: 18, par: 4, strokeIndex: 2 },
+    ],
+  },
+
+  {
+    id: "goose_valley",
+    name: "Goose Valley",
+    holes: [
+      // I filled par = 72 course-level, but need hole-by-hole; example from PDF
+      // (You must fill strokeIndex from the PDF)
+      { holeNumber: 1, par: 4, strokeIndex: 3 },
+      { holeNumber: 2, par: 3, strokeIndex: 7 },
+      { holeNumber: 3, par: 4, strokeIndex: 15 },
+      { holeNumber: 4, par: 4, strokeIndex: 9 },
+      { holeNumber: 5, par: 3, strokeIndex: 17 },
+      { holeNumber: 6, par: 4, strokeIndex: 5 },
+      { holeNumber: 7, par: 5, strokeIndex: 1 },
+      { holeNumber: 8, par: 5, strokeIndex: 13 },
+      { holeNumber: 9, par: 4, strokeIndex: 11 },
+      { holeNumber: 10, par: 4, strokeIndex: 4 },
+      { holeNumber: 11, par: 3, strokeIndex: 14 },
+      { holeNumber: 12, par: 4, strokeIndex: 6 },
+      { holeNumber: 13, par: 3, strokeIndex: 8 },
+      { holeNumber: 14, par: 5, strokeIndex: 12 },
+      { holeNumber: 15, par: 4, strokeIndex: 2 },
+      { holeNumber: 16, par: 5, strokeIndex: 10 },
+      { holeNumber: 17, par: 4, strokeIndex: 18 },
+      { holeNumber: 18, par: 4, strokeIndex: 16 },
+    ],
+  },
+  {
+    id: "knysna",
+    name: "Knysna Golf Club",
+    holes: [
+      // I filled par = 72 course-level, but need hole-by-hole; example from PDF
+      // (You must fill strokeIndex from the PDF)
+      { holeNumber: 1, par: 4, strokeIndex: 7 },
+      { holeNumber: 2, par: 3, strokeIndex: 9 },
+      { holeNumber: 3, par: 5, strokeIndex: 15 },
+      { holeNumber: 4, par: 4, strokeIndex: 3 },
+      { holeNumber: 5, par: 4, strokeIndex: 13 },
+      { holeNumber: 6, par: 4, strokeIndex: 1 },
+      { holeNumber: 7, par: 4, strokeIndex: 17 },
+      { holeNumber: 8, par: 3, strokeIndex: 11 },
+      { holeNumber: 9, par: 5, strokeIndex: 5 },
+      { holeNumber: 10, par: 4, strokeIndex: 8 },
+      { holeNumber: 11, par: 4, strokeIndex: 2 },
+      { holeNumber: 12, par: 3, strokeIndex: 10 },
+      { holeNumber: 13, par: 5, strokeIndex: 4 },
+      { holeNumber: 14, par: 3, strokeIndex: 18 },
+      { holeNumber: 15, par: 4, strokeIndex: 16 },
+      { holeNumber: 16, par: 5, strokeIndex: 6 },
+      { holeNumber: 17, par: 4, strokeIndex: 12 },
+      { holeNumber: 18, par: 4, strokeIndex: 14 },
+    ],
+  },
+];
