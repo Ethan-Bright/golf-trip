@@ -6,12 +6,9 @@ export default function Landing() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-green-100 p-6 text-center">
-      <h1 className="text-4xl sm:text-5xl font-extrabold mb-4 text-green-900">
+      <h1 className="text-4xl sm:text-5xl font-extrabold mb-14 text-green-900">
         Golf Trip Leaderboard
       </h1>
-      <p className="text-green-800 mb-8 text-lg sm:text-xl">
-        Track your scores and enjoy the game!
-      </p>
 
       <div className="flex flex-col sm:flex-row gap-4 w-full max-w-xs mx-auto">
         <button

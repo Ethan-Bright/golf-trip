@@ -10,6 +10,8 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
+import EnterScore from "./pages/EnterScore";
+
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -24,6 +26,7 @@ function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/scores" element={<EnterScore />} />
           <Route
             path="/dashboard"
             element={
