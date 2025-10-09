@@ -4,9 +4,9 @@ import { useNavigate } from "react-router-dom";
 import React from "react";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, setUserAndPersist } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
@@ -14,7 +14,8 @@ export default function Login() {
     e.preventDefault();
     setError("");
     try {
-      await login(email, password);
+      const userData = await login(displayName, password);
+      setUserAndPersist(userData);
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
@@ -39,10 +40,10 @@ export default function Login() {
         className="w-full max-w-sm flex flex-col gap-4 bg-white shadow-md rounded-xl p-6"
       >
         <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          type="text"
+          placeholder="Display Name"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
           required
           className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
         />

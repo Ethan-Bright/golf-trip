@@ -10,8 +10,9 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
-import EnterScore from "./pages/EnterScore";
-
+import Leaderboard from "./pages/Leaderboard";
+import { courses } from "./data/courses";
+import EnterScoreWrapper from "./pages/EnterScoreWrapper"; // ✅ matches your singular naming
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -26,12 +27,29 @@ function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/scores" element={<EnterScore />} />
+          <Route
+            path="/scores"
+            element={
+              <PrivateRoute>
+                <EnterScoreWrapper courses={courses} />
+              </PrivateRoute>
+            }
+          />
+
           <Route
             path="/dashboard"
             element={
               <PrivateRoute>
                 <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          
+          <Route
+            path="/leaderboard"
+            element={
+              <PrivateRoute>
+                <Leaderboard />
               </PrivateRoute>
             }
           />

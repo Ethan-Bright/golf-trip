@@ -4,19 +4,20 @@ import { useNavigate } from "react-router-dom";
 import React from "react";
 
 export default function Register() {
-  const { signup } = useAuth();
+  const { signup, setUserAndPersist } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [handicap, setHandicap] = useState("");
   const [error, setError] = useState("");
 
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     try {
-      await signup(email, password, displayName, handicap);
+      const userData = await signup(displayName, password, handicap, null);
+      setUserAndPersist(userData);
       navigate("/dashboard");
     } catch (err) {
       setError(err.message);
@@ -58,14 +59,6 @@ export default function Register() {
           className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
         />
 
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
 
         <input
           type="password"
