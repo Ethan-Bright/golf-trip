@@ -34,6 +34,7 @@ function ProfileModal({ user, onClose }) {
     setSuccess("");
     setLoading(true);
     setUploadProgress(0);
+
     try {
       await updateProfile(displayName, handicap, profilePicture, (progress) => {
         setUploadProgress(progress);
@@ -112,17 +113,17 @@ function ProfileModal({ user, onClose }) {
                     <img src={profilePicturePreview} alt="Profile preview" className="w-12 h-12 rounded-full object-cover" />
                   )}
                 </div>
-              </div>
 
-              {/* Progress Bar */}
-              {uploadProgress > 0 && (
-                <div className="w-full bg-green-100 rounded-full h-2 mt-2">
-                  <div
-                    className="bg-green-700 h-2 rounded-full transition-all"
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-              )}
+                {/* Progress Bar */}
+                {uploadProgress > 0 && (
+                  <div className="w-full bg-green-100 rounded-full h-2 mt-2">
+                    <div
+                      className="bg-green-700 h-2 rounded-full transition-all"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                )}
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-green-700 mb-2">Display Name</label>
