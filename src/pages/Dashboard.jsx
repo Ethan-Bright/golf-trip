@@ -12,7 +12,9 @@ function ProfileModal({ user, onClose }) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [profilePicture, setProfilePicture] = useState(null);
-  const [profilePicturePreview, setProfilePicturePreview] = useState(user?.profilePictureUrl || null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState(
+    user?.profilePictureUrl || null
+  );
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
@@ -73,48 +75,72 @@ function ProfileModal({ user, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto drop-shadow-lg animate-fadeIn">
+        {/* Header */}
         <div className="flex justify-between items-center p-6 border-b">
           <h3 className="text-xl font-bold text-green-900">Edit Profile</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl transition"
+          >
+            ×
+          </button>
         </div>
 
         {/* Tabs */}
         <div className="flex border-b">
           <button
             onClick={() => setActiveTab("profile")}
-            className={`flex-1 py-3 px-4 text-center font-medium ${
-              activeTab === "profile" ? "text-green-700 border-b-2 border-green-700 bg-green-50" : "text-gray-600 hover:text-green-700"
+            className={`flex-1 py-3 text-center font-medium transition ${
+              activeTab === "profile"
+                ? "text-green-700 border-b-2 border-green-700 bg-green-50"
+                : "text-gray-600 hover:text-green-700"
             }`}
           >
             Profile
           </button>
           <button
             onClick={() => setActiveTab("password")}
-            className={`flex-1 py-3 px-4 text-center font-medium ${
-              activeTab === "password" ? "text-green-700 border-b-2 border-green-700 bg-green-50" : "text-gray-600 hover:text-green-700"
+            className={`flex-1 py-3 text-center font-medium transition ${
+              activeTab === "password"
+                ? "text-green-700 border-b-2 border-green-700 bg-green-50"
+                : "text-gray-600 hover:text-green-700"
             }`}
           >
             Password
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 space-y-5">
           {activeTab === "profile" && (
             <form onSubmit={handleUpdateProfile} className="space-y-4">
+              {/* Profile Picture */}
               <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Profile Picture</label>
+                <label className="block text-sm font-medium text-green-700 mb-2">
+                  Profile Picture
+                </label>
                 <div className="flex items-center gap-4">
-                  <input type="file" accept="image/*" onChange={handleProfilePictureChange} className="hidden" id="profile-picture-edit" />
-                  <label htmlFor="profile-picture-edit" className="px-4 py-2 bg-green-100 text-green-700 rounded-lg cursor-pointer hover:bg-green-200 transition">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePictureChange}
+                    className="hidden"
+                    id="profile-picture-edit"
+                  />
+                  <label
+                    htmlFor="profile-picture-edit"
+                    className="px-4 py-2 bg-green-100 text-green-700 rounded-lg cursor-pointer hover:bg-green-200 transition"
+                  >
                     Choose Photo
                   </label>
                   {profilePicturePreview && (
-                    <img src={profilePicturePreview} alt="Profile preview" className="w-12 h-12 rounded-full object-cover" />
+                    <img
+                      src={profilePicturePreview}
+                      alt="Profile preview"
+                      className="w-14 h-14 rounded-full object-cover border border-green-200"
+                    />
                   )}
                 </div>
-
-                {/* Progress Bar */}
                 {uploadProgress > 0 && (
                   <div className="w-full bg-green-100 rounded-full h-2 mt-2">
                     <div
@@ -125,8 +151,11 @@ function ProfileModal({ user, onClose }) {
                 )}
               </div>
 
+              {/* Display Name */}
               <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Display Name</label>
+                <label className="block text-sm font-medium text-green-700 mb-2">
+                  Display Name
+                </label>
                 <input
                   type="text"
                   value={displayName}
@@ -136,8 +165,11 @@ function ProfileModal({ user, onClose }) {
                 />
               </div>
 
+              {/* Handicap */}
               <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Handicap</label>
+                <label className="block text-sm font-medium text-green-700 mb-2">
+                  Handicap
+                </label>
                 <input
                   type="number"
                   step="0.1"
@@ -148,7 +180,11 @@ function ProfileModal({ user, onClose }) {
                 />
               </div>
 
-              <button type="submit" disabled={loading} className="w-full py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition disabled:opacity-50">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition disabled:opacity-50 font-semibold"
+              >
                 {loading ? "Updating..." : "Update Profile"}
               </button>
             </form>
@@ -156,47 +192,44 @@ function ProfileModal({ user, onClose }) {
 
           {activeTab === "password" && (
             <form onSubmit={handleUpdatePassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Current Password</label>
-                <input
-                  type="password"
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">New Password</label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">Confirm New Password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  required
-                />
-              </div>
-
-              <button type="submit" disabled={loading} className="w-full py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition disabled:opacity-50">
+              {["Current", "New", "Confirm New"].map((label, i) => (
+                <div key={i}>
+                  <label className="block text-sm font-medium text-green-700 mb-2">
+                    {label} Password
+                  </label>
+                  <input
+                    type="password"
+                    value={
+                      i === 0 ? oldPassword : i === 1 ? newPassword : confirmPassword
+                    }
+                    onChange={(e) =>
+                      i === 0
+                        ? setOldPassword(e.target.value)
+                        : i === 1
+                        ? setNewPassword(e.target.value)
+                        : setConfirmPassword(e.target.value)
+                    }
+                    className="w-full px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    required
+                  />
+                </div>
+              ))}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition disabled:opacity-50 font-semibold"
+              >
                 {loading ? "Updating..." : "Update Password"}
               </button>
             </form>
           )}
 
-          {error && <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>}
-          {success && <div className="mt-4 p-3 bg-green-100 text-green-700 rounded-lg text-sm">{success}</div>}
+          {error && (
+            <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>
+          )}
+          {success && (
+            <div className="p-3 bg-green-100 text-green-700 rounded-lg text-sm">{success}</div>
+          )}
         </div>
       </div>
     </div>
@@ -221,21 +254,25 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-start bg-green-100 p-6">
       {/* Header */}
-      <header className="w-full text-center mb-8 mt-6">
-        <div className="flex justify-center mb-2">
-          <button
-            onClick={() => setShowProfileModal(true)}
-            className="w-20 h-20 rounded-full overflow-hidden border-4 border-green-300 hover:border-green-500 transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            {user?.profilePictureUrl ? (
-              <img src={user.profilePictureUrl} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-green-200 flex items-center justify-center">
-                <span className="text-2xl text-green-700 font-bold">{user?.displayName?.charAt(0) || "?"}</span>
-              </div>
-            )}
-          </button>
-        </div>
+      <header className="w-full text-center mb-8 mt-6 flex flex-col items-center">
+        <button
+          onClick={() => setShowProfileModal(true)}
+          className="w-24 h-24 rounded-full overflow-hidden border-4 border-green-300 hover:border-green-500 transition-all duration-200 shadow-lg hover:shadow-xl mb-3"
+        >
+          {user?.profilePictureUrl ? (
+            <img
+              src={user.profilePictureUrl}
+              alt="Profile"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-green-200 flex items-center justify-center">
+              <span className="text-3xl text-green-700 font-bold">
+                {user?.displayName?.charAt(0) || "?"}
+              </span>
+            </div>
+          )}
+        </button>
 
         <p
           onClick={() => setShowProfileModal(true)}
@@ -244,7 +281,7 @@ export default function Dashboard() {
           Edit profile
         </p>
 
-        <h2 className="text-3xl font-extrabold text-green-900">
+        <h2 className="text-3xl sm:text-4xl font-extrabold text-green-900">
           Welcome, {user?.displayName || "Golfer"}!
         </h2>
         <p className="text-green-800 mt-2 text-lg">
@@ -253,7 +290,7 @@ export default function Dashboard() {
       </header>
 
       {/* Buttons Section */}
-      <main className="w-full max-w-xs flex flex-col gap-4">
+      <main className="w-full max-w-xs flex flex-col gap-5">
         <button
           className="w-full py-3 bg-green-700 text-white rounded-xl font-semibold shadow-lg hover:bg-green-800 transition"
           onClick={() => navigate("/leaderboard")}
@@ -266,6 +303,20 @@ export default function Dashboard() {
           onClick={() => navigate("/scores")}
         >
           Enter Scores
+        </button>
+
+        <button
+          onClick={() => navigate("/join-team")}
+          className="w-full py-3 bg-green-600 text-white rounded-xl font-semibold shadow-lg hover:bg-green-700 transition"
+        >
+          Join a Team
+        </button>
+
+        <button
+          onClick={() => navigate("/viewteams")}
+          className="w-full py-3 bg-green-500 text-white rounded-xl font-semibold shadow-lg hover:bg-green-600 transition"
+        >
+          View Teams
         </button>
 
         <button
@@ -283,9 +334,13 @@ export default function Dashboard() {
         </button>
       </main>
 
-      <footer className="mt-10 text-green-900 text-sm">2025 Golf Trip Leaderboard</footer>
+      <footer className="mt-12 text-green-900 text-sm">
+        2025 Golf Trip Leaderboard
+      </footer>
 
-      {showProfileModal && <ProfileModal user={user} onClose={() => setShowProfileModal(false)} />}
+      {showProfileModal && (
+        <ProfileModal user={user} onClose={() => setShowProfileModal(false)} />
+      )}
     </div>
   );
 }

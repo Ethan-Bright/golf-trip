@@ -11,8 +11,10 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Leaderboard from "./pages/Leaderboard";
+import JoinTeam from "./pages/JoinTeam";
 import { courses } from "./data/courses";
 import EnterScoreWrapper from "./pages/EnterScoreWrapper"; // ✅ matches your singular naming
+import ViewTeams from "./pages/ViewTeams";
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -44,12 +46,21 @@ function App() {
               </PrivateRoute>
             }
           />
-          
+
           <Route
             path="/leaderboard"
             element={
               <PrivateRoute>
                 <Leaderboard />
+              </PrivateRoute>
+            }
+          />
+          <Route path="/join-team" element={<JoinTeam />} />
+          <Route
+            path="/ViewTeams"
+            element={
+              <PrivateRoute>
+                <ViewTeams />
               </PrivateRoute>
             }
           />
