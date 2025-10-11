@@ -74,49 +74,42 @@ function ProfileModal({ user, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-md w-full max-h-[90vh] overflow-y-auto drop-shadow-lg animate-fadeIn">
+    <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b">
-          <h3 className="text-xl font-bold text-green-900">Edit Profile</h3>
+        <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Profile Settings</h3>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl transition"
+            className="text-gray-500 dark:text-gray-400 text-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl p-1"
           >
             ×
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b">
+        <div className="flex border-b border-gray-200 dark:border-gray-700">
           <button
             onClick={() => setActiveTab("profile")}
-            className={`flex-1 py-3 text-center font-medium transition ${
-              activeTab === "profile"
-                ? "text-green-700 border-b-2 border-green-700 bg-green-50"
-                : "text-gray-600 hover:text-green-700"
-            }`}
+            className={`flex-1 py-4 text-center font-medium ${activeTab === "profile" ? "text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400 bg-green-50 dark:bg-green-900/20" : "text-gray-600 dark:text-gray-300"}`}
           >
             Profile
           </button>
           <button
             onClick={() => setActiveTab("password")}
-            className={`flex-1 py-3 text-center font-medium transition ${
-              activeTab === "password"
-                ? "text-green-700 border-b-2 border-green-700 bg-green-50"
-                : "text-gray-600 hover:text-green-700"
-            }`}
+            className={`flex-1 py-4 text-center font-medium ${activeTab === "password" ? "text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400 bg-green-50 dark:bg-green-900/20" : "text-gray-600 dark:text-gray-300"}`}
           >
             Password
           </button>
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-6">
           {activeTab === "profile" && (
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <form onSubmit={handleUpdateProfile} className="space-y-6">
+
               {/* Profile Picture */}
               <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Profile Picture
                 </label>
                 <div className="flex items-center gap-4">
@@ -129,7 +122,7 @@ function ProfileModal({ user, onClose }) {
                   />
                   <label
                     htmlFor="profile-picture-edit"
-                    className="px-4 py-2 bg-green-100 text-green-700 rounded-lg cursor-pointer hover:bg-green-200 transition"
+                    className="px-4 py-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-2xl cursor-pointer font-medium"
                   >
                     Choose Photo
                   </label>
@@ -137,14 +130,14 @@ function ProfileModal({ user, onClose }) {
                     <img
                       src={profilePicturePreview}
                       alt="Profile preview"
-                      className="w-14 h-14 rounded-full object-cover border border-green-200"
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-green-200 dark:border-green-700"
                     />
                   )}
                 </div>
                 {uploadProgress > 0 && (
-                  <div className="w-full bg-green-100 rounded-full h-2 mt-2">
+                  <div className="w-full bg-green-100 dark:bg-green-900/30 rounded-full h-2 mt-3">
                     <div
-                      className="bg-green-700 h-2 rounded-full transition-all"
+                      className="bg-green-600 dark:bg-green-400 h-2 rounded-full"
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
                   </div>
@@ -153,21 +146,21 @@ function ProfileModal({ user, onClose }) {
 
               {/* Display Name */}
               <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Display Name
                 </label>
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
                   required
                 />
               </div>
 
               {/* Handicap */}
               <div>
-                <label className="block text-sm font-medium text-green-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Handicap
                 </label>
                 <input
@@ -175,7 +168,7 @@ function ProfileModal({ user, onClose }) {
                   step="0.1"
                   value={handicap}
                   onChange={(e) => setHandicap(e.target.value)}
-                  className="w-full px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
                   required
                 />
               </div>
@@ -183,7 +176,7 @@ function ProfileModal({ user, onClose }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition disabled:opacity-50 font-semibold"
+                className="w-full py-4 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 disabled:opacity-50"
               >
                 {loading ? "Updating..." : "Update Profile"}
               </button>
@@ -191,10 +184,10 @@ function ProfileModal({ user, onClose }) {
           )}
 
           {activeTab === "password" && (
-            <form onSubmit={handleUpdatePassword} className="space-y-4">
+            <form onSubmit={handleUpdatePassword} className="space-y-6">
               {["Current", "New", "Confirm New"].map((label, i) => (
                 <div key={i}>
-                  <label className="block text-sm font-medium text-green-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                     {label} Password
                   </label>
                   <input
@@ -202,14 +195,12 @@ function ProfileModal({ user, onClose }) {
                     value={
                       i === 0 ? oldPassword : i === 1 ? newPassword : confirmPassword
                     }
-                    onChange={(e) =>
-                      i === 0
-                        ? setOldPassword(e.target.value)
-                        : i === 1
-                        ? setNewPassword(e.target.value)
-                        : setConfirmPassword(e.target.value)
-                    }
-                    className="w-full px-3 py-2 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    onChange={(e) => {
+                      if (i === 0) setOldPassword(e.target.value);
+                      else if (i === 1) setNewPassword(e.target.value);
+                      else setConfirmPassword(e.target.value);
+                    }}
+                    className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
                     required
                   />
                 </div>
@@ -217,7 +208,7 @@ function ProfileModal({ user, onClose }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition disabled:opacity-50 font-semibold"
+                className="w-full py-4 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 disabled:opacity-50"
               >
                 {loading ? "Updating..." : "Update Password"}
               </button>
@@ -225,10 +216,14 @@ function ProfileModal({ user, onClose }) {
           )}
 
           {error && (
-            <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">{error}</div>
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-2xl text-sm">
+              {error}
+            </div>
           )}
           {success && (
-            <div className="p-3 bg-green-100 text-green-700 rounded-lg text-sm">{success}</div>
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 rounded-2xl text-sm">
+              {success}
+            </div>
           )}
         </div>
       </div>
@@ -252,95 +247,143 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start bg-green-100 p-6">
-      {/* Header */}
-      <header className="w-full text-center mb-8 mt-6 flex flex-col items-center">
-        <button
-          onClick={() => setShowProfileModal(true)}
-          className="w-24 h-24 rounded-full overflow-hidden border-4 border-green-300 hover:border-green-500 transition-all duration-200 shadow-lg hover:shadow-xl mb-3"
-        >
-          {user?.profilePictureUrl ? (
-            <img
-              src={user.profilePictureUrl}
-              alt="Profile"
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-green-200 flex items-center justify-center">
-              <span className="text-3xl text-green-700 font-bold">
-                {user?.displayName?.charAt(0) || "?"}
-              </span>
+    <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-6 relative overflow-hidden">
+      {/* Swish Background Effect */}
+      <div className="absolute inset-0 opacity-20 dark:opacity-10">
+        <div className="absolute top-0 left-0 w-full h-full">
+          <div className="absolute top-10 left-10 w-96 h-96 bg-gradient-to-br from-green-400 to-green-600 rounded-full blur-3xl transform -rotate-12"></div>
+          <div className="absolute top-32 right-20 w-80 h-80 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full blur-3xl transform rotate-12"></div>
+          <div className="absolute bottom-20 left-1/4 w-72 h-72 bg-gradient-to-br from-green-300 to-yellow-500 rounded-full blur-3xl transform rotate-45"></div>
+          <div className="absolute bottom-10 right-1/3 w-64 h-64 bg-gradient-to-br from-yellow-300 to-green-500 rounded-full blur-3xl transform -rotate-30"></div>
+        </div>
+      </div>
+      <div className="max-w-md mx-auto relative z-10">
+        {/* Header */}
+        <header className="text-center mb-8">
+          <button
+            onClick={() => setShowProfileModal(true)}
+            className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-green-300 dark:border-green-500 shadow-xl hover:shadow-2xl transition-all duration-200 mb-4 group"
+          >
+            {user?.profilePictureUrl ? (
+              <img
+                src={user.profilePictureUrl}
+                alt="Profile"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-br from-green-400 to-green-600 dark:from-green-500 dark:to-green-700 flex items-center justify-center group-hover:from-green-500 group-hover:to-green-700 dark:group-hover:from-green-600 dark:group-hover:to-green-800 transition-all duration-200">
+                <span className="text-3xl text-white font-bold">
+                  {user?.displayName?.charAt(0) || "?"}
+                </span>
+              </div>
+            )}
+          </button>
+
+
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Welcome, {user?.displayName || "Golfer"}!
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 text-lg">
+            Handicap: <span className="font-semibold text-green-600 dark:text-green-400">{user?.handicap || "—"}</span>
+          </p>
+        </header>
+
+        {/* Navigation Cards */}
+        <main className="space-y-4 mb-8">
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={() => navigate("/leaderboard")}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Leaderboard</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">View tournament standings</p>
+              </div>
             </div>
-          )}
-        </button>
+          </button>
 
-        <p
-          onClick={() => setShowProfileModal(true)}
-          className="text-green-700 text-sm hover:underline cursor-pointer mb-4"
-        >
-          Edit profile
-        </p>
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={() => navigate("/scores")}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7H3v2h16V4z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Enter Scores</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">Record your round scores</p>
+              </div>
+            </div>
+          </button>
 
-        <h2 className="text-3xl sm:text-4xl font-extrabold text-green-900">
-          Welcome, {user?.displayName || "Golfer"}!
-        </h2>
-        <p className="text-green-800 mt-2 text-lg">
-          Handicap: <span className="font-semibold">{user?.handicap || "—"}</span>
-        </p>
-      </header>
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={() => navigate("/join-team")}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-2 14c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm6-8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm0 8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Join Team</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">Join a tournament team</p>
+              </div>
+            </div>
+          </button>
 
-      {/* Buttons Section */}
-      <main className="w-full max-w-xs flex flex-col gap-5">
-        <button
-          className="w-full py-3 bg-green-700 text-white rounded-xl font-semibold shadow-lg hover:bg-green-800 transition"
-          onClick={() => navigate("/leaderboard")}
-        >
-          View Leaderboard
-        </button>
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={() => navigate("/viewteams")}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">View Teams</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">Browse all teams</p>
+              </div>
+            </div>
+          </button>
 
-        <button
-          className="w-full py-3 bg-yellow-500 text-green-900 rounded-xl font-semibold shadow-lg hover:bg-yellow-600 transition"
-          onClick={() => navigate("/scores")}
-        >
-          Enter Scores
-        </button>
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={handleLogout}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center">
+                <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Sign Out</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">Logout from your account</p>
+              </div>
+            </div>
+          </button>
+        </main>
 
-        <button
-          onClick={() => navigate("/join-team")}
-          className="w-full py-3 bg-green-600 text-white rounded-xl font-semibold shadow-lg hover:bg-green-700 transition"
-        >
-          Join a Team
-        </button>
+        <footer className="text-center text-gray-500 dark:text-gray-400 text-sm">
+          © 2025 Golf Trip Leaderboard
+        </footer>
 
-        <button
-          onClick={() => navigate("/viewteams")}
-          className="w-full py-3 bg-green-500 text-white rounded-xl font-semibold shadow-lg hover:bg-green-600 transition"
-        >
-          View Teams
-        </button>
-
-        <button
-          className="w-full py-3 bg-blue-400 text-white rounded-xl font-semibold shadow-lg hover:bg-blue-500 transition"
-          onClick={() => navigate("/courses")}
-        >
-          Course Info
-        </button>
-
-        <button
-          className="w-full py-3 bg-red-500 text-white rounded-xl font-semibold shadow-lg hover:bg-red-600 transition"
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
-      </main>
-
-      <footer className="mt-12 text-green-900 text-sm">
-        2025 Golf Trip Leaderboard
-      </footer>
-
-      {showProfileModal && (
-        <ProfileModal user={user} onClose={() => setShowProfileModal(false)} />
-      )}
+        {showProfileModal && (
+          <ProfileModal user={user} onClose={() => setShowProfileModal(false)} />
+        )}
+      </div>
     </div>
   );
 }

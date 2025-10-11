@@ -57,68 +57,81 @@ export default function Leaderboard({ tournamentId }) {
 
   if (!game)
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-green-50 to-white p-4">
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="self-start mb-6 px-4 py-2 bg-green-200 text-green-900 rounded-lg hover:bg-green-300 transition"
-        >
-          &larr; Back to Dashboard
-        </button>
-        <p className="text-gray-600 text-lg text-center">No active games found. Create a game first!</p>
+      <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-6">
+        <div className="max-w-lg mx-auto">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl"
+          >
+            ← Back to Dashboard
+          </button>
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8 text-center">
+            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Active Games</h3>
+            <p className="text-gray-600 dark:text-gray-300">Create a game first to view the leaderboard</p>
+          </div>
+        </div>
       </div>
     );
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-gradient-to-b from-green-50 to-white p-4">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate("/dashboard")}
-        className="self-start mb-4 px-4 py-2 bg-green-200 text-green-900 rounded-lg hover:bg-green-300 transition"
-      >
-        &larr; Back to Dashboard
-      </button>
+    <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-6">
+      <div className="max-w-lg mx-auto">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl"
+        >
+          ← Back to Dashboard
+        </button>
 
-      {/* Game Selection Dropdown */}
-      {allGames.length > 1 && (
-        <div className="w-full max-w-lg bg-white rounded-2xl shadow-md p-5 mb-4">
-          <label className="block text-sm font-medium text-green-700 mb-2">
-            Select Game:
-          </label>
-          <select
-            value={selectedGameId || ''}
-            onChange={(e) => setSelectedGameId(e.target.value)}
-            className="w-full p-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            {allGames.map(game => (
-              <option key={game.id} value={game.id}>
-                {game.name} - {game.course?.name || 'Unknown Course'} - {game.createdAt ? new Date(game.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown Date'}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Game Header */}
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-md p-5 mb-6 text-center">
-        <h2 className="text-3xl font-bold text-green-700 mb-1">{game.name}</h2>
-        <p className="text-lg font-medium text-green-600 mb-1">
-          {game.course?.name || 'Unknown Course'}
-        </p>
-        {game.createdAt && (
-          <p className="text-sm text-gray-500">
-            {new Date(game.createdAt.seconds * 1000).toLocaleDateString()}
-          </p>
+        {/* Game Selection Dropdown */}
+        {allGames.length > 1 && (
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-6">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+              Select Game
+            </label>
+            <select
+              value={selectedGameId || ''}
+              onChange={(e) => setSelectedGameId(e.target.value)}
+              className="w-full p-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            >
+              {allGames.map(game => (
+                <option key={game.id} value={game.id}>
+                  {game.name} - {game.course?.name || 'Unknown Course'} - {game.createdAt ? new Date(game.createdAt.seconds * 1000).toLocaleDateString() : 'Unknown Date'}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
-      </div>
 
-      {/* Leaderboard Section */}
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-md p-5 mb-8">
-        {/* Pass selectedGameId to ensure team leaderboard loads correctly */}
-        <LeaderboardComponent tournamentId={selectedGameId} />
-      </div>
+        {/* Game Header */}
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-6 text-center">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{game.name}</h2>
+          <p className="text-lg font-medium text-green-600 dark:text-green-400 mb-1">
+            {game.course?.name || 'Unknown Course'}
+          </p>
+          {game.createdAt && (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {new Date(game.createdAt.seconds * 1000).toLocaleDateString()}
+            </p>
+          )}
+        </div>
 
-      {/* Footer */}
-      <p className="text-xs text-gray-400 mt-auto mb-2">🏌️ Golf Tournament Tracker</p>
+        {/* Leaderboard Section */}
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-8">
+          <LeaderboardComponent tournamentId={selectedGameId} />
+        </div>
+
+        {/* Footer */}
+        <div className="text-center text-gray-500 dark:text-gray-400 text-sm">
+          Golf Tournament Tracker
+        </div>
+      </div>
     </div>
   );
 }

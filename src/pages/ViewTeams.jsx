@@ -26,83 +26,89 @@ export default function ViewTeams() {
   if (loading) return <p className="text-center mt-6">Loading teams...</p>;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <h2 className="text-2xl sm:text-3xl font-bold text-green-700 mb-6 text-center">
-        Current Teams
-      </h2>
-
-      {teams.length === 0 ? (
-        <p className="text-center mt-6 text-gray-500">
-          No teams have been created yet.
-        </p>
-      ) : (
-        <div className="space-y-4">
-          {teams.map((team) => (
-            <div
-              key={team.id}
-              className="p-4 bg-green-300 rounded-xl flex flex-col sm:flex-row justify-center sm:justify-start items-center gap-6 shadow-sm"
-            >
-              {/* Team name */}
-              <h3 className="w-full text-center sm:text-left text-green-900 font-bold text-lg mb-2">
-                {team.name}
-              </h3>
-
-              {/* Player 1 */}
-              <div className="flex flex-col items-center">
-                {team.player1.profilePictureUrl ? (
-                  <img
-                    src={team.player1.profilePictureUrl}
-                    alt={team.player1.displayName}
-                    className="w-14 h-14 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-14 h-14 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-bold text-lg">
-                    {team.player1.displayName.charAt(0)}
-                  </div>
-                )}
-                <span className="font-medium text-green-800 mt-1 text-center">
-                  {team.player1.displayName} (HCP: {team.player1.handicap})
-                </span>
-              </div>
-
-              {/* vs separator */}
-              <span className="text-gray-500 font-bold text-lg">and</span>
-
-              {/* Player 2 */}
-              {team.player2 ? (
-                <div className="flex flex-col items-center">
-                  {team.player2.profilePictureUrl ? (
-                    <img
-                      src={team.player2.profilePictureUrl}
-                      alt={team.player2.displayName}
-                      className="w-14 h-14 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-bold text-lg">
-                      {team.player2.displayName.charAt(0)}
-                    </div>
-                  )}
-                  <span className="font-medium text-green-800 mt-1 text-center">
-                    {team.player2.displayName} (HCP: {team.player2.handicap})
-                  </span>
-                </div>
-              ) : (
-                <span className="text-gray-500 font-semibold">
-                  Waiting for a partner
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="flex justify-center mt-8">
+    <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-6">
+      <div className="max-w-4xl mx-auto">
         <button
           onClick={() => navigate("/dashboard")}
-          className="px-6 py-3 bg-green-700 text-white font-semibold rounded-xl shadow hover:bg-green-800 transition"
+          className="mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl"
         >
-          Back to Dashboard
+          ← Back to Dashboard
         </button>
+
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
+            Current Teams
+          </h2>
+
+          {teams.length === 0 ? (
+            <p className="text-center mt-6 text-gray-600 dark:text-gray-300">
+              No teams have been created yet.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {teams.map((team) => (
+                <div
+                  key={team.id}
+                  className="p-6 bg-gray-50 dark:bg-gray-700 rounded-2xl shadow-lg"
+                >
+                  {/* Team name */}
+                  <h3 className="text-center text-gray-900 dark:text-white font-bold text-xl mb-4">
+                    {team.name}
+                  </h3>
+
+                  <div className="flex items-center justify-center gap-6">
+                    {/* Player 1 */}
+                    <div className="flex flex-col items-center">
+                      {team.player1.profilePictureUrl ? (
+                        <img
+                          src={team.player1.profilePictureUrl}
+                          alt={team.player1.displayName}
+                          className="w-16 h-16 rounded-2xl object-cover"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 font-bold text-xl">
+                          {team.player1.displayName.charAt(0)}
+                        </div>
+                      )}
+                      <span className="font-medium text-gray-900 dark:text-white mt-2 text-center">
+                        {team.player1.displayName}
+                      </span>
+                      <span className="text-gray-600 dark:text-gray-300 text-sm">HCP: {team.player1.handicap}</span>
+                    </div>
+
+                    {/* vs separator */}
+                    <span className="text-gray-500 dark:text-gray-400 font-bold text-lg">and</span>
+
+                    {/* Player 2 */}
+                    {team.player2 ? (
+                      <div className="flex flex-col items-center">
+                        {team.player2.profilePictureUrl ? (
+                          <img
+                            src={team.player2.profilePictureUrl}
+                            alt={team.player2.displayName}
+                            className="w-16 h-16 rounded-2xl object-cover"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 font-bold text-xl">
+                            {team.player2.displayName.charAt(0)}
+                          </div>
+                        )}
+                        <span className="font-medium text-gray-900 dark:text-white mt-2 text-center">
+                          {team.player2.displayName}
+                        </span>
+                        <span className="text-gray-600 dark:text-gray-300 text-sm">HCP: {team.player2.handicap}</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500 dark:text-gray-400 font-semibold">
+                        Waiting for a partner
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

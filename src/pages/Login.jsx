@@ -23,57 +23,83 @@ export default function Login() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-green-100">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate("/")}
-        className="self-start mb-6 px-4 py-2 bg-green-200 text-green-900 rounded-lg hover:bg-green-300 transition"
-      >
-        &larr; Back
-      </button>
-
-      <h2 className="text-3xl font-extrabold mb-2 text-green-900">Login</h2>
-      <p className="text-green-800 mb-6 text-sm">Welcome back to Golf Trip Leaderboard</p>
-
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm flex flex-col gap-4 bg-white shadow-md rounded-xl p-6"
-      >
-        <input
-          type="text"
-          placeholder="Display Name"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          required
-          className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
-
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          className="w-full px-4 py-3 border border-green-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
-
+    <div className="min-h-screen bg-green-100 dark:bg-gray-900 flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-md mx-auto">
         <button
-          type="submit"
-          className="w-full py-3 bg-green-700 text-white font-semibold rounded-lg shadow hover:bg-green-800 transition"
+          onClick={() => navigate("/")}
+          className="mb-8 inline-flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold rounded-2xl shadow-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 transition-all duration-200"
         >
-          Login
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back
         </button>
-      </form>
 
-      {error && (
-        <p className="text-red-500 mt-4 text-sm text-center bg-red-100 px-3 py-2 rounded-lg shadow-sm">
-          {error}
-        </p>
-      )}
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8 backdrop-blur-sm">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-500 to-green-600 dark:from-green-400 dark:to-green-500 rounded-2xl flex items-center justify-center shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome Back</h2>
+            <p className="text-gray-600 dark:text-gray-300">Sign in to your account</p>
+          </div>
 
-      <footer className="mt-10 text-green-900 text-sm">
-        © 2025 Golf Trip Leaderboard
-      </footer>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <input
+                type="text"
+                placeholder="Display Name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+              />
+            </div>
+
+            <div>
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-4 bg-green-600 dark:bg-green-500 text-white font-semibold rounded-2xl shadow-lg hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 transition-all duration-200"
+            >
+              Sign In
+            </button>
+          </form>
+
+          {error && (
+            <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-2xl text-sm">
+              {error}
+            </div>
+          )}
+
+          <div className="mt-8 text-center">
+            <p className="text-gray-500 dark:text-gray-400 text-sm">
+              Don't have an account?{" "}
+              <button
+                onClick={() => navigate("/register")}
+                className="text-green-600 dark:text-green-400 font-semibold"
+              >
+                Create one
+              </button>
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 text-center text-gray-500 dark:text-gray-400 text-sm">
+          © 2025 Golf Trip Leaderboard
+        </div>
+      </div>
     </div>
   );
 }

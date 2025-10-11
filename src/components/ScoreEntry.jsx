@@ -3,10 +3,12 @@ import { db, createdAt } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { Modal, useModal } from "./Modal";
 
 export default function ScoreEntry({ tournamentId, course }) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { modal, showModal, hideModal, showSuccess, showError } = useModal();
   const [holeInputs, setHoleInputs] = useState(Array(18).fill(""));
   const [netScores, setNetScores] = useState(Array(18).fill(0));
   const [points, setPoints] = useState(0);
@@ -61,10 +63,10 @@ export default function ScoreEntry({ tournamentId, course }) {
           createdAt: createdAt(),
         });
       }
-      alert("Scores saved!"); // don't reset holeInputs
+      showSuccess("Scores saved successfully!", "Success"); // don't reset holeInputs
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      showError(err.message, "Error");
     }
   };
 
@@ -133,6 +135,8 @@ export default function ScoreEntry({ tournamentId, course }) {
           Back to Dashboard
         </button>
       </div>
+      
+      <Modal {...modal} onClose={hideModal} />
     </div>
   );
 }
