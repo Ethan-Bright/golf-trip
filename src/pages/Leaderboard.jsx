@@ -21,7 +21,6 @@ export default function Leaderboard({ tournamentId }) {
       const snapshot = await getDocs(q);
       const games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setAllGames(games);
-      console.log("Found all games:", games);
       
       // Set default selected game
       if (games.length > 0) {
@@ -32,7 +31,7 @@ export default function Leaderboard({ tournamentId }) {
     }
     
     if (tournamentId) {
-      // If tournamentId is provided, use it
+      // If tournamentId is provided via props, use it
       const loadSpecificGame = async () => {
         const gdoc = await getDoc(doc(db, "games", tournamentId));
         if (gdoc.exists()) {
@@ -46,7 +45,7 @@ export default function Leaderboard({ tournamentId }) {
     }
   }, [tournamentId]);
 
-  // Handle game selection change
+  // Update game when selectedGameId changes
   useEffect(() => {
     if (selectedGameId && allGames.length > 0) {
       const selectedGame = allGames.find(g => g.id === selectedGameId);
@@ -59,14 +58,12 @@ export default function Leaderboard({ tournamentId }) {
   if (!game)
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-green-50 to-white p-4">
-        {/* Back Button */}
         <button
           onClick={() => navigate("/dashboard")}
           className="self-start mb-6 px-4 py-2 bg-green-200 text-green-900 rounded-lg hover:bg-green-300 transition"
         >
           &larr; Back to Dashboard
         </button>
-        
         <p className="text-gray-600 text-lg text-center">No active games found. Create a game first!</p>
       </div>
     );
@@ -116,8 +113,8 @@ export default function Leaderboard({ tournamentId }) {
 
       {/* Leaderboard Section */}
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-md p-5 mb-8">
-        
-        <LeaderboardComponent tournamentId={game.id} />
+        {/* Pass selectedGameId to ensure team leaderboard loads correctly */}
+        <LeaderboardComponent tournamentId={selectedGameId} />
       </div>
 
       {/* Footer */}

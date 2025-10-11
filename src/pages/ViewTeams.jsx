@@ -40,8 +40,13 @@ export default function ViewTeams() {
           {teams.map((team) => (
             <div
               key={team.id}
-              className="p-4 bg-green-50 rounded-xl flex flex-wrap justify-center sm:justify-start items-center gap-6 shadow-sm"
+              className="p-4 bg-green-300 rounded-xl flex flex-col sm:flex-row justify-center sm:justify-start items-center gap-6 shadow-sm"
             >
+              {/* Team name */}
+              <h3 className="w-full text-center sm:text-left text-green-900 font-bold text-lg mb-2">
+                {team.name}
+              </h3>
+
               {/* Player 1 */}
               <div className="flex flex-col items-center">
                 {team.player1.profilePictureUrl ? (
