@@ -16,6 +16,7 @@ import JoinTeam from "./pages/JoinTeam";
 import { courses } from "./data/courses";
 import EnterScoreWrapper from "./pages/EnterScoreWrapper";
 import ViewTeams from "./pages/ViewTeams";
+import CourseInfo from "./pages/CourseInfo";
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -66,6 +67,7 @@ function App() {
                 </PrivateRoute>
               }
             />
+            <Route path="/courses" element={<CourseInfo />} />
           </Routes>
         </Router>
       </AuthProvider>
