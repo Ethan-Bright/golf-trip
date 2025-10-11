@@ -6,6 +6,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -13,7 +14,7 @@ import Dashboard from "./pages/Dashboard";
 import Leaderboard from "./pages/Leaderboard";
 import JoinTeam from "./pages/JoinTeam";
 import { courses } from "./data/courses";
-import EnterScoreWrapper from "./pages/EnterScoreWrapper"; // ✅ matches your singular naming
+import EnterScoreWrapper from "./pages/EnterScoreWrapper";
 import ViewTeams from "./pages/ViewTeams";
 
 function PrivateRoute({ children }) {
@@ -23,50 +24,52 @@ function PrivateRoute({ children }) {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route
-            path="/scores"
-            element={
-              <PrivateRoute>
-                <EnterScoreWrapper courses={courses} />
-              </PrivateRoute>
-            }
-          />
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route
+              path="/scores"
+              element={
+                <PrivateRoute>
+                  <EnterScoreWrapper courses={courses} />
+                </PrivateRoute>
+              }
+            />
 
-          <Route
-            path="/dashboard"
-            element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            }
-          />
+            <Route
+              path="/dashboard"
+              element={
+                <PrivateRoute>
+                  <Dashboard />
+                </PrivateRoute>
+              }
+            />
 
-          <Route
-            path="/leaderboard"
-            element={
-              <PrivateRoute>
-                <Leaderboard />
-              </PrivateRoute>
-            }
-          />
-          <Route path="/join-team" element={<JoinTeam />} />
-          <Route
-            path="/ViewTeams"
-            element={
-              <PrivateRoute>
-                <ViewTeams />
-              </PrivateRoute>
-            }
-          />
-        </Routes>
-      </Router>
-    </AuthProvider>
+            <Route
+              path="/leaderboard"
+              element={
+                <PrivateRoute>
+                  <Leaderboard />
+                </PrivateRoute>
+              }
+            />
+            <Route path="/join-team" element={<JoinTeam />} />
+            <Route
+              path="/ViewTeams"
+              element={
+                <PrivateRoute>
+                  <ViewTeams />
+                </PrivateRoute>
+              }
+            />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

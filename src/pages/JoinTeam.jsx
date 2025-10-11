@@ -11,16 +11,20 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { Modal, useModal } from "../components/Modal";
 
 export default function JoinTeam() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { modal, showModal, hideModal, showSuccess, showError, showConfirm } = useModal();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [currentUserData, setCurrentUserData] = useState(null);
 
   const fetchUsers = async () => {
+    if (!user?.uid) return;
+    
     setLoading(true);
     const usersRef = collection(db, "users");
     const snapshot = await getDocs(usersRef);
@@ -40,8 +44,10 @@ export default function JoinTeam() {
   };
 
   useEffect(() => {
-    fetchUsers();
-  }, [user.uid]);
+    if (user?.uid) {
+      fetchUsers();
+    }
+  }, [user?.uid]);
   // Helper function to remove a team
   const removeTeam = async (teamId) => {
     if (!teamId) return;
@@ -79,32 +85,43 @@ export default function JoinTeam() {
 
       // If the current user is already in a team, remove the old team
       if (currentUserData.teamId) {
-        const proceed = window.confirm(
-          "You are already in a team. Joining another team will remove you and your teammate from your current team. Continue?"
+        showConfirm(
+          "You are already in a team. Joining another team will remove you and your teammate from your current team. Continue?",
+          "Confirm Team Change",
+          () => proceedWithJoin(selectedUser),
+          "Yes, Continue",
+          "Cancel"
         );
-        if (!proceed) {
-          navigate("/dashboard");
-          return;
+        return;
+      }
+      
+      proceedWithJoin(selectedUser);
+    } catch (error) {
+      console.error("Error in joinTeam:", error);
+    }
+  };
+    
+    const proceedWithJoin = async (selectedUser) => {
+      try {
+        const currentUserRef = doc(db, "users", currentUserData.id);
+        const selectedUserRef = doc(db, "users", selectedUser.id);
+        
+        // Remove old team and reset all members' teamId if needed
+        if (currentUserData.teamId) {
+          await removeTeam(currentUserData.teamId);
         }
 
-        // Remove old team and reset all members' teamId
-        await removeTeam(currentUserData.teamId);
-      }
+        // Determine teamId for the new team
+        const teamId = selectedUser.teamId || selectedUser.id;
 
-      // Determine teamId for the new team
-      const teamId = selectedUser.teamId || selectedUser.id;
-
-      // Prompt for a team name if creating a new team
-      let teamName = "";
-      const teamRef = doc(db, "teams", teamId);
-      const teamSnapshot = await getDoc(teamRef);
-      if (!teamSnapshot.exists()) {
-        teamName = window.prompt("Enter a name for your new team:");
-        if (!teamName || teamName.trim() === "") {
-          alert("Team name is required!");
-          return;
+        // Prompt for a team name if creating a new team
+        let teamName = "";
+        const teamRef = doc(db, "teams", teamId);
+        const teamSnapshot = await getDoc(teamRef);
+        if (!teamSnapshot.exists()) {
+          // For now, use a default team name - we'll implement a custom input later
+          teamName = `${currentUserData.displayName} & ${selectedUser.displayName} Team`;
         }
-      }
 
       // Update selected user if they don't have a team
       if (!selectedUser.teamId) {
@@ -141,6 +158,9 @@ export default function JoinTeam() {
       );
       setUsers((prev) => prev.filter((u) => u.id !== selectedUser.id));
       setCurrentUserData((prev) => ({ ...prev, teamId }));
+      
+      // Close the modal after successful join
+      hideModal();
     } catch (error) {
       console.error("Error joining team:", error);
     }
@@ -149,95 +169,126 @@ export default function JoinTeam() {
   const leaveTeam = async () => {
     if (!currentUserData || !currentUserData.teamId) return;
 
-    const confirmLeave = window.confirm(
-      "Are you sure you want to leave your current team? Your teammate will also be removed."
+    showConfirm(
+      "Are you sure you want to leave your current team? Your teammate will also be removed.",
+      "Leave Team",
+      () => proceedWithLeave(),
+      "Yes, Leave",
+      "Cancel"
     );
-    if (!confirmLeave) return;
-
+  };
+  
+  const proceedWithLeave = async () => {
     try {
       await removeTeam(currentUserData.teamId);
 
       setMessage("You have left your team, and the team has been deleted.");
       await fetchUsers();
       setCurrentUserData((prev) => ({ ...prev, teamId: null }));
+      
+      // Close the modal after successful leave
+      hideModal();
     } catch (error) {
       console.error("Error leaving team:", error);
     }
   };
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-green-100 dark:bg-gray-900 flex items-center justify-center p-6">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-green-200 dark:border-green-700 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (loading)
-    return <p className="text-green-800 text-center mt-10">Loading users...</p>;
+    return (
+      <div className="min-h-screen bg-green-100 dark:bg-gray-900 flex items-center justify-center p-6">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-green-200 dark:border-green-700 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading users...</p>
+        </div>
+      </div>
+    );
 
   return (
-    <div className="flex flex-col items-center min-h-screen bg-green-100 p-6">
-      <h2 className="text-3xl sm:text-4xl font-extrabold text-green-900 mb-6">
-        Join a Team
-      </h2>
-
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-6">
+      <div className="max-w-md mx-auto">
         <button
           onClick={() => navigate("/dashboard")}
-          className="w-full mb-4 py-3 bg-gray-300 text-green-900 rounded-xl font-semibold shadow hover:bg-gray-400 transition"
+          className="mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl"
         >
-          Back to Dashboard
+          ← Back to Dashboard
         </button>
 
-        {currentUserData && currentUserData.teamId && (
-          <button
-            onClick={leaveTeam}
-            className="w-full mb-4 py-3 bg-red-500 text-white rounded-xl font-semibold shadow hover:bg-red-600 transition"
-          >
-            Leave Current Team
-          </button>
-        )}
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
+            Join a Team
+          </h2>
 
-        {message && (
-          <div className="mb-4 p-4 bg-green-200 text-green-900 rounded-xl shadow text-center font-medium">
-            {message}
-          </div>
-        )}
 
-        {users.length === 0 ? (
-          <p className="text-green-900 text-center mt-4">
-            No users available to join.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {users.map((u) => (
-              <div
-                key={u.id}
-                className="flex flex-col sm:flex-row items-center justify-between bg-green-50 p-4 rounded-xl shadow hover:shadow-md transition gap-4"
-              >
-                <div className="flex items-center gap-3">
-                  {u.profilePictureUrl ? (
-                    <img
-                      src={u.profilePictureUrl}
-                      alt={u.displayName}
-                      className="w-14 h-14 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full bg-green-200 flex items-center justify-center text-green-700 font-bold text-xl">
-                      {u.displayName.charAt(0)}
-                    </div>
-                  )}
-                  <div className="text-left">
-                    <p className="font-semibold text-green-900 text-lg">
-                      {u.displayName}
-                    </p>
-                    <p className="text-green-800 text-sm">HCP: {u.handicap}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => joinTeam(u)}
-                  className="mt-3 sm:mt-0 px-5 py-2 bg-green-700 text-white rounded-xl font-semibold shadow hover:bg-green-800 transition"
+          {currentUserData && currentUserData.teamId && (
+            <button
+              onClick={leaveTeam}
+              className="w-full mb-4 py-3 bg-red-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+            >
+              Leave Current Team
+            </button>
+          )}
+
+          {message && (
+            <div className="mb-4 p-4 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-xl text-center font-medium">
+              {message}
+            </div>
+          )}
+
+          {users.length === 0 ? (
+            <p className="text-gray-600 dark:text-gray-300 text-center mt-4">
+              No users available to join.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {users.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-4 rounded-2xl shadow-lg gap-4"
                 >
-                  Join Team
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+                  <div className="flex items-center gap-3">
+                    {u.profilePictureUrl ? (
+                      <img
+                        src={u.profilePictureUrl}
+                        alt={u.displayName}
+                        className="w-12 h-12 rounded-xl object-cover"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 font-bold text-lg">
+                        {u.displayName.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {u.displayName}
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm">HCP: {u.handicap}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => joinTeam(u)}
+                    className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                  >
+                    Join Team
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+      
+      <Modal {...modal} onClose={hideModal} />
     </div>
   );
 }

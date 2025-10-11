@@ -12,9 +12,11 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
+import { Modal, useModal } from "../components/Modal";
 
 export default function EnterScore({ userId, user, courses }) {
   const navigate = useNavigate();
+  const { modal, showModal, hideModal, showSuccess, showError } = useModal();
 
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [gameName, setGameName] = useState("");
@@ -71,7 +73,7 @@ export default function EnterScore({ userId, user, courses }) {
   // --- Create new game ---
   const createGame = async () => {
     if (!selectedCourse || !gameName.trim()) {
-      alert("Please select a course and enter a game name");
+      showError("Please select a course and enter a game name", "Missing Information");
       return;
     }
 
@@ -103,7 +105,7 @@ export default function EnterScore({ userId, user, courses }) {
       setScores(initialScores);
     } catch (error) {
       console.error("Error creating game:", error);
-      alert("Failed to create game");
+      showError("Failed to create game", "Error");
     }
   };
 
@@ -153,7 +155,7 @@ export default function EnterScore({ userId, user, courses }) {
       }
     } catch (error) {
       console.error("Error joining game:", error);
-      alert("Failed to join game");
+      showError("Failed to join game", "Error");
     }
   };
 
@@ -209,7 +211,7 @@ export default function EnterScore({ userId, user, courses }) {
         updatedAt: serverTimestamp(),
       });
 
-      alert("Scores saved!");
+      showSuccess("Scores saved successfully!", "Success");
     }
   };
 
@@ -217,72 +219,81 @@ export default function EnterScore({ userId, user, courses }) {
   const holeInputs = scores.map((s) => s.gross ?? "");
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-green-50 to-white p-6">
-      <h1 className="text-3xl font-bold text-green-700 mb-6 text-center">
-        Enter Scores
-      </h1>
+    <div className="min-h-screen bg-gray-900 p-6">
+      <div className="max-w-4xl mx-auto">
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl"
+        >
+          ← Back to Dashboard
+        </button>
 
-      {!gameId && (
-        <div className="w-full max-w-md bg-white p-6 rounded-2xl shadow-lg border border-green-100 mb-6">
-          <h2 className="text-2xl font-semibold text-green-700 mb-4 text-center">
-            Select Course
-          </h2>
-          <select
-            onChange={handleCourseSelect}
-            defaultValue=""
-            className="w-full p-3 rounded-lg border border-green-300 mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            <option value="" disabled>
-              Select a course
-            </option>
-            {courses.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.name}
-              </option>
-            ))}
-          </select>
-
-          <input
-            placeholder="Game Name"
-            value={gameName}
-            onChange={(e) => setGameName(e.target.value)}
-            className="w-full p-3 mb-4 rounded-lg border border-green-300 focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
-
-          <button
-            onClick={createGame}
-            className="w-full px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-          >
-            Create Game
-          </button>
-
-          <h3 className="text-lg font-semibold text-green-700 mt-6 mb-2 text-center">
-            Or Join Existing Game
-          </h3>
-          <div className="max-h-64 overflow-y-auto">
-            {inProgressGames.map((game) => (
-              <div
-                key={game.id}
-                className="flex justify-between items-center p-2 border-b border-green-200"
-              >
-                <span>{game.name}</span>
-                <button
-                  onClick={() => joinGame(game)}
-                  className="px-4 py-1 bg-green-500 text-white rounded-lg hover:bg-green-600 transition"
-                >
-                  Join
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {gameId && selectedCourse && (
-        <div className="bg-green-50 p-6 rounded-2xl shadow-lg border border-green-100">
-          <h3 className="text-xl font-bold text-green-700 mb-2 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">
             Enter Scores
-          </h3>
+          </h1>
+
+          {!gameId && (
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 text-center">
+                Select Course
+              </h2>
+              <select
+                onChange={handleCourseSelect}
+                defaultValue=""
+                className="w-full p-4 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+              >
+                <option value="" disabled>
+                  Select a course
+                </option>
+                {courses.map((course) => (
+                  <option key={course.id} value={course.id}>
+                    {course.name}
+                  </option>
+                ))}
+              </select>
+
+              <input
+                placeholder="Game Name"
+                value={gameName}
+                onChange={(e) => setGameName(e.target.value)}
+                className="w-full p-4 mb-4 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+              />
+
+              <button
+                onClick={createGame}
+                className="w-full px-6 py-3 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              >
+                Create Game
+              </button>
+
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mt-6 mb-4 text-center">
+                Or Join Existing Game
+              </h3>
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {inProgressGames.map((game) => (
+                  <div
+                    key={game.id}
+                    className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"
+                  >
+                    <span className="text-gray-900 dark:text-white font-medium">{game.name}</span>
+                    <button
+                      onClick={() => joinGame(game)}
+                      className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                    >
+                      Join
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {gameId && selectedCourse && (
+            <div className="mt-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+                Enter Scores
+              </h3>
           <div className="text-center text-green-600 mb-6">
             Game:{" "}
             <span className="font-semibold">{gameName || "Untitled Game"}</span>
@@ -295,34 +306,64 @@ export default function EnterScore({ userId, user, courses }) {
             ) : null}
           </div>
 
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
-            {holeInputs.map((v, idx) => (
-              <div
-                key={idx}
-                className="flex flex-col items-center bg-white rounded-lg shadow-sm p-3 border border-green-100"
-              >
-                <label className="text-sm font-semibold text-green-700">
-                  Hole {idx + 1} (Par {selectedCourse.holes[idx].par}) (S.I.{" "}
-                  {selectedCourse.holes[idx].strokeIndex})
-                </label>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={v}
-                  onChange={(e) => handleInputChange(e, idx)}
-                  className="mt-1 w-16 text-center border border-green-300 rounded-md py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="-"
-                />
-                <div className="text-xs text-green-600 mt-1 text-center">
-                  Net: {scores[idx].netScore ?? "-"} | Points:{" "}
-                  {scores[idx].net ?? "-"}
-                </div>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+                {holeInputs.map((v, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col items-center bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-600 p-4 min-h-[160px]"
+                  >
+                    <div className="text-center mb-3">
+                      <div className="text-sm font-bold text-gray-900 dark:text-white">Hole {idx + 1}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Par {selectedCourse.holes[idx].par} • S.I. {selectedCourse.holes[idx].strokeIndex}</div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentValue = parseInt(v) || 0;
+                          if (currentValue > 1) {
+                            handleInputChange({ target: { value: (currentValue - 1).toString() } }, idx);
+                          }
+                        }}
+                        className="w-8 h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        −
+                      </button>
+                      
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={v}
+                        onChange={(e) => handleInputChange(e, idx)}
+                        className="w-16 h-8 text-center border-2 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        placeholder="-"
+                      />
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const currentValue = parseInt(v) || 0;
+                          if (currentValue < 15) {
+                            handleInputChange({ target: { value: (currentValue + 1).toString() } }, idx);
+                          }
+                        }}
+                        className="w-8 h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                      >
+                        +
+                      </button>
+                    </div>
+                    
+                    <div className="text-xs text-gray-600 dark:text-gray-300 text-center leading-tight">
+                      <div>Net: {scores[idx].netScore ?? "-"}</div>
+                      <div>Points: {scores[idx].net ?? "-"}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <div className="mt-6 text-center font-semibold text-lg text-green-700">
+          <div className="mt-6 text-center font-semibold text-lg text-green-700 dark:text-green-400">
             Total Points: {points}
           </div>
 
@@ -345,6 +386,10 @@ export default function EnterScore({ userId, user, courses }) {
           </div>
         </div>
       )}
+        </div>
+      </div>
+      
+      <Modal {...modal} onClose={hideModal} />
     </div>
   );
 }
