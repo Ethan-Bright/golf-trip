@@ -11,54 +11,47 @@ import {
 } from "firebase/firestore";
 import { courses } from "../data/courses";
 
-export default function Leaderboard() {
+export default function Leaderboard({ tournamentId }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [latestGame, setLatestGame] = useState(null);
+  const [gameData, setGameData] = useState(null);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
+      if (!tournamentId) return;
+      setLoading(true);
       try {
-        // 1️⃣ Fetch latest game
-        const gamesSnap = await getDocs(
-          query(collection(db, "games"), orderBy("createdAt", "desc"), limit(1))
-        );
-        const latestGameDoc = gamesSnap.docs[0];
-        if (!latestGameDoc) {
+        // 1️⃣ Fetch the selected game
+        const gdoc = await getDoc(doc(db, "games", tournamentId));
+        if (!gdoc.exists()) {
+          setLeaderboard([]);
+          setGameData(null);
           setLoading(false);
           return;
         }
-        const gameData = latestGameDoc.data();
-        setLatestGame(gameData);
+        const game = { id: gdoc.id, ...gdoc.data() };
+        setGameData(game);
 
         // 2️⃣ Fetch all users
         const usersSnap = await getDocs(collection(db, "users"));
-        const users = usersSnap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const users = usersSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
         // 3️⃣ Fetch all teams
         const teamsSnap = await getDocs(collection(db, "teams"));
-        const teams = teamsSnap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        const teams = teamsSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
         const leaderboardData = [];
 
         // Map players by userId in the game for quick access
         const gamePlayersMap = {};
-        gameData.players.forEach((p) => (gamePlayersMap[p.userId] = p));
+        game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
 
         // 4️⃣ Process teams
         teams.forEach((team) => {
-          // Get the two players for this team
           const player1 = users.find((u) => u.id === team.player1?.uid);
           const player2 = users.find((u) => u.id === team.player2?.uid);
-
           if (!player1 && !player2) return;
 
           let totalPoints = 0;
@@ -67,7 +60,6 @@ export default function Leaderboard() {
           for (let i = 0; i < 18; i++) {
             const p1Net = gamePlayersMap[player1?.id]?.scores?.[i]?.net ?? 0;
             const p2Net = gamePlayersMap[player2?.id]?.scores?.[i]?.net ?? 0;
-
             if (p1Net > 0 || p2Net > 0) holesThru++;
             totalPoints += Math.max(p1Net, p2Net);
           }
@@ -87,7 +79,7 @@ export default function Leaderboard() {
           .filter((u) => !u.teamId)
           .forEach((player) => {
             const gamePlayer = gamePlayersMap[player.id];
-            if (!gamePlayer) return; // skip if they didn't play
+            if (!gamePlayer) return;
 
             let totalPoints = 0;
             let holesThru = 0;
@@ -119,7 +111,7 @@ export default function Leaderboard() {
     };
 
     fetchLeaderboard();
-  }, []);
+  }, [tournamentId]); // ✅ refetch leaderboard whenever tournamentId changes
 
   const openModal = (team) => {
     setSelectedTeam(team);
@@ -130,8 +122,7 @@ export default function Leaderboard() {
     setModalOpen(false);
   };
 
-  if (loading)
-    return <p className="text-center mt-4">Loading leaderboard...</p>;
+  if (loading) return <p className="text-center mt-4">Loading leaderboard...</p>;
 
   return (
     <div className="max-w-3xl mx-auto mt-6 p-4 bg-white shadow-lg rounded-2xl">
@@ -172,13 +163,9 @@ export default function Leaderboard() {
                       </div>
                     )}
                     <div>
-                      <p className="font-medium">
-                        {player.displayName ?? "Unknown"}
-                      </p>
+                      <p className="font-medium">{player.displayName ?? "Unknown"}</p>
                       {!team.isSolo && (
-                        <p className="text-sm text-gray-500">
-                          HCP: {player.handicap}
-                        </p>
+                        <p className="text-sm text-gray-500">HCP: {player.handicap}</p>
                       )}
                       {team.isSolo && (
                         <p className="text-sm text-gray-500">Solo Player</p>
@@ -198,10 +185,10 @@ export default function Leaderboard() {
         </div>
       )}
 
-      {modalOpen && selectedTeam && latestGame && (
+      {modalOpen && selectedTeam && gameData && (
         <ScorecardModal
           team={selectedTeam}
-          game={latestGame}
+          game={gameData}
           onClose={closeModal}
         />
       )}
