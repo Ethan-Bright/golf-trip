@@ -17,7 +17,6 @@ import { courses } from "./data/courses";
 import EnterScoreWrapper from "./pages/EnterScoreWrapper";
 import ViewTeams from "./pages/ViewTeams";
 import ViewMembers from "./pages/ViewMembers";
-import CourseInfo from "./pages/CourseInfo";
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -28,7 +27,7 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router basename={import.meta.env.PROD ? "/golf-trip" : "/"}>
+        <Router basename={import.meta.env.DEV ? "/" : "/golf-trip"}>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
@@ -68,15 +67,8 @@ function App() {
                 </PrivateRoute>
               }
             />
-            <Route
-              path="/members"
-              element={
-                <PrivateRoute>
-                  <ViewMembers />
-                </PrivateRoute>
-              }
-            />
-            <Route path="/courses" element={<CourseInfo />} />
+            
+            <Route path="/members" element={<ViewMembers />} />
           </Routes>
         </Router>
       </AuthProvider>
