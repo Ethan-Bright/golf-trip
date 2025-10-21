@@ -1,6 +1,18 @@
 import React from 'react';
 
-export function Modal({ isOpen, onClose, title, message, type = 'info', onConfirm, confirmText = 'OK', cancelText = 'Cancel', showCancel = false }) {
+export function Modal({
+  isOpen,
+  onClose,
+  title,
+  message,
+  type = 'info',
+  onConfirm,
+  confirmText = 'OK',
+  cancelText = 'Cancel',
+  showCancel = false,
+  inputValue = '',
+  setInputValue = () => {},
+}) {
   if (!isOpen) return null;
 
   const getIcon = () => {
@@ -9,7 +21,7 @@ export function Modal({ isOpen, onClose, title, message, type = 'info', onConfir
         return (
           <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
             </svg>
           </div>
         );
@@ -17,7 +29,7 @@ export function Modal({ isOpen, onClose, title, message, type = 'info', onConfir
         return (
           <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z"/>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z" />
             </svg>
           </div>
         );
@@ -25,7 +37,7 @@ export function Modal({ isOpen, onClose, title, message, type = 'info', onConfir
         return (
           <div className="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-6 h-6 text-yellow-600 dark:text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
             </svg>
           </div>
         );
@@ -33,7 +45,7 @@ export function Modal({ isOpen, onClose, title, message, type = 'info', onConfir
         return (
           <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
             </svg>
           </div>
         );
@@ -57,15 +69,28 @@ export function Modal({ isOpen, onClose, title, message, type = 'info', onConfir
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6">
         {getIcon()}
-        
+
         <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-            {title}
-          </h3>
-          <p className="text-gray-600 dark:text-gray-300">
-            {message}
-          </p>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{title}</h3>
+          {type !== 'input' && (
+            <p className="text-gray-600 dark:text-gray-300">{message}</p>
+          )}
         </div>
+
+        {type === 'input' && (
+          <div className="mb-6">
+            <label className="block text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">
+              Team Name:
+            </label>
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Enter team name..."
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        )}
 
         <div className="flex gap-3">
           {showCancel && (
@@ -97,18 +122,20 @@ export function useModal() {
     onConfirm: null,
     confirmText: 'OK',
     cancelText: 'Cancel',
-    showCancel: false
+    showCancel: false,
+    inputValue: '',
+    setInputValue: () => {},
   });
 
   const showModal = (config) => {
     setModal({
       isOpen: true,
-      ...config
+      ...config,
     });
   };
 
   const hideModal = () => {
-    setModal(prev => ({ ...prev, isOpen: false }));
+    setModal((prev) => ({ ...prev, isOpen: false }));
   };
 
   const showAlert = (message, title = 'Notification') => {
@@ -135,7 +162,36 @@ export function useModal() {
       onConfirm,
       confirmText,
       cancelText,
-      showCancel: true
+      showCancel: true,
+    });
+  };
+
+  const showInput = (title = 'Enter Team Name') => {
+    return new Promise((resolve, reject) => {
+      let inputValue = '';
+      const setInputValue = (v) => {
+        inputValue = v;
+        setModal((prev) => ({ ...prev, inputValue: v }));
+      };
+      const handleConfirm = () => {
+        hideModal();
+        resolve(inputValue || '');
+      };
+      const handleCancel = () => {
+        hideModal();
+        reject(null);
+      };
+
+      showModal({
+        title,
+        type: 'input',
+        showCancel: true,
+        onConfirm: handleConfirm,
+        confirmText: 'Confirm',
+        cancelText: 'Cancel',
+        inputValue,
+        setInputValue,
+      });
     });
   };
 
@@ -147,6 +203,7 @@ export function useModal() {
     showSuccess,
     showError,
     showWarning,
-    showConfirm
+    showConfirm,
+    showInput,
   };
 }
