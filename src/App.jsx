@@ -16,6 +16,7 @@ import JoinTeam from "./pages/JoinTeam";
 import { courses } from "./data/courses";
 import EnterScoreWrapper from "./pages/EnterScoreWrapper";
 import ViewTeams from "./pages/ViewTeams";
+import ViewMembers from "./pages/ViewMembers";
 import CourseInfo from "./pages/CourseInfo";
 
 function PrivateRoute({ children }) {
@@ -27,7 +28,7 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router basename="/golf-trip">
+        <Router basename={import.meta.env.PROD ? "/golf-trip" : "/"}>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
@@ -64,6 +65,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <ViewTeams />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/members"
+              element={
+                <PrivateRoute>
+                  <ViewMembers />
                 </PrivateRoute>
               }
             />

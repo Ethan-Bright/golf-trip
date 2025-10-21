@@ -372,7 +372,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Join Team
+                  Join/Leave Team
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   Join a tournament team
@@ -406,8 +406,33 @@ export default function Dashboard() {
             </div>
           </button>
 
-          {/* New Course Details Button */}
           <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={() => navigate("/members")}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-2 14c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm6-8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm0 8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  View Members
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  See all tournament participants
+                </p>
+              </div>
+            </div>
+          </button>
+
+          {/* New Course Details Button */}
+          {/* <button
             className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
             onClick={() => navigate("/courses")}
           >
@@ -430,7 +455,7 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
-          </button>
+          </button> */}
 
           <button
             className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
@@ -459,7 +484,7 @@ export default function Dashboard() {
         </main>
 
         <footer className="text-center text-gray-500 dark:text-gray-400 text-sm">
-          © 2025 Golf Trip Leaderboard
+          Golf Trip Leaderboard
         </footer>
 
         {showProfileModal && (
