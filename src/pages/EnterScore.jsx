@@ -49,7 +49,12 @@ export default function EnterScore({ userId, user, courses }) {
       if (gameSnap.exists()) {
         const gameData = gameSnap.data();
         const player = gameData.players.find((p) => p.userId === userId);
-        if (player) setScores(player.scores);
+        if (player) {
+          setScores(player.scores);
+          // Recalculate total points when loading existing scores
+          const totalPoints = player.scores.reduce((sum, s) => sum + (s.net ?? 0), 0);
+          setPoints(totalPoints);
+        }
       }
     };
     fetchScores();
@@ -130,7 +135,11 @@ export default function EnterScore({ userId, user, courses }) {
           setGameId(game.id);
           setSelectedCourse(game.course);
           setGameName(game.name || "");
-          setScores(existingPlayer.scores || initialScores);
+          const playerScores = existingPlayer.scores || initialScores;
+          setScores(playerScores);
+          // Recalculate total points when loading existing scores
+          const totalPoints = playerScores.reduce((sum, s) => sum + (s.net ?? 0), 0);
+          setPoints(totalPoints);
         } else {
           const updatedPlayers = [
             ...gameData.players,

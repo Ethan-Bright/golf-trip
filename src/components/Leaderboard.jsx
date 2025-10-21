@@ -167,7 +167,7 @@ export default function Leaderboard({ tournamentId }) {
                   onClick={() => openModal(team)}
                   className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
                 >
-                  View Details
+                  View Scores
                 </button>
               </div>
 

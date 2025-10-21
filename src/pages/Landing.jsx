@@ -40,7 +40,7 @@ export default function Landing() {
         </div>
 
         <div className="text-gray-500 dark:text-gray-400 text-sm">
-          <p>© 2025 Golf Trip Leaderboard</p>
+          <p>Golf Trip Leaderboard</p>
         </div>
       </div>
     </div>
