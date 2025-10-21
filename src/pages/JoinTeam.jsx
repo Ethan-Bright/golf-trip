@@ -16,7 +16,7 @@ import { Modal, useModal } from "../components/Modal";
 export default function JoinTeam() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { modal, showModal, hideModal, showSuccess, showError, showConfirm } = useModal();
+  const { modal, showConfirm, showInput, hideModal } = useModal();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
@@ -24,7 +24,7 @@ export default function JoinTeam() {
 
   const fetchUsers = async () => {
     if (!user?.uid) return;
-    
+
     setLoading(true);
     const usersRef = collection(db, "users");
     const snapshot = await getDocs(usersRef);
@@ -44,46 +44,27 @@ export default function JoinTeam() {
   };
 
   useEffect(() => {
-    if (user?.uid) {
-      fetchUsers();
-    }
+    if (user?.uid) fetchUsers();
   }, [user?.uid]);
-  // Helper function to remove a team
+
   const removeTeam = async (teamId) => {
     if (!teamId) return;
-
     const usersRef = collection(db, "users");
     const snapshot = await getDocs(usersRef);
-    const allUsers = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    // Find all members in the team
+    const allUsers = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     const teammates = allUsers.filter((u) => u.teamId === teamId);
-
-    // Set their teamId to null
     for (const member of teammates) {
       const memberRef = doc(db, "users", member.id);
       await updateDoc(memberRef, { teamId: null });
     }
-
-    // Delete the team document
     const teamRef = doc(db, "teams", teamId);
     const teamSnapshot = await getDoc(teamRef);
-    if (teamSnapshot.exists()) {
-      await deleteDoc(teamRef);
-    }
+    if (teamSnapshot.exists()) await deleteDoc(teamRef);
   };
 
   const joinTeam = async (selectedUser) => {
     if (!currentUserData) return;
-
     try {
-      const currentUserRef = doc(db, "users", currentUserData.id);
-      const selectedUserRef = doc(db, "users", selectedUser.id);
-
-      // If the current user is already in a team, remove the old team
       if (currentUserData.teamId) {
         showConfirm(
           "You are already in a team. Joining another team will remove you and your teammate from your current team. Continue?",
@@ -92,46 +73,44 @@ export default function JoinTeam() {
           "Yes, Continue",
           "Cancel"
         );
-        return;
+      } else {
+        proceedWithJoin(selectedUser);
       }
-      
-      proceedWithJoin(selectedUser);
     } catch (error) {
       console.error("Error in joinTeam:", error);
     }
   };
-    
-    const proceedWithJoin = async (selectedUser) => {
-      try {
-        const currentUserRef = doc(db, "users", currentUserData.id);
-        const selectedUserRef = doc(db, "users", selectedUser.id);
-        
-        // Remove old team and reset all members' teamId if needed
-        if (currentUserData.teamId) {
-          await removeTeam(currentUserData.teamId);
+
+  const proceedWithJoin = async (selectedUser) => {
+    try {
+      const currentUserRef = doc(db, "users", currentUserData.id);
+      const selectedUserRef = doc(db, "users", selectedUser.id);
+
+      if (currentUserData.teamId) {
+        await removeTeam(currentUserData.teamId);
+      }
+
+      const teamId = selectedUser.teamId || selectedUser.id;
+      const teamRef = doc(db, "teams", teamId);
+      const teamSnapshot = await getDoc(teamRef);
+
+      let teamName = "";
+      if (!teamSnapshot.exists()) {
+        try {
+          teamName = await showInput("Enter Team Name");
+        } catch {
+          console.log("Team name input cancelled.");
+          return;
         }
+      } else {
+        teamName = teamSnapshot.data().name;
+      }
 
-        // Determine teamId for the new team
-        const teamId = selectedUser.teamId || selectedUser.id;
-
-        // Prompt for a team name if creating a new team
-        let teamName = "";
-        const teamRef = doc(db, "teams", teamId);
-        const teamSnapshot = await getDoc(teamRef);
-        if (!teamSnapshot.exists()) {
-          // For now, use a default team name - we'll implement a custom input later
-          teamName = `${currentUserData.displayName} & ${selectedUser.displayName} Team`;
-        }
-
-      // Update selected user if they don't have a team
       if (!selectedUser.teamId) {
         await updateDoc(selectedUserRef, { teamId });
       }
-
-      // Update current user
       await updateDoc(currentUserRef, { teamId });
 
-      // Create new team document if it doesn’t exist
       if (!teamSnapshot.exists()) {
         await setDoc(teamRef, {
           name: teamName,
@@ -151,15 +130,9 @@ export default function JoinTeam() {
         });
       }
 
-      setMessage(
-        `You have successfully joined ${
-          teamName || selectedUser.displayName
-        }'s team!`
-      );
+      setMessage(`You have successfully joined the team "${teamName}"!`);
       setUsers((prev) => prev.filter((u) => u.id !== selectedUser.id));
       setCurrentUserData((prev) => ({ ...prev, teamId }));
-      
-      // Close the modal after successful join
       hideModal();
     } catch (error) {
       console.error("Error joining team:", error);
@@ -168,7 +141,6 @@ export default function JoinTeam() {
 
   const leaveTeam = async () => {
     if (!currentUserData || !currentUserData.teamId) return;
-
     showConfirm(
       "Are you sure you want to leave your current team? Your teammate will also be removed.",
       "Leave Team",
@@ -177,39 +149,25 @@ export default function JoinTeam() {
       "Cancel"
     );
   };
-  
+
   const proceedWithLeave = async () => {
     try {
       await removeTeam(currentUserData.teamId);
-
       setMessage("You have left your team, and the team has been deleted.");
       await fetchUsers();
       setCurrentUserData((prev) => ({ ...prev, teamId: null }));
-      
-      // Close the modal after successful leave
       hideModal();
     } catch (error) {
       console.error("Error leaving team:", error);
     }
   };
 
-  if (!user) {
+  if (!user || loading)
     return (
       <div className="min-h-screen bg-green-100 dark:bg-gray-900 flex items-center justify-center p-6">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-green-200 dark:border-green-700 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-300">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading)
-    return (
-      <div className="min-h-screen bg-green-100 dark:bg-gray-900 flex items-center justify-center p-6">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-green-200 dark:border-green-700 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading users...</p>
         </div>
       </div>
     );
@@ -229,8 +187,7 @@ export default function JoinTeam() {
             Join a Team
           </h2>
 
-
-          {currentUserData && currentUserData.teamId && (
+          {currentUserData?.teamId && (
             <button
               onClick={leaveTeam}
               className="w-full mb-4 py-3 bg-red-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
@@ -272,7 +229,9 @@ export default function JoinTeam() {
                       <p className="font-semibold text-gray-900 dark:text-white">
                         {u.displayName}
                       </p>
-                      <p className="text-gray-600 dark:text-gray-300 text-sm">HCP: {u.handicap}</p>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm">
+                        HCP: {u.handicap}
+                      </p>
                     </div>
                   </div>
                   <button
@@ -287,7 +246,6 @@ export default function JoinTeam() {
           )}
         </div>
       </div>
-      
       <Modal {...modal} onClose={hideModal} />
     </div>
   );

@@ -78,7 +78,9 @@ function ProfileModal({ user, onClose }) {
       <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">Profile Settings</h3>
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+            Profile Settings
+          </h3>
           <button
             onClick={onClose}
             className="text-gray-500 dark:text-gray-400 text-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl p-1"
@@ -91,13 +93,21 @@ function ProfileModal({ user, onClose }) {
         <div className="flex border-b border-gray-200 dark:border-gray-700">
           <button
             onClick={() => setActiveTab("profile")}
-            className={`flex-1 py-4 text-center font-medium ${activeTab === "profile" ? "text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400 bg-green-50 dark:bg-green-900/20" : "text-gray-600 dark:text-gray-300"}`}
+            className={`flex-1 py-4 text-center font-medium ${
+              activeTab === "profile"
+                ? "text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400 bg-green-50 dark:bg-green-900/20"
+                : "text-gray-600 dark:text-gray-300"
+            }`}
           >
             Profile
           </button>
           <button
             onClick={() => setActiveTab("password")}
-            className={`flex-1 py-4 text-center font-medium ${activeTab === "password" ? "text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400 bg-green-50 dark:bg-green-900/20" : "text-gray-600 dark:text-gray-300"}`}
+            className={`flex-1 py-4 text-center font-medium ${
+              activeTab === "password"
+                ? "text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400 bg-green-50 dark:bg-green-900/20"
+                : "text-gray-600 dark:text-gray-300"
+            }`}
           >
             Password
           </button>
@@ -106,7 +116,6 @@ function ProfileModal({ user, onClose }) {
         <div className="p-6 space-y-6">
           {activeTab === "profile" && (
             <form onSubmit={handleUpdateProfile} className="space-y-6">
-
               {/* Profile Picture */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
@@ -193,7 +202,11 @@ function ProfileModal({ user, onClose }) {
                   <input
                     type="password"
                     value={
-                      i === 0 ? oldPassword : i === 1 ? newPassword : confirmPassword
+                      i === 0
+                        ? oldPassword
+                        : i === 1
+                        ? newPassword
+                        : confirmPassword
                     }
                     onChange={(e) => {
                       if (i === 0) setOldPassword(e.target.value);
@@ -257,6 +270,7 @@ export default function Dashboard() {
           <div className="absolute bottom-10 right-1/3 w-64 h-64 bg-gradient-to-br from-yellow-300 to-green-500 rounded-full blur-3xl transform -rotate-30"></div>
         </div>
       </div>
+
       <div className="max-w-md mx-auto relative z-10">
         {/* Header */}
         <header className="text-center mb-8">
@@ -279,12 +293,14 @@ export default function Dashboard() {
             )}
           </button>
 
-
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Welcome, {user?.displayName || "Golfer"}!
           </h2>
           <p className="text-gray-600 dark:text-gray-300 text-lg">
-            Handicap: <span className="font-semibold text-green-600 dark:text-green-400">{user?.handicap || "—"}</span>
+            Handicap:{" "}
+            <span className="font-semibold text-green-600 dark:text-green-400">
+              {user?.handicap || "—"}
+            </span>
           </p>
         </header>
 
@@ -296,13 +312,21 @@ export default function Dashboard() {
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Leaderboard</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">View tournament standings</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  Leaderboard
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  View tournament standings
+                </p>
               </div>
             </div>
           </button>
@@ -313,13 +337,21 @@ export default function Dashboard() {
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7H3v2h16V4z"/>
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7H3v2h16V4z" />
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Enter Scores</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Record your round scores</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  Enter Scores
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Record your round scores
+                </p>
               </div>
             </div>
           </button>
@@ -330,13 +362,21 @@ export default function Dashboard() {
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-2 14c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm6-8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm0 8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/>
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-2 14c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm6-8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm0 8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z" />
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Join Team</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Join a tournament team</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  Join Team
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Join a tournament team
+                </p>
               </div>
             </div>
           </button>
@@ -347,13 +387,47 @@ export default function Dashboard() {
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">View Teams</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Browse all teams</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  View Teams
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Browse all teams
+                </p>
+              </div>
+            </div>
+          </button>
+
+          {/* New Course Details Button */}
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={() => navigate("/courses")}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 17.93c-3.95.49-7.43-2.54-7.93-6.49a8.003 8.003 0 0115.86-1.53c.5 3.95-2.54 7.43-6.49 7.93zM11 6h2v6h-2V6zm0 8h2v2h-2v-2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  Course Details
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  View information about courses
+                </p>
               </div>
             </div>
           </button>
@@ -364,13 +438,21 @@ export default function Dashboard() {
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+                <svg
+                  className="w-6 h-6 text-red-600 dark:text-red-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
                 </svg>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">Sign Out</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">Logout from your account</p>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  Sign Out
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Logout from your account
+                </p>
               </div>
             </div>
           </button>
@@ -381,7 +463,10 @@ export default function Dashboard() {
         </footer>
 
         {showProfileModal && (
-          <ProfileModal user={user} onClose={() => setShowProfileModal(false)} />
+          <ProfileModal
+            user={user}
+            onClose={() => setShowProfileModal(false)}
+          />
         )}
       </div>
     </div>
