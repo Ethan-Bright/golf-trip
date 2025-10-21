@@ -27,7 +27,7 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router basename={import.meta.env.DEV ? "/" : "/golf-trip"}>
+        <Router>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
@@ -40,7 +40,6 @@ function App() {
                 </PrivateRoute>
               }
             />
-
             <Route
               path="/dashboard"
               element={
@@ -49,7 +48,6 @@ function App() {
                 </PrivateRoute>
               }
             />
-
             <Route
               path="/leaderboard"
               element={
@@ -67,7 +65,6 @@ function App() {
                 </PrivateRoute>
               }
             />
-            
             <Route path="/members" element={<ViewMembers />} />
           </Routes>
         </Router>
