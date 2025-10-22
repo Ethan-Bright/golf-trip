@@ -17,7 +17,7 @@ import { Modal, useModal } from "../components/Modal";
 export default function EnterScore({ userId, user, courses }) {
   const navigate = useNavigate();
   const { modal, showModal, hideModal, showSuccess, showError } = useModal();
-
+  const [matchFormat, setMatchFormat] = useState("stableford"); // default to Stableford
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [gameName, setGameName] = useState("");
   const [gameId, setGameId] = useState(null);
@@ -52,7 +52,10 @@ export default function EnterScore({ userId, user, courses }) {
         if (player) {
           setScores(player.scores);
           // Recalculate total points when loading existing scores
-          const totalPoints = player.scores.reduce((sum, s) => sum + (s.net ?? 0), 0);
+          const totalPoints = player.scores.reduce(
+            (sum, s) => sum + (s.net ?? 0),
+            0
+          );
           setPoints(totalPoints);
         }
       }
@@ -78,7 +81,10 @@ export default function EnterScore({ userId, user, courses }) {
   // --- Create new game ---
   const createGame = async () => {
     if (!selectedCourse || !gameName.trim()) {
-      showError("Please select a course and enter a game name", "Missing Information");
+      showError(
+        "Please select a course and enter a game name",
+        "Missing Information"
+      );
       return;
     }
 
@@ -93,6 +99,7 @@ export default function EnterScore({ userId, user, courses }) {
         courseId: selectedCourse.id,
         course: selectedCourse,
         status: "inProgress",
+        matchFormat,
         players: [
           {
             userId,
@@ -138,7 +145,10 @@ export default function EnterScore({ userId, user, courses }) {
           const playerScores = existingPlayer.scores || initialScores;
           setScores(playerScores);
           // Recalculate total points when loading existing scores
-          const totalPoints = playerScores.reduce((sum, s) => sum + (s.net ?? 0), 0);
+          const totalPoints = playerScores.reduce(
+            (sum, s) => sum + (s.net ?? 0),
+            0
+          );
           setPoints(totalPoints);
         } else {
           const updatedPlayers = [
@@ -228,29 +238,29 @@ export default function EnterScore({ userId, user, courses }) {
   const holeInputs = scores.map((s) => s.gross ?? "");
 
   return (
-    <div className="min-h-screen bg-gray-900 p-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-900 p-4 sm:p-6">
+      <div className="w-full max-w-4xl mx-auto">
         <button
           onClick={() => navigate("/dashboard")}
-          className="mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl"
+          className="mb-6 sm:mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl w-full sm:w-auto text-center"
         >
           ← Back to Dashboard
         </button>
 
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 sm:p-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6 text-center">
             Enter Scores
           </h1>
 
           {!gameId && (
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 text-center">
+            <div className="mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 text-center">
                 Select Course
               </h2>
               <select
                 onChange={handleCourseSelect}
                 defaultValue=""
-                className="w-full p-4 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                className="w-full p-3 sm:p-4 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
               >
                 <option value="" disabled>
                   Select a course
@@ -266,8 +276,22 @@ export default function EnterScore({ userId, user, courses }) {
                 placeholder="Game Name"
                 value={gameName}
                 onChange={(e) => setGameName(e.target.value)}
-                className="w-full p-4 mb-4 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                className="w-full p-3 sm:p-4 mb-3 sm:mb-4 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
               />
+
+              <div className="mb-4">
+                <label className="block text-gray-900 dark:text-white font-medium mb-2">
+                  Match Format
+                </label>
+                <select
+                  value={matchFormat}
+                  onChange={(e) => setMatchFormat(e.target.value)}
+                  className="w-full p-3 sm:p-4 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                >
+                  <option value="stableford">Stableford Points</option>
+                  <option value="matchplay">Match Play</option>
+                </select>
+              </div>
 
               <button
                 onClick={createGame}
@@ -276,19 +300,31 @@ export default function EnterScore({ userId, user, courses }) {
                 Create Game
               </button>
 
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mt-6 mb-4 text-center">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mt-6 mb-3 sm:mb-4 text-center">
                 Or Join Existing Game
               </h3>
-              <div className="max-h-64 overflow-y-auto space-y-2">
+              <div className="max-h-60 sm:max-h-64 overflow-y-auto space-y-2">
                 {inProgressGames.map((game) => (
                   <div
                     key={game.id}
-                    className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"
+                    className="flex flex-col sm:flex-row justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"
                   >
-                    <span className="text-gray-900 dark:text-white font-medium">{game.name}</span>
+                    <div className="flex flex-col mb-2 sm:mb-0">
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {game.name}
+                      </span>
+                      {game.matchFormat && (
+                        <span className="text-sm text-gray-600 dark:text-gray-300">
+                          Format:{" "}
+                          {game.matchFormat === "stableford"
+                            ? "Stableford"
+                            : "Match Play"}
+                        </span>
+                      )}
+                    </div>
                     <button
                       onClick={() => joinGame(game)}
-                      className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                      className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 w-full sm:w-auto"
                     >
                       Join
                     </button>
@@ -299,47 +335,71 @@ export default function EnterScore({ userId, user, courses }) {
           )}
 
           {gameId && selectedCourse && (
-            <div className="mt-6">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+            <div className="mt-4 sm:mt-6">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 text-center">
                 Enter Scores
               </h3>
-          <div className="text-center text-green-600 mb-6">
-            Game:{" "}
-            <span className="font-semibold">{gameName || "Untitled Game"}</span>
-            {selectedCourse?.name ? (
-              <>
-                {" "}
-                • Course:{" "}
-                <span className="font-semibold">{selectedCourse.name}</span>
-              </>
-            ) : null}
-          </div>
+              <div className="text-center text-green-600 mb-4 sm:mb-6">
+                Game:{" "}
+                <span className="font-semibold">
+                  {gameName || "Untitled Game"}
+                </span>
+                {selectedCourse?.name && (
+                  <>
+                    {" "}
+                    • Course:{" "}
+                    <span className="font-semibold">{selectedCourse.name}</span>
+                  </>
+                )}
+                {matchFormat && (
+                  <>
+                    {" "}
+                    • Format:{" "}
+                    <span className="font-semibold">
+                      {matchFormat === "stableford"
+                        ? "Stableford"
+                        : "Match Play"}
+                    </span>
+                  </>
+                )}
+              </div>
 
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 {holeInputs.map((v, idx) => (
                   <div
                     key={idx}
-                    className="flex flex-col items-center bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-600 p-4 min-h-[160px]"
+                    className="flex flex-col items-center bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-600 p-3 sm:p-4 min-h-[160px] w-full"
                   >
-                    <div className="text-center mb-3">
-                      <div className="text-sm font-bold text-gray-900 dark:text-white">Hole {idx + 1}</div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">Par {selectedCourse.holes[idx].par} • S.I. {selectedCourse.holes[idx].strokeIndex}</div>
+                    <div className="text-center mb-2 sm:mb-3">
+                      <div className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
+                        Hole {idx + 1}
+                      </div>
+                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                        Par {selectedCourse.holes[idx].par} • S.I.{" "}
+                        {selectedCourse.holes[idx].strokeIndex}
+                      </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2 mb-3">
+
+                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
                       <button
                         type="button"
                         onClick={() => {
                           const currentValue = parseInt(v) || 0;
-                          if (currentValue > 1) {
-                            handleInputChange({ target: { value: (currentValue - 1).toString() } }, idx);
-                          }
+                          if (currentValue > 1)
+                            handleInputChange(
+                              {
+                                target: {
+                                  value: (currentValue - 1).toString(),
+                                },
+                              },
+                              idx
+                            );
                         }}
                         className="w-8 h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                       >
                         −
                       </button>
-                      
+
                       <input
                         type="text"
                         inputMode="numeric"
@@ -349,22 +409,28 @@ export default function EnterScore({ userId, user, courses }) {
                         className="w-16 h-8 text-center border-2 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         placeholder="-"
                       />
-                      
+
                       <button
                         type="button"
                         onClick={() => {
                           const currentValue = parseInt(v) || 0;
-                          if (currentValue < 15) {
-                            handleInputChange({ target: { value: (currentValue + 1).toString() } }, idx);
-                          }
+                          if (currentValue < 15)
+                            handleInputChange(
+                              {
+                                target: {
+                                  value: (currentValue + 1).toString(),
+                                },
+                              },
+                              idx
+                            );
                         }}
                         className="w-8 h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                       >
                         +
                       </button>
                     </div>
-                    
-                    <div className="text-xs text-gray-600 dark:text-gray-300 text-center leading-tight">
+
+                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 text-center leading-tight">
                       <div>Net: {scores[idx].netScore ?? "-"}</div>
                       <div>Points: {scores[idx].net ?? "-"}</div>
                     </div>
@@ -372,32 +438,32 @@ export default function EnterScore({ userId, user, courses }) {
                 ))}
               </div>
 
-          <div className="mt-6 text-center font-semibold text-lg text-green-700 dark:text-green-400">
-            Total Points: {points}
-          </div>
+              <div className="mt-4 sm:mt-6 text-center font-semibold text-lg sm:text-xl text-green-700 dark:text-green-400">
+                Total Points: {points}
+              </div>
 
-          <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
-            <button
-              type="button"
-              onClick={saveScores}
-              className="px-6 py-3 bg-green-700 text-white font-semibold rounded-xl shadow-md hover:bg-green-800 transition"
-            >
-              Save Scores
-            </button>
+              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-4 sm:mt-6">
+                <button
+                  type="button"
+                  onClick={saveScores}
+                  className="w-full sm:w-auto px-6 py-3 bg-green-700 text-white font-semibold rounded-xl shadow-md hover:bg-green-800 transition"
+                >
+                  Save Scores
+                </button>
 
-            <button
-              type="button"
-              onClick={() => navigate("/dashboard")}
-              className="px-6 py-3 bg-gray-400 text-white rounded-xl shadow-md hover:bg-gray-500 transition"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        </div>
-      )}
+                <button
+                  type="button"
+                  onClick={() => navigate("/dashboard")}
+                  className="w-full sm:w-auto px-6 py-3 bg-gray-400 text-white rounded-xl shadow-md hover:bg-gray-500 transition"
+                >
+                  Back to Dashboard
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-      
+
       <Modal {...modal} onClose={hideModal} />
     </div>
   );
