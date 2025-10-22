@@ -491,6 +491,7 @@ export default function Dashboard() {
           <ProfileModal
             user={user}
             onClose={() => setShowProfileModal(false)}
+            className={showProfileModal ? "block" : "hidden"}
           />
         )}
       </div>
