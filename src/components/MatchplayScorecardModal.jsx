@@ -12,20 +12,21 @@ export default function MatchplayScorecardModal({ game, onClose }) {
 
     if (scores.length === 0) return [];
 
-    const maxNet = Math.max(...scores.map((s) => s.net)); // <-- use max now
+    const maxNet = Math.max(...scores.map((s) => s.net));
     const winners = scores.filter((s) => s.net === maxNet);
 
-    return winners.length === 1 ? winners[0].name : []; // Only highlight if single winner
+    return winners.length === 1 ? winners[0].name : [];
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-md w-full p-6 overflow-x-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
+      <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
           {game.name}
         </h2>
 
-        <div className="overflow-x-auto">
+        {/* Responsive Table */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full border-separate border-spacing-1">
             <thead>
               <tr>
@@ -72,6 +73,42 @@ export default function MatchplayScorecardModal({ game, onClose }) {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile stacked version */}
+        <div className="sm:hidden space-y-4">
+          {Array.from({ length: 18 }).map((_, holeIndex) => {
+            const winnerName = getHoleWinners(holeIndex);
+            return (
+              <div
+                key={holeIndex}
+                className="bg-gray-100 dark:bg-gray-800 rounded-xl p-2 shadow-inner"
+              >
+                <div className="font-semibold text-gray-900 dark:text-white mb-1">
+                  Hole {holeIndex + 1}
+                </div>
+                <div className="space-y-1">
+                  {players.map((p) => {
+                    const netScore = p.scores[holeIndex]?.net ?? "-";
+                    const isWinner = winnerName === p.name;
+                    return (
+                      <div
+                        key={p.userId + holeIndex}
+                        className={`flex justify-between px-2 py-1 rounded-xl ${
+                          isWinner
+                            ? "bg-green-300 dark:bg-green-800/70 font-bold border border-green-600 dark:border-green-400 text-green-900 dark:text-green-200"
+                            : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
+                        }`}
+                      >
+                        <span>{p.name}</span>
+                        <span>{netScore}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         <div className="mt-6 flex justify-center">
