@@ -260,7 +260,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-green-100 dark:bg-gray-900 relative overflow-x-hidden">
+    <div className="min-h-screen bg-green-100 dark:bg-gray-900 overflow-y-auto overflow-x-hidden relative">
       {/* Swish Background Effect */}
       <div className="absolute inset-0 opacity-20 dark:opacity-10 pointer-events-none">
         <div className="absolute top-0 left-0 w-full h-full">
@@ -272,9 +272,9 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 max-w-md mx-auto flex flex-col min-h-screen p-6 overflow-y-auto overscroll-contain">
+      <div className="relative z-10 max-w-md mx-auto p-6">
         {/* Header */}
-        <header className="text-center mb-8 flex-shrink-0">
+        <header className="text-center mb-8">
           <button
             onClick={() => setShowProfileModal(true)}
             className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-green-300 dark:border-green-500 shadow-xl hover:shadow-2xl transition-all duration-200 mb-4 group"
@@ -306,7 +306,7 @@ export default function Dashboard() {
         </header>
 
         {/* Navigation Cards */}
-        <main className="space-y-4 mb-8 flex-shrink-0">
+        <main className="space-y-4 mb-8">
           {/* Leaderboard */}
           <button
             className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
@@ -464,7 +464,7 @@ export default function Dashboard() {
           </button>
         </main>
 
-        <footer className="text-center text-gray-500 dark:text-gray-400 text-sm flex-shrink-0">
+        <footer className="text-center text-gray-500 dark:text-gray-400 text-sm">
           Golf Trip Leaderboard
         </footer>
 
