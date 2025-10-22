@@ -260,7 +260,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-6 relative">
+    <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-6 relative overflow-x-hidden">
       {/* Swish Background Effect */}
       <div className="absolute inset-0 opacity-20 dark:opacity-10 pointer-events-none">
         <div className="absolute top-0 left-0 w-full h-full">
@@ -271,7 +271,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Main Content - Scrollable on mobile */}
+      {/* Main Content - Scrollable on mobile vertically */}
       <div className="max-w-md mx-auto relative z-10 overflow-y-auto -webkit-overflow-scrolling-touch">
         {/* Header */}
         <header className="text-center mb-8">
@@ -385,7 +385,86 @@ export default function Dashboard() {
             </div>
           </button>
 
-          {/* Remaining buttons omitted for brevity (View Teams, Members, Logout) - same structure */}
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={() => navigate("/viewteams")}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  {" "}
+                  View Teams{" "}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {" "}
+                  Browse all teams{" "}
+                </p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={() => navigate("/members")}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-2 14c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm6-8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm0 8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  {" "}
+                  View Members{" "}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {" "}
+                  See all tournament participants{" "}
+                </p>
+              </div>
+            </div>
+          </button>
+
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={handleLogout}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-red-600 dark:text-red-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  {" "}
+                  Sign Out{" "}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  {" "}
+                  Logout from your account{" "}
+                </p>
+              </div>
+            </div>
+          </button>
         </main>
 
         <footer className="text-center text-gray-500 dark:text-gray-400 text-sm">
