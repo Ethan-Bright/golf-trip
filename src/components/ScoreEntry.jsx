@@ -119,13 +119,13 @@ export default function ScoreEntry({ tournamentId, course }) {
       </div>
 
       <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
-        <button
+        {/* <button
           type="button"
           onClick={saveScores}
           className="px-6 py-3 bg-green-700 text-white font-semibold rounded-xl shadow-md hover:bg-green-800 transition"
         >
           Save Scores
-        </button>
+        </button> */}
 
         <button
           type="button"
