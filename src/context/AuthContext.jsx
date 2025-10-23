@@ -15,6 +15,7 @@ const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true); // <-- added loading state
 
   // -------------------
   // Signup
@@ -77,7 +78,7 @@ export function AuthProvider({ children }) {
     const userData = {
       uid: userId,
       displayName,
-      password: hashedPassword, // store hashed password
+      password: hashedPassword,
       handicap: parseFloat(handicap),
       profilePictureUrl,
       createdAt: new Date(),
@@ -85,6 +86,7 @@ export function AuthProvider({ children }) {
 
     await setDoc(doc(db, "users", userId), userData);
 
+    setUserAndPersist(userData);
     return userData;
   };
 
@@ -96,14 +98,15 @@ export function AuthProvider({ children }) {
     const q = query(usersRef, where("displayName", "==", displayName));
     const querySnapshot = await getDocs(q);
 
-    if (querySnapshot.empty) throw new Error("Invalid display name or password");
+    if (querySnapshot.empty)
+      throw new Error("Invalid display name or password");
 
     const userDoc = querySnapshot.docs[0].data();
     const match = await bcrypt.compare(password, userDoc.password);
 
     if (!match) throw new Error("Invalid display name or password");
 
-    setUserAndPersist(userDoc);
+    // return user data only — don’t persist here
     return userDoc;
   };
 
@@ -119,15 +122,22 @@ export function AuthProvider({ children }) {
   // Auth state persistence
   // -------------------
   useEffect(() => {
-    const storedUser = localStorage.getItem("golfTripUser");
-    if (storedUser) setUser(JSON.parse(storedUser));
+    const storedUser =
+      JSON.parse(localStorage.getItem("golfTripUser")) ||
+      JSON.parse(sessionStorage.getItem("golfTripUser"));
+    if (storedUser) setUser(storedUser);
+    setLoading(false); // <-- done loading once user restored
   }, []);
 
-  const setUserAndPersist = (userData) => {
+  const setUserAndPersist = (userData, remember = true) => {
     setUser(userData);
-    if (userData)
-      localStorage.setItem("golfTripUser", JSON.stringify(userData));
-    else localStorage.removeItem("golfTripUser");
+    if (userData) {
+      const storage = remember ? localStorage : sessionStorage;
+      storage.setItem("golfTripUser", JSON.stringify(userData));
+    } else {
+      localStorage.removeItem("golfTripUser");
+      sessionStorage.removeItem("golfTripUser");
+    }
   };
 
   // -------------------
@@ -210,9 +220,12 @@ export function AuthProvider({ children }) {
     if (!match) throw new Error("Old password is incorrect");
 
     const newHashed = await bcrypt.hash(newPassword, 10);
-    await setDoc(doc(db, "users", user.uid), { password: newHashed }, { merge: true });
+    await setDoc(
+      doc(db, "users", user.uid),
+      { password: newHashed },
+      { merge: true }
+    );
 
-    // Update local user object so we keep the hashed password in memory
     const updatedUser = { ...user, password: newHashed };
     setUserAndPersist(updatedUser);
 
@@ -229,9 +242,10 @@ export function AuthProvider({ children }) {
         setUserAndPersist,
         updateProfile,
         updatePassword,
+        loading, // expose loading so we can use it in PrivateRoute if needed
       }}
     >
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

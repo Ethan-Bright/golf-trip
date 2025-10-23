@@ -24,6 +24,8 @@ export default function EnterScore({ userId, user, courses }) {
   const [scores, setScores] = useState([]);
   const [inProgressGames, setInProgressGames] = useState([]);
   const [points, setPoints] = useState(0);
+  const [holeCount, setHoleCount] = useState(18); // 18 or 9
+  const [nineType, setNineType] = useState("front"); // front or back
 
   // --- Fetch games in progress ---
   useEffect(() => {
@@ -213,14 +215,15 @@ export default function EnterScore({ userId, user, courses }) {
   };
 
   // --- Save scores to Firestore ---
-  const saveScores = async () => {
-    if (!gameId) return;
-    const gameRef = doc(db, "games", gameId);
-    const gameSnap = await getDoc(gameRef);
+  // --- Save scores to Firestore (manual + auto) ---
+  const saveScores = async (auto = false) => {
+    if (!gameId || !userId) return;
+    try {
+      const gameRef = doc(db, "games", gameId);
+      const gameSnap = await getDoc(gameRef);
+      if (!gameSnap.exists()) return;
 
-    if (gameSnap.exists()) {
       const gameData = gameSnap.data();
-
       const updatedPlayers = gameData.players.map((p) =>
         p.userId === userId ? { ...p, scores } : p
       );
@@ -230,9 +233,24 @@ export default function EnterScore({ userId, user, courses }) {
         updatedAt: serverTimestamp(),
       });
 
-      showSuccess("Scores saved successfully!", "Success");
+      if (!auto) showSuccess("Scores saved successfully!", "Success");
+    } catch (error) {
+      console.error("Error saving scores:", error);
+      if (!auto) showError("Failed to save scores", "Error");
     }
   };
+
+  // --- Auto-save whenever scores change ---
+  useEffect(() => {
+    if (!gameId || !userId) return;
+    // Skip auto-save on initial load (only after user starts changing values)
+    const timeout = setTimeout(() => {
+      const hasAnyScore = scores.some((s) => s.gross !== null);
+      if (hasAnyScore) saveScores(true);
+    }, 1500); // wait 1.5 seconds after last change
+
+    return () => clearTimeout(timeout);
+  }, [scores, gameId, userId]);
 
   // --- Prepare hole inputs for UI ---
   const holeInputs = scores.map((s) => s.gross ?? "");
@@ -443,13 +461,13 @@ export default function EnterScore({ userId, user, courses }) {
               </div>
 
               <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-4 sm:mt-6">
-                <button
+                {/* <button
                   type="button"
                   onClick={saveScores}
                   className="w-full sm:w-auto px-6 py-3 bg-green-700 text-white font-semibold rounded-xl shadow-md hover:bg-green-800 transition"
                 >
                   Save Scores
-                </button>
+                </button> */}
 
                 <button
                   type="button"

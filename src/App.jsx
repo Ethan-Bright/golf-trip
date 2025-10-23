@@ -19,8 +19,10 @@ import ViewTeams from "./pages/ViewTeams";
 import ViewMembers from "./pages/ViewMembers";
 
 function PrivateRoute({ children }) {
-  const { user } = useAuth();
-  return user ? children : <Navigate to="/login" />;
+  const { user, loading } = useAuth();
+  if (loading) return null; // wait until loading completes
+  if (!user) return <Navigate to="/login" />;
+  return children;
 }
 
 function App() {
