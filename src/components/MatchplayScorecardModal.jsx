@@ -1,9 +1,39 @@
 import React from "react";
 
-export default function MatchplayScorecardModal({ game, onClose }) {
-  if (!game) return null;
+export default function MatchplayScorecardModal({ game, selectedTeam, onClose }) {
+  if (!game || !selectedTeam) return null;
 
-  const { players } = game;
+  // Use the players from the selected team, but we need to get all players for the match
+  const players = game.players || [];
+  
+  // Debug logging
+  console.log("MatchplayScorecardModal - game:", game);
+  console.log("MatchplayScorecardModal - selectedTeam:", selectedTeam);
+  console.log("MatchplayScorecardModal - players:", players);
+  console.log("MatchplayScorecardModal - players length:", players?.length);
+
+  if (!players || players.length === 0) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
+        <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+            {game.name}
+          </h2>
+          <p className="text-center text-gray-600 dark:text-gray-300 mb-4">
+            No players found for this game.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const getHoleWinners = (holeIndex) => {
     const scores = players
@@ -25,8 +55,14 @@ export default function MatchplayScorecardModal({ game, onClose }) {
           {game.name}
         </h2>
 
+        {/* Debug info */}
+        <div className="mb-4 p-2 bg-yellow-100 dark:bg-yellow-900 rounded text-sm">
+          <p>Debug: Players count: {players.length}</p>
+          <p>Debug: Player names: {players.map(p => p.name).join(', ')}</p>
+        </div>
+
         {/* Responsive Table */}
-        <div className="hidden sm:block overflow-x-auto">
+        <div className="overflow-x-auto">
           <table className="w-full border-separate border-spacing-1">
             <thead>
               <tr>
@@ -73,42 +109,6 @@ export default function MatchplayScorecardModal({ game, onClose }) {
               })}
             </tbody>
           </table>
-        </div>
-
-        {/* Mobile stacked version */}
-        <div className="sm:hidden space-y-4">
-          {Array.from({ length: 18 }).map((_, holeIndex) => {
-            const winnerName = getHoleWinners(holeIndex);
-            return (
-              <div
-                key={holeIndex}
-                className="bg-gray-100 dark:bg-gray-800 rounded-xl p-2 shadow-inner"
-              >
-                <div className="font-semibold text-gray-900 dark:text-white mb-1">
-                  Hole {holeIndex + 1}
-                </div>
-                <div className="space-y-1">
-                  {players.map((p) => {
-                    const netScore = p.scores[holeIndex]?.net ?? "-";
-                    const isWinner = winnerName === p.name;
-                    return (
-                      <div
-                        key={p.userId + holeIndex}
-                        className={`flex justify-between px-2 py-1 rounded-xl ${
-                          isWinner
-                            ? "bg-green-300 dark:bg-green-800/70 font-bold border border-green-600 dark:border-green-400 text-green-900 dark:text-green-200"
-                            : "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
-                        }`}
-                      >
-                        <span>{p.name}</span>
-                        <span>{netScore}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
         </div>
 
         <div className="mt-6 flex justify-center">

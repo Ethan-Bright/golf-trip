@@ -17,30 +17,56 @@ import { Modal, useModal } from "../components/Modal";
 export default function EnterScore({ userId, user, courses }) {
   const navigate = useNavigate();
   const { modal, showModal, hideModal, showSuccess, showError } = useModal();
-  const [matchFormat, setMatchFormat] = useState("stableford"); // default to Stableford
+  const [matchFormat, setMatchFormat] = useState(""); // start with placeholder
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [gameName, setGameName] = useState("");
   const [gameId, setGameId] = useState(null);
   const [scores, setScores] = useState([]);
   const [inProgressGames, setInProgressGames] = useState([]);
   const [points, setPoints] = useState(0);
-  const [holeCount, setHoleCount] = useState(18); // 18 or 9
-  const [nineType, setNineType] = useState("front"); // front or back
+  const [holeCount, setHoleCount] = useState(""); // start empty for "Select Number of Holes"
+  const [nineType, setNineType] = useState(""); // start empty for "Select 9 Holes"
+  const [errors, setErrors] = useState({});
+  const [isLoadingGames, setIsLoadingGames] = useState(true);
+  const [resumedGame, setResumedGame] = useState(false);
 
-  // --- Fetch games in progress ---
+  // --- Check for incomplete games and fetch games in progress ---
   useEffect(() => {
     const fetchGames = async () => {
+      setIsLoadingGames(true);
       const q = query(
         collection(db, "games"),
         where("status", "==", "inProgress")
       );
       const snapshot = await getDocs(q);
-      setInProgressGames(
-        snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      );
+      const games = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setInProgressGames(games);
+      
+      // Check if user has any incomplete games
+      const userIncompleteGame = games.find(game => {
+        const player = game.players.find(p => p.userId === userId);
+        if (!player) return false;
+        
+        // Determine expected hole count
+        const expectedHoles = game.holeCount || 18;
+        const startIndex = game.nineType === "back" ? 9 : 0;
+        const endIndex = expectedHoles === 9 ? startIndex + 9 : game.course.holes.length;
+        const relevantScores = player.scores.slice(startIndex, endIndex);
+        
+        // Check if all relevant holes have scores
+        const hasAllScores = relevantScores.every(score => score.gross !== null);
+        return !hasAllScores;
+      });
+      
+      // If user has incomplete game, automatically load it
+      if (userIncompleteGame && !gameId) {
+        setResumedGame(true);
+        await joinGame(userIncompleteGame);
+      }
+      setIsLoadingGames(false);
     };
     fetchGames();
-  }, [gameId]);
+  }, [gameId, userId]);
 
   // --- Fetch scores for current game ---
   useEffect(() => {
@@ -53,7 +79,12 @@ export default function EnterScore({ userId, user, courses }) {
         const player = gameData.players.find((p) => p.userId === userId);
         if (player) {
           setScores(player.scores);
-          // Recalculate total points when loading existing scores
+          // Determine if front/back 9 based on holeCount stored in game or default
+          const totalHoles = gameData.holeCount || 18;
+          setHoleCount(totalHoles);
+          setNineType(
+            totalHoles === 9 && gameData.nineType ? gameData.nineType : "front"
+          );
           const totalPoints = player.scores.reduce(
             (sum, s) => sum + (s.net ?? 0),
             0
@@ -82,14 +113,19 @@ export default function EnterScore({ userId, user, courses }) {
 
   // --- Create new game ---
   const createGame = async () => {
-    if (!selectedCourse || !gameName.trim()) {
-      showError(
-        "Please select a course and enter a game name",
-        "Missing Information"
-      );
-      return;
-    }
+    let newErrors = {};
 
+    if (!selectedCourse) newErrors.selectedCourse = true;
+    if (!gameName.trim()) newErrors.gameName = true;
+    if (!matchFormat) newErrors.matchFormat = true;
+    if (!holeCount) newErrors.holeCount = true;
+    if (holeCount === 9 && !nineType) newErrors.nineType = true;
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) return; // stop if there are errors
+
+    // Proceed to create game...
     const initialScores = selectedCourse.holes.map(() => ({
       gross: null,
       net: null,
@@ -102,6 +138,8 @@ export default function EnterScore({ userId, user, courses }) {
         course: selectedCourse,
         status: "inProgress",
         matchFormat,
+        holeCount,
+        nineType,
         players: [
           {
             userId,
@@ -119,7 +157,6 @@ export default function EnterScore({ userId, user, courses }) {
       setScores(initialScores);
     } catch (error) {
       console.error("Error creating game:", error);
-      showError("Failed to create game", "Error");
     }
   };
 
@@ -140,13 +177,16 @@ export default function EnterScore({ userId, user, courses }) {
           (p) => p.userId === userId
         );
 
+        setHoleCount(gameData.holeCount || 18);
+        setNineType(gameData.nineType || "front");
+        setMatchFormat(gameData.matchFormat || "");
+
         if (existingPlayer) {
           setGameId(game.id);
           setSelectedCourse(game.course);
           setGameName(game.name || "");
           const playerScores = existingPlayer.scores || initialScores;
           setScores(playerScores);
-          // Recalculate total points when loading existing scores
           const totalPoints = playerScores.reduce(
             (sum, s) => sum + (s.net ?? 0),
             0
@@ -167,7 +207,6 @@ export default function EnterScore({ userId, user, courses }) {
             players: updatedPlayers,
             updatedAt: serverTimestamp(),
           });
-
           setGameId(game.id);
           setSelectedCourse(game.course);
           setGameName(game.name || "");
@@ -180,7 +219,7 @@ export default function EnterScore({ userId, user, courses }) {
     }
   };
 
-  // --- Handle score input changes ---
+  // --- Handle score changes ---
   const handleChange = (holeIndex, value) => {
     const updated = [...scores];
     const gross = value === "" ? null : Number(value);
@@ -198,8 +237,8 @@ export default function EnterScore({ userId, user, courses }) {
       const netScore = Math.max(0, gross - holeStroke);
       const points = Math.max(0, hole.par + 2 - netScore);
 
-      updated[holeIndex].netScore = netScore; // for display
-      updated[holeIndex].net = points; // for Firestore
+      updated[holeIndex].netScore = netScore;
+      updated[holeIndex].net = points;
     } else {
       updated[holeIndex].netScore = null;
       updated[holeIndex].net = null;
@@ -210,12 +249,46 @@ export default function EnterScore({ userId, user, courses }) {
     setScores(updated);
   };
 
-  const handleInputChange = (e, idx) => {
-    handleChange(idx, e.target.value);
+  const handleInputChange = (e, idx) => handleChange(idx, e.target.value);
+
+  // --- Leave current game ---
+  const leaveGame = async () => {
+    if (!gameId || !userId) return;
+    
+    try {
+      const gameRef = doc(db, "games", gameId);
+      const gameSnap = await getDoc(gameRef);
+      
+      if (gameSnap.exists()) {
+        const gameData = gameSnap.data();
+        const updatedPlayers = gameData.players.filter(p => p.userId !== userId);
+        
+        await updateDoc(gameRef, {
+          players: updatedPlayers,
+          updatedAt: serverTimestamp(),
+        });
+        
+        // Reset all state
+        setGameId(null);
+        setSelectedCourse(null);
+        setGameName("");
+        setMatchFormat("");
+        setHoleCount("");
+        setNineType("");
+        setScores([]);
+        setPoints(0);
+        setErrors({});
+        setResumedGame(false);
+        
+        showSuccess("Left game successfully!", "Success");
+      }
+    } catch (error) {
+      console.error("Error leaving game:", error);
+      showError("Failed to leave game", "Error");
+    }
   };
 
-  // --- Save scores to Firestore ---
-  // --- Save scores to Firestore (manual + auto) ---
+  // --- Auto-save scores ---
   const saveScores = async (auto = false) => {
     if (!gameId || !userId) return;
     try {
@@ -240,20 +313,23 @@ export default function EnterScore({ userId, user, courses }) {
     }
   };
 
-  // --- Auto-save whenever scores change ---
   useEffect(() => {
     if (!gameId || !userId) return;
-    // Skip auto-save on initial load (only after user starts changing values)
     const timeout = setTimeout(() => {
       const hasAnyScore = scores.some((s) => s.gross !== null);
       if (hasAnyScore) saveScores(true);
-    }, 1500); // wait 1.5 seconds after last change
-
+    }, 300);
     return () => clearTimeout(timeout);
   }, [scores, gameId, userId]);
 
-  // --- Prepare hole inputs for UI ---
-  const holeInputs = scores.map((s) => s.gross ?? "");
+  // --- Slice holes & scores for front/back 9 ---
+  const startIndex = nineType === "back" ? 9 : 0;
+  const endIndex =
+    holeCount === 9 ? startIndex + 9 : selectedCourse?.holes.length || 18;
+  const displayedHoles =
+    selectedCourse?.holes.slice(startIndex, endIndex) || [];
+  const displayedScores = scores.slice(startIndex, endIndex);
+  const holeInputs = displayedScores.map((s) => s.gross ?? "");
 
   return (
     <div className="min-h-screen bg-gray-900 p-4 sm:p-6">
@@ -270,15 +346,47 @@ export default function EnterScore({ userId, user, courses }) {
             Enter Scores
           </h1>
 
-          {!gameId && (
+          {isLoadingGames && (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+              <p className="mt-2 text-gray-600 dark:text-gray-300">Loading games...</p>
+            </div>
+          )}
+
+          {resumedGame && gameId && (
+            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                    Resumed your incomplete game! Continue entering your scores below before you can create or join a new game. You may also leave this game at the bottom of the page.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!gameId && !isLoadingGames && (
             <div className="mb-4 sm:mb-6">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 text-center">
                 Select Course
               </h2>
+
               <select
-                onChange={handleCourseSelect}
-                defaultValue=""
-                className="w-full p-3 sm:p-4 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                value={selectedCourse?.id || ""}
+                onChange={(e) => {
+                  handleCourseSelect(e);
+                  setErrors((prev) => ({ ...prev, selectedCourse: false })); // remove error on change
+                }}
+                className={`w-full p-3 sm:p-4 rounded-2xl border ${
+                  errors.selectedCourse
+                    ? "border-red-500"
+                    : "border-gray-200 dark:border-gray-600"
+                } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
               >
                 <option value="" disabled>
                   Select a course
@@ -293,8 +401,15 @@ export default function EnterScore({ userId, user, courses }) {
               <input
                 placeholder="Game Name"
                 value={gameName}
-                onChange={(e) => setGameName(e.target.value)}
-                className="w-full p-3 sm:p-4 mb-3 sm:mb-4 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                onChange={(e) => {
+                  setGameName(e.target.value);
+                  setErrors((prev) => ({ ...prev, gameName: false }));
+                }}
+                className={`w-full p-3 sm:p-4 mb-3 sm:mb-4 rounded-2xl border ${
+                  errors.gameName
+                    ? "border-red-500"
+                    : "border-gray-200 dark:border-gray-600"
+                } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
               />
 
               <div className="mb-4">
@@ -302,14 +417,77 @@ export default function EnterScore({ userId, user, courses }) {
                   Match Format
                 </label>
                 <select
-                  value={matchFormat}
-                  onChange={(e) => setMatchFormat(e.target.value)}
-                  className="w-full p-3 sm:p-4 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                  value={matchFormat || ""}
+                  onChange={(e) => {
+                    setMatchFormat(e.target.value);
+                    setErrors((prev) => ({ ...prev, matchFormat: false }));
+                  }}
+                  className={`w-full p-3 sm:p-4 rounded-2xl border ${
+                    errors.matchFormat
+                      ? "border-red-500"
+                      : "border-gray-200 dark:border-gray-600"
+                  } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
                 >
+                  <option value="" disabled>
+                    Select Match Format
+                  </option>
                   <option value="stableford">Stableford Points</option>
-                  <option value="matchplay">Match Play</option>
+                  <option value="matchplay">Match Play (1v1)</option>
+                  <option value="strokeplay">Stroke Play (1v1)</option>
                 </select>
               </div>
+
+              <div className="mb-4">
+                <label className="block text-gray-900 dark:text-white font-medium mb-2">
+                  Number of Holes
+                </label>
+                <select
+                  value={holeCount || ""}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setHoleCount(val);
+                    if (val === 18) setNineType("front");
+                    setErrors((prev) => ({ ...prev, holeCount: false }));
+                  }}
+                  className={`w-full p-3 sm:p-4 rounded-2xl border ${
+                    errors.holeCount
+                      ? "border-red-500"
+                      : "border-gray-200 dark:border-gray-600"
+                  } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
+                >
+                  <option value="" disabled>
+                    Select Number of Holes
+                  </option>
+                  <option value={18}>18 Holes</option>
+                  <option value={9}>9 Holes</option>
+                </select>
+              </div>
+
+              {holeCount === 9 && (
+                <div className="mb-4">
+                  <label className="block text-gray-900 dark:text-white font-medium mb-2">
+                    Select 9 Holes
+                  </label>
+                  <select
+                    value={nineType || ""}
+                    onChange={(e) => {
+                      setNineType(e.target.value);
+                      setErrors((prev) => ({ ...prev, nineType: false }));
+                    }}
+                    className={`w-full p-3 sm:p-4 rounded-2xl border ${
+                      errors.nineType
+                        ? "border-red-500"
+                        : "border-gray-200 dark:border-gray-600"
+                    } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
+                  >
+                    <option value="" disabled>
+                      Select 9 Holes
+                    </option>
+                    <option value="front">Out (Front 9)</option>
+                    <option value="back">In (Back 9)</option>
+                  </select>
+                </div>
+              )}
 
               <button
                 onClick={createGame}
@@ -336,7 +514,9 @@ export default function EnterScore({ userId, user, courses }) {
                           Format:{" "}
                           {game.matchFormat === "stableford"
                             ? "Stableford"
-                            : "Match Play"}
+                            : game.matchFormat === "matchplay"
+                            ? "Match Play"
+                            : "Stroke Play"}
                         </span>
                       )}
                     </div>
@@ -376,7 +556,9 @@ export default function EnterScore({ userId, user, courses }) {
                     <span className="font-semibold">
                       {matchFormat === "stableford"
                         ? "Stableford"
-                        : "Match Play"}
+                        : matchFormat === "matchplay"
+                        ? "Match Play"
+                        : "Stroke Play"}
                     </span>
                   </>
                 )}
@@ -390,11 +572,12 @@ export default function EnterScore({ userId, user, courses }) {
                   >
                     <div className="text-center mb-2 sm:mb-3">
                       <div className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
-                        Hole {idx + 1}
+                        Hole {startIndex + idx + 1}
                       </div>
+
                       <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                        Par {selectedCourse.holes[idx].par} • S.I.{" "}
-                        {selectedCourse.holes[idx].strokeIndex}
+                        Par {displayedHoles[idx].par} • S.I.{" "}
+                        {displayedHoles[idx].strokeIndex}
                       </div>
                     </div>
 
@@ -410,7 +593,7 @@ export default function EnterScore({ userId, user, courses }) {
                                   value: (currentValue - 1).toString(),
                                 },
                               },
-                              idx
+                              idx + startIndex
                             );
                         }}
                         className="w-8 h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -423,7 +606,7 @@ export default function EnterScore({ userId, user, courses }) {
                         inputMode="numeric"
                         pattern="[0-9]*"
                         value={v}
-                        onChange={(e) => handleInputChange(e, idx)}
+                        onChange={(e) => handleInputChange(e, idx + startIndex)}
                         className="w-16 h-8 text-center border-2 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         placeholder="-"
                       />
@@ -439,7 +622,7 @@ export default function EnterScore({ userId, user, courses }) {
                                   value: (currentValue + 1).toString(),
                                 },
                               },
-                              idx
+                              idx + startIndex
                             );
                         }}
                         className="w-8 h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -449,8 +632,8 @@ export default function EnterScore({ userId, user, courses }) {
                     </div>
 
                     <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 text-center leading-tight">
-                      <div>Net: {scores[idx].netScore ?? "-"}</div>
-                      <div>Points: {scores[idx].net ?? "-"}</div>
+                      <div>Net: {displayedScores[idx].netScore ?? "-"}</div>
+                      <div>Points: {displayedScores[idx].net ?? "-"}</div>
                     </div>
                   </div>
                 ))}
@@ -461,14 +644,13 @@ export default function EnterScore({ userId, user, courses }) {
               </div>
 
               <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-4 sm:mt-6">
-                {/* <button
+                <button
                   type="button"
-                  onClick={saveScores}
-                  className="w-full sm:w-auto px-6 py-3 bg-green-700 text-white font-semibold rounded-xl shadow-md hover:bg-green-800 transition"
+                  onClick={leaveGame}
+                  className="w-full sm:w-auto px-6 py-3 bg-red-500 text-white rounded-xl shadow-md hover:bg-red-600 transition"
                 >
-                  Save Scores
-                </button> */}
-
+                  Leave Game
+                </button>
                 <button
                   type="button"
                   onClick={() => navigate("/dashboard")}
