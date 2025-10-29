@@ -17,7 +17,7 @@ export default function Register() {
     try {
       const userData = await signup(displayName, password, handicap, null);
       setUserAndPersist(userData);
-      navigate("/dashboard");
+      navigate("/tournament-select");
     } catch (err) {
       setError(err.message);
     }

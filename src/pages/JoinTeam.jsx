@@ -10,11 +10,13 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { useTournament } from "../context/TournamentContext";
 import { useNavigate } from "react-router-dom";
 import { Modal, useModal } from "../components/Modal";
 
 export default function JoinTeam() {
   const { user } = useAuth();
+  const { currentTournament } = useTournament();
   const navigate = useNavigate();
   const { modal, showConfirm, showInput, hideModal } = useModal();
   const [users, setUsers] = useState([]);
@@ -23,29 +25,48 @@ export default function JoinTeam() {
   const [currentUserData, setCurrentUserData] = useState(null);
 
   const fetchUsers = async () => {
-    if (!user?.uid) return;
+    if (!user?.uid || !currentTournament) return;
 
     setLoading(true);
-    const usersRef = collection(db, "users");
-    const snapshot = await getDocs(usersRef);
-    const allUsers = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    
+    try {
+      // Fetch all users from the main users collection
+      const usersRef = collection(db, "users");
+      const snapshot = await getDocs(usersRef);
+      const allUsers = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-    const currentUser = allUsers.find((u) => u.uid === user.uid);
-    setCurrentUserData(currentUser);
+      const currentUser = allUsers.find((u) => u.uid === user.uid);
+      setCurrentUserData(currentUser);
 
-    const usersWithoutTeam = allUsers.filter(
-      (u) => !u.teamId && u.uid !== user.uid
-    );
-    setUsers(usersWithoutTeam);
-    setLoading(false);
+      // Fetch tournament members from the tournament's members subcollection
+      const membersRef = collection(
+        db,
+        "tournaments",
+        currentTournament,
+        "members"
+      );
+      const membersSnapshot = await getDocs(membersRef);
+      const tournamentMemberUids = membersSnapshot.docs.map((doc) => doc.id);
+
+      // Filter users to only show those in the current tournament who don't have a team
+      const usersWithoutTeam = allUsers.filter(
+        (u) => tournamentMemberUids.includes(u.uid) && !u.teamId && u.uid !== user.uid
+      );
+      
+      setUsers(usersWithoutTeam);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    if (user?.uid) fetchUsers();
-  }, [user?.uid]);
+    if (user?.uid && currentTournament) fetchUsers();
+  }, [user?.uid, currentTournament]);
 
   const removeTeam = async (teamId) => {
     if (!teamId) return;

@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, limit, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { courses } from "../data/courses";
+import { useTournament } from "../context/TournamentContext";
 
 export default function ViewMembers() {
   const navigate = useNavigate();
+  const { currentTournament } = useTournament();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -14,10 +16,22 @@ export default function ViewMembers() {
 
   useEffect(() => {
     const fetchMembers = async () => {
+      if (!currentTournament) {
+        setLoading(false);
+        setError("No tournament selected");
+        return;
+      }
+
       try {
         setLoading(true);
-        const usersRef = collection(db, "users");
-        const querySnapshot = await getDocs(usersRef);
+        // Fetch members from the tournament's members subcollection
+        const membersRef = collection(
+          db,
+          "tournaments",
+          currentTournament,
+          "members"
+        );
+        const querySnapshot = await getDocs(membersRef);
         const membersData = querySnapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
@@ -33,7 +47,7 @@ export default function ViewMembers() {
     };
 
     fetchMembers();
-  }, []);
+  }, [currentTournament]);
 
   const handleViewScores = (member) => {
     setSelectedMember(member);
@@ -150,7 +164,11 @@ export default function ViewMembers() {
                         </div>
                         <div>
                           <span className="font-medium">Joined:</span>{" "}
-                          {member.createdAt
+                          {member.joinedAt
+                            ? new Date(
+                                member.joinedAt.seconds * 1000
+                              ).toLocaleDateString()
+                            : member.createdAt
                             ? new Date(
                                 member.createdAt.seconds * 1000
                               ).toLocaleDateString()
@@ -211,6 +229,7 @@ export default function ViewMembers() {
 
 // User Scores Modal Component (mobile-friendly)
 function UserScoresModal({ member, onClose }) {
+  const { currentTournament } = useTournament();
   const [games, setGames] = useState([]);
   const [selectedGameId, setSelectedGameId] = useState("");
   const [selectedGame, setSelectedGame] = useState(null);
@@ -221,11 +240,22 @@ function UserScoresModal({ member, onClose }) {
     const fetchGames = async () => {
       try {
         setLoading(true);
-        const q = query(
-          collection(db, "games"),
-          orderBy("createdAt", "desc"),
-          limit(20)
-        );
+        
+        let q;
+        if (currentTournament) {
+          q = query(
+            collection(db, "games"),
+            where("tournamentId", "==", currentTournament),
+            orderBy("createdAt", "desc"),
+            limit(20)
+          );
+        } else {
+          q = query(
+            collection(db, "games"),
+            orderBy("createdAt", "desc"),
+            limit(20)
+          );
+        }
         const snapshot = await getDocs(q);
         const gamesData = snapshot.docs.map((doc) => ({
           id: doc.id,
@@ -241,7 +271,7 @@ function UserScoresModal({ member, onClose }) {
       }
     };
     fetchGames();
-  }, []);
+  }, [currentTournament]);
 
   useEffect(() => {
     if (selectedGameId && games.length > 0) {

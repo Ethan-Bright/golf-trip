@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
-import MatchplayScorecardModal from "./MatchplayScorecardModal";
+import MatchplayGrossScorecardModal from "./MatchplayGrossScorecardModal";
 
-export default function MatchplayLeaderboard({ game }) {
+export default function MatchplayGrossLeaderboard({ game }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -25,21 +25,20 @@ export default function MatchplayLeaderboard({ game }) {
       const gamePlayers = users.filter(
         (u) => gamePlayersMap[u.id]
       );
-      
       // Get relevant hole range based on game settings
       const holeCount = game.holeCount || 18;
       const nineType = game.nineType || "front";
       const startIndex = nineType === "back" ? 9 : 0;
-      
+
       const leaderboardData = gamePlayers.map((player) => {
         const allScores = gamePlayersMap[player.id]?.scores ?? [];
         const relevantScores = allScores.slice(startIndex, startIndex + holeCount);
         let holesThru = 0;
         let totalStrokes = 0;
         let isRoundComplete = true;
-        
+
         relevantScores.forEach((s) => {
-          if (s?.gross != null) {
+          if (s?.gross != null && s.gross > 0) {
             holesThru++;
             totalStrokes += s.gross;
           } else {
@@ -56,10 +55,10 @@ export default function MatchplayLeaderboard({ game }) {
           const otherAllScores = gamePlayersMap[otherPlayerId]?.scores ?? [];
           const otherRelevantScores = otherAllScores.slice(startIndex, startIndex + holeCount);
           const pHasScore = relevantScores.some(
-            (s) => s?.net != null || s?.gross != null
+            (s) => s?.gross != null && s.gross > 0
           );
           const oHasScore = otherRelevantScores.some(
-            (s) => s?.net != null || s?.gross != null
+            (s) => s?.gross != null && s.gross > 0
           );
           if (pHasScore && oHasScore) {
             matchStatus = calculateMatchPlayStatus(relevantScores, otherRelevantScores);
@@ -111,6 +110,7 @@ export default function MatchplayLeaderboard({ game }) {
     setSelectedTeam(team);
     setModalOpen(true);
   };
+
   const closeModal = () => {
     setSelectedTeam(null);
     setModalOpen(false);
@@ -118,11 +118,11 @@ export default function MatchplayLeaderboard({ game }) {
 
   return (
     <div>
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
-        Matchplay Leaderboard
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
+        Matchplay Leaderboard (Gross)
       </h1>
       {leaderboard.length === 0 ? (
-        <p className="text-center text-gray-600 dark:text-gray-300 text-sm sm:text-base">
+        <p className="text-center text-gray-600 dark:text-gray-300">
           There needs to be 2 players for the matchplay format
         </p>
       ) : (
@@ -130,12 +130,12 @@ export default function MatchplayLeaderboard({ game }) {
           {leaderboard.map((team, index) => (
             <div
               key={index}
-              className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
+              className="p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
             >
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                <div className="flex items-center space-x-3 flex-1 min-w-0">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-3">
                   {/* Position Number */}
-                  <div className="w-8 h-8 bg-green-600 dark:bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  <div className="w-8 h-8 bg-green-600 dark:bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
                     {index + 1}
                   </div>
                   
@@ -155,26 +155,26 @@ export default function MatchplayLeaderboard({ game }) {
                   </div>
                   
                   {/* Player Info */}
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">
                       {team.displayName}
                     </h3>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       {team.isRoundComplete ? 'Total strokes' : 'Current strokes'}: {team.totalStrokes}
                     </p>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
                       {team.isRoundComplete ? "Completed Match" : `Thru ${team.thru}`}
                     </p>
                   </div>
                 </div>
                 
-                <div className="flex items-center space-x-3 w-full sm:w-auto">
-                  <span className="text-green-600 dark:text-green-400 font-bold text-lg sm:text-xl">
+                <div className="flex items-center space-x-3">
+                  <span className="text-green-600 dark:text-green-400 font-bold text-xl">
                     {team.matchStatus}
                   </span>
                   <button
                     onClick={() => openModal(team)}
-                    className="px-3 py-2 text-sm bg-green-600 dark:bg-green-500 text-white rounded-xl flex-1 sm:flex-none whitespace-nowrap"
+                    className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl"
                   >
                     View Scores
                   </button>
@@ -185,7 +185,7 @@ export default function MatchplayLeaderboard({ game }) {
         </div>
       )}
       {modalOpen && selectedTeam && (
-        <MatchplayScorecardModal game={game} selectedTeam={selectedTeam} onClose={closeModal} />
+        <MatchplayGrossScorecardModal game={game} selectedTeam={selectedTeam} onClose={closeModal} />
       )}
     </div>
   );
@@ -195,15 +195,18 @@ function calculateMatchPlayStatus(p1Scores, p2Scores) {
   let status = 0;
   let holesPlayed = 0;
   for (let i = 0; i < Math.min(p1Scores.length, p2Scores.length); i++) {
-    const p1Score = p1Scores[i]?.net ?? p1Scores[i]?.gross;
-    const p2Score = p2Scores[i]?.net ?? p2Scores[i]?.gross;
-    if (p1Score == null || p2Score == null) continue;
+    const p1Score = p1Scores[i]?.gross;
+    const p2Score = p2Scores[i]?.gross;
+    // Only process holes where both players have valid scores
+    if (p1Score == null || p2Score == null || p1Score === 0 || p2Score === 0) continue;
     holesPlayed++;
-    if (p1Score > p2Score) status++;
-    else if (p2Score > p1Score) status--;
+    // In gross matchplay, lower score wins the hole
+    if (p1Score < p2Score) status++;
+    else if (p2Score < p1Score) status--;
   }
   if (holesPlayed === 0) return "Waiting for opponent";
   if (status === 0) return "All Square";
   if (status > 0) return `${status} Up`;
   return `${Math.abs(status)} Down`;
 }
+

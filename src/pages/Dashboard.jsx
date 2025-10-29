@@ -1,6 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useTournament } from "../context/TournamentContext";
 import { useNavigate } from "react-router-dom";
+import { db } from "../firebase";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import TournamentModal from "../components/TournamentModal";
 
 // Profile Modal Component
 function ProfileModal({ user, onClose }) {
@@ -247,8 +251,77 @@ function ProfileModal({ user, onClose }) {
 // Dashboard Component
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const { currentTournament, setTournament } = useTournament();
   const navigate = useNavigate();
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [tournaments, setTournaments] = useState([]);
+  const [tournamentName, setTournamentName] = useState("");
+  const [showTournamentModal, setShowTournamentModal] = useState(false);
+
+  // Always fetch tournament name when currentTournament changes
+  useEffect(() => {
+    const fetchTournamentName = async () => {
+      if (currentTournament) {
+        const tournamentRef = doc(db, "tournaments", currentTournament);
+        const tournamentSnap = await getDoc(tournamentRef);
+        if (tournamentSnap.exists()) {
+          setTournamentName(tournamentSnap.data().name);
+        }
+      }
+    };
+
+    fetchTournamentName();
+  }, [currentTournament]);
+
+  useEffect(() => {
+    const fetchTournaments = async () => {
+      // First, get fresh user data from Firestore
+      const userRef = doc(db, "users", user.uid);
+      const userSnapshot = await getDoc(userRef);
+      const userData = userSnapshot.data();
+      const userTournaments = userData?.tournaments || [];
+      
+      if (!userTournaments || userTournaments.length === 0) {
+        setTournaments([]);
+        return;
+      }
+      
+      const tournamentData = await Promise.all(
+        userTournaments.map(async (tournamentId) => {
+          const tournamentRef = doc(db, "tournaments", tournamentId);
+          const tournamentSnap = await getDoc(tournamentRef);
+          if (tournamentSnap.exists()) {
+            return {
+              id: tournamentId,
+              ...tournamentSnap.data(),
+            };
+          }
+          return null;
+        })
+      );
+      
+      setTournaments(tournamentData.filter(Boolean));
+      
+      // Get current tournament name
+      if (currentTournament) {
+        const currentRef = doc(db, "tournaments", currentTournament);
+        const currentSnap = await getDoc(currentRef);
+        if (currentSnap.exists()) {
+          setTournamentName(currentSnap.data().name);
+        } else {
+          // Try to find in tournament data
+          const current = tournamentData.find(t => t?.id === currentTournament);
+          if (current) {
+            setTournamentName(current.name);
+          }
+        }
+      }
+    };
+
+    if (user?.uid) {
+      fetchTournaments();
+    }
+  }, [user?.uid, currentTournament]);
 
   const handleLogout = async () => {
     try {
@@ -260,7 +333,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-green-100 dark:bg-gray-900 overflow-y-auto overflow-x-hidden relative">
+    <div className="min-h-screen bg-green-100 dark:bg-gray-900 relative">
       {/* Swish Background Effect */}
       <div className="absolute inset-0 opacity-20 dark:opacity-10 pointer-events-none">
         <div className="absolute top-0 left-0 w-full h-full">
@@ -272,7 +345,7 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 max-w-md mx-auto p-6">
+      <div className="relative z-10 max-w-md mx-auto p-6 pb-24">
         {/* Header */}
         <header className="text-center mb-8">
           <button
@@ -303,6 +376,26 @@ export default function Dashboard() {
               {user?.handicap || "—"}
             </span>
           </p>
+
+          {tournamentName && (
+            <div className="mt-4 text-center">
+              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                Current Tournament:
+              </div>
+              <div className="text-sml font-semibold text-gray-900 dark:text-white">
+                {tournamentName}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 text-center">
+            <button
+              onClick={() => setShowTournamentModal(true)}
+              className="px-4 py-2 bg-yellow-500 dark:bg-yellow-600 text-white text-sm font-semibold rounded-xl hover:bg-yellow-600 dark:hover:bg-yellow-700 transition-colors"
+            >
+              Manage Tournaments
+            </button>
+          </div>
         </header>
 
         {/* Navigation Cards */}
@@ -428,7 +521,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white">
-                  View Members
+                  View Tournament Members
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   See all tournament participants
@@ -475,6 +568,10 @@ export default function Dashboard() {
             className={showProfileModal ? "block" : "hidden"}
           />
         )}
+        <TournamentModal
+          isOpen={showTournamentModal}
+          onClose={() => setShowTournamentModal(false)}
+        />
       </div>
     </div>
   );
