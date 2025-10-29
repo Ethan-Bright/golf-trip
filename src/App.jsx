@@ -7,12 +7,14 @@ import {
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { TournamentProvider } from "./context/TournamentContext";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Leaderboard from "./pages/Leaderboard";
 import JoinTeam from "./pages/JoinTeam";
+import TournamentSelect from "./pages/TournamentSelect";
 import { courses } from "./data/courses";
 import EnterScoreWrapper from "./pages/EnterScoreWrapper";
 import ViewTeams from "./pages/ViewTeams";
@@ -29,7 +31,8 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
+        <TournamentProvider>
+          <Router>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
@@ -39,6 +42,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <EnterScoreWrapper courses={courses} />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/tournament-select"
+              element={
+                <PrivateRoute>
+                  <TournamentSelect />
                 </PrivateRoute>
               }
             />
@@ -70,6 +81,7 @@ function App() {
             <Route path="/members" element={<ViewMembers />} />
           </Routes>
         </Router>
+        </TournamentProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -3,8 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { db } from "../firebase";
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from "firebase/firestore";
 import LeaderboardComponent from "../components/Leaderboard";
+import AchievementsModal from "../components/AchievementsModal";
+import { useTournament } from "../context/TournamentContext";
 
 export default function Leaderboard({ tournamentId }) {
+  const { currentTournament } = useTournament();
   const [game, setGame] = useState(null);
   const [allGames, setAllGames] = useState([]);
   const [filteredGames, setFilteredGames] = useState([]);
@@ -14,20 +17,36 @@ export default function Leaderboard({ tournamentId }) {
   const [selectedFormat, setSelectedFormat] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
   const dropdownRef = useRef(null);
   const userDropdownRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     async function loadAllGames() {
-      // Load all games for the dropdown (increased limit for better filtering)
+      if (!currentTournament) {
+        setAllGames([]);
+        setFilteredGames([]);
+        return;
+      }
+
+      // Load all games and filter by tournament client-side to avoid needing a composite index
       const q = query(
         collection(db, "games"),
         orderBy("createdAt", "desc"),
         limit(100)
       );
       const snapshot = await getDocs(q);
-      const games = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const allGamesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      
+      // Filter by current tournament and sort by createdAt
+      const games = allGamesData
+        .filter(game => game.tournamentId === currentTournament)
+        .sort((a, b) => {
+          if (!a.createdAt || !b.createdAt) return 0;
+          return b.createdAt.seconds - a.createdAt.seconds;
+        });
+      
       setAllGames(games);
       setFilteredGames(games);
       
@@ -52,11 +71,16 @@ export default function Leaderboard({ tournamentId }) {
     } else {
       loadAllGames();
     }
-  }, [tournamentId]);
+  }, [tournamentId, currentTournament]);
 
   // Filter games based on search term, users, and format
   useEffect(() => {
     let filtered = allGames;
+
+    // Filter by current tournament (extra safety check)
+    if (currentTournament) {
+      filtered = filtered.filter(game => game.tournamentId === currentTournament);
+    }
 
     // Filter by search term (game name)
     if (searchTerm) {
@@ -82,7 +106,7 @@ export default function Leaderboard({ tournamentId }) {
     }
 
     setFilteredGames(filtered);
-  }, [allGames, searchTerm, selectedUsers, selectedFormat]);
+  }, [allGames, searchTerm, selectedUsers, selectedFormat, currentTournament]);
 
   // Update game when selectedGameId changes
   useEffect(() => {
@@ -156,54 +180,54 @@ export default function Leaderboard({ tournamentId }) {
 
   if (!game)
     return (
-      <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-6">
+      <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6">
         <div className="max-w-4xl mx-auto">
           <button
             onClick={() => navigate("/dashboard")}
-            className="mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl"
+            className="mb-6 sm:mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl text-sm sm:text-base"
           >
             ← Back to Dashboard
           </button>
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-8 text-center">
-            <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 sm:p-8 text-center">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+              <svg className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">No Active Games</h3>
-            <p className="text-gray-600 dark:text-gray-300">Create a game first to view the leaderboard</p>
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">No Active Games</h3>
+            <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">Create a game first to view the leaderboard</p>
           </div>
         </div>
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-6">
+    <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6">
       <div className="max-w-4xl mx-auto">
         {/* Back Button */}
         <button
           onClick={() => navigate("/dashboard")}
-          className="mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl"
+          className="mb-6 sm:mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl text-sm sm:text-base"
         >
           ← Back to Dashboard
         </button>
 
         {/* Filter Controls */}
         {allGames.length > 1 && (
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Filter Games</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 sm:p-6 mb-4 sm:mb-6">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">Filter Games</h3>
               <button
                 onClick={clearFilters}
-                className="text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium"
+                className="text-xs sm:text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium"
               >
                 Clear Filters
               </button>
             </div>
 
             {/* Search Input */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <div className="mb-3 sm:mb-4">
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Search Game Names
               </label>
               <input
@@ -211,12 +235,12 @@ export default function Leaderboard({ tournamentId }) {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Type to search game names..."
-                className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                className="w-full p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
               />
             </div>
 
             {/* Filter Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
               {/* Multi-Select User Filter */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -380,16 +404,30 @@ export default function Leaderboard({ tournamentId }) {
             Match Format: {game.matchFormat || 'Unknown Format'}
           </p>
           {game.createdAt && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
               {new Date(game.createdAt.seconds * 1000).toLocaleDateString()}
             </p>
           )}
+          <button
+            onClick={() => setShowAchievements(true)}
+            className="mt-4 px-6 py-3 bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white font-semibold rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-all duration-200 flex items-center gap-2 mx-auto"
+          >
+            🏆 View Achievements
+          </button>
         </div>
 
         {/* Leaderboard Section */}
         <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-8">
           <LeaderboardComponent game={game} />
         </div>
+
+        {/* Achievements Modal */}
+        {showAchievements && (
+          <AchievementsModal
+            game={game}
+            onClose={() => setShowAchievements(false)}
+          />
+        )}
 
         {/* Footer */}
         <div className="text-center text-gray-500 dark:text-gray-400 text-sm">

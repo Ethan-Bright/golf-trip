@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
-import StablefordScorecardModal from "./StablefordScorecardModal";
+import Matchplay2v2ScorecardModal from "./Matchplay2v2ScorecardModal";
+import Matchplay2v2GameScorecardModal from "./Matchplay2v2GameScorecardModal";
 
-export default function StablefordLeaderboard({ game }) {
+export default function Matchplay2v2Leaderboard({ game }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [gameModalOpen, setGameModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -27,6 +29,38 @@ export default function StablefordLeaderboard({ game }) {
       const gamePlayersMap = {};
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
 
+      // Calculate match status based on best ball scores from each team
+      const calculateMatchStatus = (team1Players, team2Players) => {
+        let status = 0;
+        let holesPlayed = 0;
+        
+        for (let i = 0; i < 18; i++) {
+          // Get best ball (highest net score) from team 1
+          const team1Scores = team1Players
+            .map(player => gamePlayersMap[player.id]?.scores?.[i]?.net)
+            .filter(score => score != null);
+          
+          // Get best ball (highest net score) from team 2
+          const team2Scores = team2Players
+            .map(player => gamePlayersMap[player.id]?.scores?.[i]?.net)
+            .filter(score => score != null);
+          
+          if (team1Scores.length === 0 || team2Scores.length === 0) continue;
+          
+          holesPlayed++;
+          const team1Best = Math.max(...team1Scores);
+          const team2Best = Math.max(...team2Scores);
+          
+          if (team1Best > team2Best) status++;
+          else if (team2Best > team1Best) status--;
+        }
+        
+        if (holesPlayed === 0) return "Waiting for opponent";
+        if (status === 0) return "All Square";
+        if (status > 0) return `${status} Up`;
+        return `${Math.abs(status)} Down`;
+      };
+
       const leaderboardData = [];
 
       teams.forEach((team) => {
@@ -36,81 +70,88 @@ export default function StablefordLeaderboard({ game }) {
         const player2 = users.find(
           (u) => u.id === team.player2?.uid && gamePlayersMap[u.id]
         );
-        if (!player1 && !player2) return;
+        
+        if (!player1 || !player2) return;
 
-        let totalPoints = 0;
-        let holesThru = 0;
         let totalStrokes = 0;
+        let holesThru = 0;
         let isRoundComplete = true;
 
-        const p1Scores = gamePlayersMap[player1?.id]?.scores ?? [];
-        const p2Scores = gamePlayersMap[player2?.id]?.scores ?? [];
+        const p1Scores = gamePlayersMap[player1.id]?.scores ?? [];
+        const p2Scores = gamePlayersMap[player2.id]?.scores ?? [];
 
+        // Calculate total strokes (sum of both players)
         for (let i = 0; i < 18; i++) {
-          const p1Net = p1Scores[i]?.net;
-          const p2Net = p2Scores[i]?.net;
-          if (p1Net != null || p2Net != null) holesThru++;
-          totalPoints += Math.max(p1Net ?? 0, p2Net ?? 0);
-          
-          // Calculate strokes using gross scores
           const p1Gross = p1Scores[i]?.gross ?? 0;
           const p2Gross = p2Scores[i]?.gross ?? 0;
-          totalStrokes += Math.max(p1Gross, p2Gross);
           
-          // Check if round is complete
+          if (p1Gross > 0 || p2Gross > 0) holesThru++;
+          totalStrokes += p1Gross + p2Gross;
+          
           if (p1Gross === 0 && p2Gross === 0) {
             isRoundComplete = false;
+          }
+        }
+
+        // Find opposing team
+        const opponentTeam = teams.find(
+          (t) => t.id !== team.id && t.player1?.uid && t.player2?.uid
+        );
+
+        let matchStatus = "Waiting for opponent";
+
+        if (opponentTeam) {
+          const opponent1 = users.find(
+            (u) => u.id === opponentTeam.player1?.uid && gamePlayersMap[u.id]
+          );
+          const opponent2 = users.find(
+            (u) => u.id === opponentTeam.player2?.uid && gamePlayersMap[u.id]
+          );
+
+          if (opponent1 && opponent2) {
+            matchStatus = calculateMatchStatus(
+              [player1, player2],
+              [opponent1, opponent2]
+            );
           }
         }
 
         leaderboardData.push({
           id: team.id,
           name: team.name,
-          players: [player1, player2].filter(Boolean),
-          totalPoints,
+          players: [player1, player2],
           thru: holesThru,
           isSolo: false,
+          matchStatus,
           totalStrokes,
           isRoundComplete,
         });
       });
 
-      const soloPlayers = users.filter(
-        (u) => !u.teamId && gamePlayersMap[u.id]
-      );
-      soloPlayers.forEach((player) => {
-        const scores = gamePlayersMap[player.id]?.scores ?? [];
-        let totalPoints = 0;
-        let holesThru = 0;
-        let totalStrokes = 0;
-        let isRoundComplete = true;
+      leaderboardData.sort((a, b) => {
+        // Parse match status values - positive for "Up", negative for "Down"
+        let aVal = 0;
+        let bVal = 0;
         
-        for (let i = 0; i < 18; i++) {
-          const net = scores[i]?.net;
-          if (net != null) holesThru++;
-          totalPoints += net ?? 0;
-          
-          // Calculate strokes using gross scores
-          const gross = scores[i]?.gross ?? 0;
-          totalStrokes += gross;
-          
-          // Check if round is complete
-          if (gross === 0) {
-            isRoundComplete = false;
-          }
+        if (a.matchStatus.includes("Up")) {
+          aVal = parseInt(a.matchStatus);
+        } else if (a.matchStatus.includes("Down")) {
+          aVal = -parseInt(a.matchStatus);
+        } else if (a.matchStatus === "All Square") {
+          aVal = 0;
         }
-        leaderboardData.push({
-          players: [player],
-          displayName: `${player.displayName ?? "Unknown"} (Solo)`,
-          totalPoints,
-          thru: holesThru,
-          isSolo: true,
-          totalStrokes,
-          isRoundComplete,
-        });
+        
+        if (b.matchStatus.includes("Up")) {
+          bVal = parseInt(b.matchStatus);
+        } else if (b.matchStatus.includes("Down")) {
+          bVal = -parseInt(b.matchStatus);
+        } else if (b.matchStatus === "All Square") {
+          bVal = 0;
+        }
+        
+        return bVal - aVal;
       });
 
-      leaderboardData.sort((a, b) => b.totalPoints - a.totalPoints);
       setLeaderboard(leaderboardData);
     };
 
@@ -121,25 +162,44 @@ export default function StablefordLeaderboard({ game }) {
     setSelectedTeam(team);
     setModalOpen(true);
   };
+
   const closeModal = () => {
     setSelectedTeam(null);
     setModalOpen(false);
   };
 
+  const openGameModal = () => {
+    setGameModalOpen(true);
+  };
+
+  const closeGameModal = () => {
+    setGameModalOpen(false);
+  };
+
   return (
     <div>
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
-        Stableford Leaderboard
-      </h1>
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-3">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white text-center flex-1">
+          2v2 Matchplay Leaderboard
+        </h1>
+        {leaderboard.length > 0 && (
+          <button
+            onClick={openGameModal}
+            className="px-3 py-2 text-sm sm:text-base bg-blue-600 dark:bg-blue-500 text-white rounded-xl hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors w-full sm:w-auto"
+          >
+            View Game Scorecard
+          </button>
+        )}
+      </div>
       {leaderboard.length === 0 ? (
         <p className="text-center text-gray-600 dark:text-gray-300 text-sm sm:text-base">
-          No players or teams found.
+          There needs to be 2 teams for the 2v2 matchplay format
         </p>
       ) : (
         <div className="space-y-3">
           {leaderboard.map((team, index) => (
             <div
-              key={index}
+              key={team.id || index}
               className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
             >
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
@@ -149,29 +209,12 @@ export default function StablefordLeaderboard({ game }) {
                     {index + 1}
                   </div>
                   
-                  {/* Profile Picture - Only for solo players */}
-                  {team.isSolo && (
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 flex-shrink-0">
-                      {team.players[0]?.profilePictureUrl ? (
-                        <img 
-                          src={team.players[0].profilePictureUrl} 
-                          alt={team.displayName}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-600 dark:text-gray-300 text-sm font-medium">
-                          {team.displayName.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Player/Team Info */}
+                  {/* Team Info */}
                   <div className="min-w-0 flex-1">
                     <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
-                      {team.isSolo ? team.displayName : team.name}
+                      {team.name}
                     </h3>
-                    {!team.isSolo && team.players && team.players.length > 0 && (
+                    {team.players && team.players.length > 0 && (
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         {team.players.map((player, idx) => (
                           <div key={idx} className="flex items-center gap-1 flex-shrink-0">
@@ -195,17 +238,14 @@ export default function StablefordLeaderboard({ game }) {
                       </div>
                     )}
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {team.isRoundComplete ? 'Total strokes' : 'Current strokes'}: {team.totalStrokes}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                       {team.isRoundComplete ? "Completed Match" : `Thru ${team.thru}`}
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-3 w-full sm:w-auto">
-                  <span className="text-gray-800 dark:text-gray-200 font-bold text-base sm:text-lg">
-                    {team.totalPoints} pts
+                  <span className="text-green-600 dark:text-green-400 font-bold text-lg sm:text-xl">
+                    {team.matchStatus}
                   </span>
                   <button
                     onClick={() => openModal(team)}
@@ -220,8 +260,13 @@ export default function StablefordLeaderboard({ game }) {
         </div>
       )}
       {modalOpen && selectedTeam && (
-        <StablefordScorecardModal selectedTeam={selectedTeam} game={game} onClose={closeModal} />
+        <Matchplay2v2ScorecardModal game={game} selectedTeam={selectedTeam} onClose={closeModal} />
+      )}
+      {gameModalOpen && (
+        <Matchplay2v2GameScorecardModal game={game} teamsData={leaderboard} onClose={closeGameModal} />
       )}
     </div>
   );
 }
+
+

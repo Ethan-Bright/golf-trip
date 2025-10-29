@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import React from "react";
@@ -10,10 +10,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [toast, setToast] = useState("");
-  const [showToast, setShowToast] = useState(false);
-
-  const toastTimeoutRef = useRef(null); // To store the 5s timeout
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,30 +17,16 @@ export default function Login() {
     try {
       const userData = await login(displayName, password);
       setUserAndPersist(userData, rememberMe);
-
-      // Show toast
-      setToast(
-        rememberMe
-          ? "You’ll stay signed in on this device."
-          : "You’ll be signed out when you close the browser."
-      );
-      setShowToast(true);
-
-      // Set 5s timeout to navigate automatically
-      toastTimeoutRef.current = setTimeout(() => {
+      
+      // If user has tournaments, go to dashboard; otherwise go to tournament-select
+      if (userData.tournaments && userData.tournaments.length > 0) {
         navigate("/dashboard");
-      }, 5000);
+      } else {
+        navigate("/tournament-select");
+      }
     } catch (err) {
       setError(err.message);
     }
-  };
-
-  const closeToastAndNavigate = () => {
-    // Clear the automatic timeout
-    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
-
-    setShowToast(false);
-    navigate("/dashboard");
   };
 
   return (
@@ -122,25 +104,6 @@ export default function Login() {
               Sign In
             </button>
           </form>
-
-          {/* Toast */}
-          {showToast && (
-            <div
-              className={`fixed top-5 right-5 z-50 bg-green-500 text-white px-4 py-2 rounded-xl shadow-lg flex items-center space-x-4 transform transition-transform duration-500 ease-out ${
-                showToast
-                  ? "translate-x-0 opacity-100"
-                  : "translate-x-32 opacity-0"
-              }`}
-            >
-              <span>{toast}</span>
-              <button
-                onClick={closeToastAndNavigate}
-                className="ml-4 font-bold hover:text-gray-200"
-              >
-                ✕
-              </button>
-            </div>
-          )}
 
           {error && (
             <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-2xl text-sm">

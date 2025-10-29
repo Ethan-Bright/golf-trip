@@ -12,6 +12,8 @@ export function Modal({
   showCancel = false,
   inputValue = "",
   setInputValue = () => {},
+  placeholder = "Enter team name...",
+  labelText = "Team Name:",
 }) {
   if (!isOpen) return null;
 
@@ -82,29 +84,29 @@ export function Modal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-4 sm:p-6">
         {getIcon()}
 
-        <div className="text-center mb-6">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+        <div className="text-center mb-4 sm:mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-2">
             {title}
           </h3>
           {type !== "input" && (
-            <p className="text-gray-600 dark:text-gray-300">{message}</p>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">{message}</p>
           )}
         </div>
 
         {type === "input" && (
           <div className="mb-6">
             <label className="block text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">
-              Team Name:
+              {labelText}
             </label>
             <input
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              placeholder="Enter team name..."
+              placeholder={placeholder}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -114,14 +116,14 @@ export function Modal({
           {showCancel && (
             <button
               onClick={onClose}
-              className="flex-1 py-3 px-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-2xl hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-gray-400 dark:focus:ring-offset-gray-800 transition-all duration-200"
+              className="flex-1 py-3 px-4 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-semibold rounded-xl sm:rounded-2xl hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-gray-400 dark:focus:ring-offset-gray-800 transition-all duration-200 min-h-[44px]"
             >
               {cancelText}
             </button>
           )}
           <button
             onClick={onConfirm || onClose}
-            className={`flex-1 py-3 px-4 text-white font-semibold rounded-2xl focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all duration-200 ${getButtonColor()}`}
+            className={`flex-1 py-3 px-4 text-white font-semibold rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-all duration-200 min-h-[44px] ${getButtonColor()}`}
           >
             {confirmText}
           </button>
@@ -143,6 +145,8 @@ export function useModal() {
     showCancel: false,
     inputValue: "",
     setInputValue: () => {},
+    placeholder: "Enter team name...",
+    labelText: "Team Name:",
   });
 
   const showModal = (config) => {
@@ -155,8 +159,6 @@ export function useModal() {
   const hideModal = () => {
     setModal((prev) => ({ ...prev, isOpen: false }));
   };
-
-  const modalJSX = <Modal {...modal} onClose={hideModal} />;
 
   const showAlert = (message, title = "Notification") => {
     showModal({ title, message, type: "info" });
@@ -192,20 +194,28 @@ export function useModal() {
     });
   };
 
-  const showInput = (title = "Enter Team Name") => {
+  const showInput = (title = "Enter Team Name", placeholder = "Enter team name...", labelText = "Team Name:") => {
     return new Promise((resolve, reject) => {
+      let resolved = false;
       let inputValue = "";
+      
       const setInputValue = (v) => {
         inputValue = v;
         setModal((prev) => ({ ...prev, inputValue: v }));
       };
+      
       const handleConfirm = () => {
+        if (resolved) return;
+        resolved = true;
         hideModal();
         resolve(inputValue || "");
       };
+      
       const handleCancel = () => {
+        if (resolved) return;
+        resolved = true;
         hideModal();
-        reject(null);
+        reject(new Error("Cancelled"));
       };
 
       showModal({
@@ -215,14 +225,16 @@ export function useModal() {
         onConfirm: handleConfirm,
         confirmText: "Confirm",
         cancelText: "Cancel",
-        inputValue,
+        inputValue: "",
         setInputValue,
+        placeholder,
+        labelText,
       });
     });
   };
 
   return {
-    modalJSX, // <- return JSX instead of raw object
+    modal,
     showModal,
     hideModal,
     showAlert,

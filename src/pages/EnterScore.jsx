@@ -13,10 +13,12 @@ import {
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { Modal, useModal } from "../components/Modal";
+import { useTournament } from "../context/TournamentContext";
 
 export default function EnterScore({ userId, user, courses }) {
   const navigate = useNavigate();
   const { modal, showModal, hideModal, showSuccess, showError } = useModal();
+  const { currentTournament } = useTournament();
   const [matchFormat, setMatchFormat] = useState(""); // start with placeholder
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [gameName, setGameName] = useState("");
@@ -29,14 +31,21 @@ export default function EnterScore({ userId, user, courses }) {
   const [errors, setErrors] = useState({});
   const [isLoadingGames, setIsLoadingGames] = useState(true);
   const [resumedGame, setResumedGame] = useState(false);
+  const [showFormatHelp, setShowFormatHelp] = useState(false);
 
   // --- Check for incomplete games and fetch games in progress ---
   useEffect(() => {
     const fetchGames = async () => {
       setIsLoadingGames(true);
+      if (!currentTournament) {
+        setIsLoadingGames(false);
+        return;
+      }
+      
       const q = query(
         collection(db, "games"),
-        where("status", "==", "inProgress")
+        where("status", "==", "inProgress"),
+        where("tournamentId", "==", currentTournament)
       );
       const snapshot = await getDocs(q);
       const games = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -66,7 +75,7 @@ export default function EnterScore({ userId, user, courses }) {
       setIsLoadingGames(false);
     };
     fetchGames();
-  }, [gameId, userId]);
+  }, [gameId, userId, currentTournament]);
 
   // --- Fetch scores for current game ---
   useEffect(() => {
@@ -140,6 +149,7 @@ export default function EnterScore({ userId, user, courses }) {
         matchFormat,
         holeCount,
         nineType,
+        tournamentId: currentTournament,
         players: [
           {
             userId,
@@ -413,9 +423,21 @@ export default function EnterScore({ userId, user, courses }) {
               />
 
               <div className="mb-4">
-                <label className="block text-gray-900 dark:text-white font-medium mb-2">
-                  Match Format
-                </label>
+                <div className="flex items-center gap-2 mb-2">
+                  <label className="block text-gray-900 dark:text-white font-medium">
+                    Match Format
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowFormatHelp(true)}
+                    className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                    title="Learn about match formats"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
                 <select
                   value={matchFormat || ""}
                   onChange={(e) => {
@@ -432,8 +454,13 @@ export default function EnterScore({ userId, user, courses }) {
                     Select Match Format
                   </option>
                   <option value="stableford">Stableford Points</option>
-                  <option value="matchplay">Match Play (1v1)</option>
-                  <option value="strokeplay">Stroke Play (1v1)</option>
+                  <option value="matchplay">Match Play (1v1 using handicaps)</option>
+                  <option value="matchplay gross">Match Play (1v1 no handicaps)</option>
+                  <option value="2v2 matchplay">2v2 Match Play (Team vs Team)</option>
+                  <option value="2v2 matchplay gross">2v2 Match Play (No handicaps)</option>
+                  <option value="american">American Scoring (3 or 4 players)</option>
+                  <option value="strokeplay">Stroke Play (1v1 no handicaps)</option>
+                  <option value="scorecard">Scorecard (Just track scores, no competition)</option>
                 </select>
               </div>
 
@@ -516,6 +543,16 @@ export default function EnterScore({ userId, user, courses }) {
                             ? "Stableford"
                             : game.matchFormat === "matchplay"
                             ? "Match Play"
+                            : game.matchFormat === "matchplay gross"
+                            ? "Match Play (Gross)"
+                            : game.matchFormat === "2v2 matchplay"
+                            ? "2v2 Match Play"
+                            : game.matchFormat === "2v2 matchplay gross"
+                            ? "2v2 Match Play (Gross)"
+                            : game.matchFormat === "american"
+                            ? "American Scoring"
+                            : game.matchFormat === "scorecard"
+                            ? "Scorecard"
                             : "Stroke Play"}
                         </span>
                       )}
@@ -558,6 +595,16 @@ export default function EnterScore({ userId, user, courses }) {
                         ? "Stableford"
                         : matchFormat === "matchplay"
                         ? "Match Play"
+                        : matchFormat === "matchplay gross"
+                        ? "Match Play (Gross)"
+                        : matchFormat === "2v2 matchplay"
+                        ? "2v2 Match Play"
+                        : matchFormat === "2v2 matchplay gross"
+                        ? "2v2 Match Play (Gross)"
+                        : matchFormat === "american"
+                        ? "American Scoring"
+                        : matchFormat === "scorecard"
+                        ? "Scorecard"
                         : "Stroke Play"}
                     </span>
                   </>
@@ -596,7 +643,7 @@ export default function EnterScore({ userId, user, courses }) {
                               idx + startIndex
                             );
                         }}
-                        className="w-8 h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        className="w-10 h-10 sm:w-8 sm:h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-xl sm:text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                       >
                         −
                       </button>
@@ -607,7 +654,7 @@ export default function EnterScore({ userId, user, courses }) {
                         pattern="[0-9]*"
                         value={v}
                         onChange={(e) => handleInputChange(e, idx + startIndex)}
-                        className="w-16 h-8 text-center border-2 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 font-bold rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-20 h-10 sm:w-16 sm:h-8 text-center border-2 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 font-bold text-lg sm:text-base rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         placeholder="-"
                       />
 
@@ -625,7 +672,7 @@ export default function EnterScore({ userId, user, courses }) {
                               idx + startIndex
                             );
                         }}
-                        className="w-8 h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                        className="w-10 h-10 sm:w-8 sm:h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-xl sm:text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
                       >
                         +
                       </button>
@@ -665,6 +712,143 @@ export default function EnterScore({ userId, user, courses }) {
       </div>
 
       <Modal {...modal} onClose={hideModal} />
+
+      {/* Format Help Modal */}
+      {showFormatHelp && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Match Format Guide
+              </h2>
+              <button
+                onClick={() => setShowFormatHelp(false)}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-3xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Stableford */}
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Stableford Points
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Players compete based on points earned per hole using their net score (gross score minus handicap strokes). Points are awarded as follows:
+                </p>
+                <ul className="list-disc list-inside mt-2 space-y-1 text-gray-600 dark:text-gray-300">
+                  <li>Net Albatross or better: 5 points</li>
+                  <li>Net Eagle (-2): 4 points</li>
+                  <li>Net Birdie (-1): 3 points</li>
+                  <li>Net Par: 2 points</li>
+                  <li>Net Bogey (+1): 1 point</li>
+                  <li>Net Double Bogey or worse: 0 points</li>
+                </ul>
+              </div>
+
+              {/* Match Play */}
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Match Play (1v1)
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                  Two players compete hole-by-hole. Each hole is won by the player with the lower net score (gross minus handicap strokes). The match is won by the player who wins more holes. Uses handicaps to level the playing field.
+                </p>
+                <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-semibold">No Handicaps Version:</span> Also available as "Match Play (1v1 no handicaps)" which uses gross scores instead of net scores.
+                  </p>
+                </div>
+              </div>
+
+              {/* 2v2 Match Play */}
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  2v2 Match Play
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                  Two teams of two players compete against each other. Each team uses their best ball (best net score) on each hole. The team with the better ball wins the hole. Teams compete head-to-head to win the most holes.
+                </p>
+                <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-semibold">No Handicaps Version:</span> Also available as "2v2 Match Play (No handicaps)" which uses gross scores instead of net scores.
+                  </p>
+                </div>
+              </div>
+
+              {/* American Scoring */}
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  American Scoring
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-3">
+                  For 3 or 4 players competing against each other using net scores (handicaps applied). Points are awarded based on finishing position on each hole. Lower net score wins the hole.
+                </p>
+                
+                <div className="mt-3 text-gray-600 dark:text-gray-300">
+                  <p className="font-semibold mb-2 text-green-600 dark:text-green-400">3 Players (6 points per hole)</p>
+                  <div className="ml-2 space-y-1">
+                    <p>• All tie: 2-2-2 (2 points each)</p>
+                    <p>• Clear winner, two tie for second: 4-1-1</p>
+                    <p>• Clear winner, clear second, clear third: 4-2-0</p>
+                    <p>• Two tie for first, one second: 3-3-0</p>
+                    <p>• One winner, two tie for second: 4-1-1</p>
+                  </div>
+                </div>
+                
+                <div className="mt-4 text-gray-600 dark:text-gray-300">
+                  <p className="font-semibold mb-2 text-green-600 dark:text-green-400">4 Players (8 points per hole)</p>
+                  <div className="ml-2 space-y-1">
+                    <p>• All tie: 2-2-2-2 (2 points each)</p>
+                    <p>• Clear winner, three tie for second: 5-1-1-1</p>
+                    <p>• Clear 1st, clear 2nd, two tie for 3rd: 4-2-1-1</p>
+                    <p>• Clear 1st, 2nd, 3rd, 4th (all different): 4-3-1-0</p>
+                    <p>• Two tie for 1st, two tie for last: 3-3-1-1</p>
+                    <p>• Two tie for 1st, one 3rd, one 4th: 3-3-1-1</p>
+                  </div>
+                </div>
+                
+                <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <span className="font-semibold">Note:</span> Points are distributed based on the number of players tied at each position. The scoring system automatically handles all tie scenarios to ensure fair point distribution while keeping totals balanced.
+                  </p>
+                </div>
+              </div>
+
+              {/* Stroke Play */}
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Stroke Play
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Two players compete with lowest total gross strokes (no handicaps). Simple stroke scoring where the player with the lowest total strokes wins.
+                </p>
+              </div>
+
+              {/* Scorecard */}
+              <div className="pb-4">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Scorecard
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300">
+                  Just track your scores without any competition or point system. Perfect for solo rounds or when you just want to record your round without comparing to others.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={() => setShowFormatHelp(false)}
+                className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

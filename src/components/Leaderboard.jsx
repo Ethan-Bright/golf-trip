@@ -1,8 +1,13 @@
 // src/components/Leaderboard.jsx
 import React, { useState } from "react";
 import MatchplayLeaderboard from "./MatchplayLeaderboard";
+import MatchplayGrossLeaderboard from "./MatchplayGrossLeaderboard";
+import Matchplay2v2Leaderboard from "./Matchplay2v2Leaderboard";
+import Matchplay2v2GrossLeaderboard from "./Matchplay2v2GrossLeaderboard";
+import AmericanLeaderboard from "./AmericanLeaderboard";
 import StablefordLeaderboard from "./StablefordLeaderboard";
 import StrokeplayLeaderboard from "./StrokeplayLeaderboard";
+import ScorecardLeaderboard from "./ScorecardLeaderboard";
 import MatchplayScorecardModal from "./MatchplayScorecardModal";
 
 export default function Leaderboard({ game }) {
@@ -39,6 +44,21 @@ export default function Leaderboard({ game }) {
       case "match play":
       case "match":
         return <MatchplayLeaderboard game={game} />;
+      case "matchplay gross":
+      case "match play gross":
+      case "match gross":
+        return <MatchplayGrossLeaderboard game={game} />;
+      case "2v2 matchplay":
+      case "2v2 match play":
+      case "2v2":
+        return <Matchplay2v2Leaderboard game={game} />;
+      case "2v2 matchplay gross":
+      case "2v2 match play gross":
+      case "2v2 gross":
+        return <Matchplay2v2GrossLeaderboard game={game} />;
+      case "american":
+      case "american scoring":
+        return <AmericanLeaderboard game={game} />;
       case "stableford":
       case "stableford points":
       case "stableford scoring":
@@ -48,11 +68,13 @@ export default function Leaderboard({ game }) {
       case "stroke":
       case "medal":
         return <StrokeplayLeaderboard game={game} />;
+      case "scorecard":
+        return <ScorecardLeaderboard game={game} />;
       default:
         return (
           <div className="text-center text-gray-600 dark:text-gray-300 mt-4">
             <p>Unknown game format: "{game.matchFormat || 'empty'}"</p>
-            <p className="text-sm mt-2">Available formats: matchplay, stableford, strokeplay</p>
+            <p className="text-sm mt-2">Available formats: matchplay, matchplay gross, 2v2 matchplay, 2v2 matchplay gross, american, stableford, strokeplay, scorecard</p>
           </div>
         );
     }

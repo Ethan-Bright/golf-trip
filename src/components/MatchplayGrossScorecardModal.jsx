@@ -1,21 +1,13 @@
 import React from "react";
 
-export default function MatchplayScorecardModal({ game, selectedTeam, onClose }) {
+export default function MatchplayGrossScorecardModal({ game, selectedTeam, onClose }) {
   if (!game || !selectedTeam) return null;
 
   // Get the actual game players data with scores
   const allGamePlayers = game.players || [];
   
-  // Match the selected team's player IDs with the game players to get their scores
-  const players = selectedTeam.players?.map(selectedPlayer => {
-    // Find this player in the game data
-    const gamePlayer = allGamePlayers.find(gp => gp.userId === selectedPlayer.id || gp.userId === selectedPlayer.uid);
-    return {
-      ...selectedPlayer,
-      scores: gamePlayer?.scores || [],
-      name: selectedPlayer.displayName || selectedPlayer.name || "Unknown"
-    };
-  }) || [];
+  // For 1v1 matches, show both players
+  const players = allGamePlayers.length >= 2 ? allGamePlayers : (selectedTeam.players || []);
   
   // Determine which holes to display
   const holeCount = game.holeCount || 18;
@@ -24,7 +16,7 @@ export default function MatchplayScorecardModal({ game, selectedTeam, onClose })
 
   if (!players || players.length === 0) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
         <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
             {game.name}
@@ -35,7 +27,7 @@ export default function MatchplayScorecardModal({ game, selectedTeam, onClose })
           <div className="mt-6 flex justify-center">
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+              className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl text-sm font-medium"
             >
               Close
             </button>
@@ -48,19 +40,23 @@ export default function MatchplayScorecardModal({ game, selectedTeam, onClose })
   const getHoleWinners = (displayIndex) => {
     const actualIndex = startIndex + displayIndex;
     const scores = players
-      .map((p) => ({ name: p.name, net: p.scores[actualIndex]?.net ?? null }))
-      .filter((s) => s.net !== null);
+      .map((p) => ({ 
+        userId: p.userId,
+        name: p.name, 
+        gross: p.scores[actualIndex]?.gross ?? null 
+      }))
+      .filter((s) => s.gross !== null && s.gross > 0);
 
-    if (scores.length === 0) return [];
+    if (scores.length === 0) return null;
 
-    const maxNet = Math.max(...scores.map((s) => s.net));
-    const winners = scores.filter((s) => s.net === maxNet);
+    const minGross = Math.min(...scores.map((s) => s.gross));
+    const winners = scores.filter((s) => s.gross === minGross);
 
-    return winners.length === 1 ? winners[0].name : [];
+    return winners.length === 1 ? winners[0] : null;
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
       <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-md w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white pr-3">
@@ -76,7 +72,7 @@ export default function MatchplayScorecardModal({ game, selectedTeam, onClose })
 
         {/* Responsive Table */}
         <div className="overflow-x-auto -mx-3 sm:mx-0">
-          <table className="w-full border-separate border-spacing-1 text-xs sm:text-sm min-w-[350px]">
+          <table className="w-full border-separate border-spacing-1 text-xs sm:text-sm min-w-[400px]">
             <thead>
               <tr>
                 <th className="px-2 py-1 text-left">Hole</th>
@@ -93,7 +89,9 @@ export default function MatchplayScorecardModal({ game, selectedTeam, onClose })
             <tbody>
               {Array.from({ length: holeCount }).map((_, displayIndex) => {
                 const holeIndex = startIndex + displayIndex;
-                const winnerName = getHoleWinners(displayIndex);
+                const winnerInfo = getHoleWinners(displayIndex);
+                const winnerUserId = winnerInfo?.userId;
+                const winnerName = winnerInfo?.name;
                 return (
                   <tr
                     key={displayIndex}
@@ -104,8 +102,8 @@ export default function MatchplayScorecardModal({ game, selectedTeam, onClose })
                     </td>
                     {players.map((p) => {
                       const actualIndex = startIndex + displayIndex;
-                      const netScore = p.scores[actualIndex]?.net ?? "-";
-                      const isWinner = winnerName === p.name;
+                      const gross = p.scores[actualIndex]?.gross ?? null;
+                      const isWinner = winnerUserId && winnerUserId === p.userId;
                       return (
                         <td
                           key={p.userId + displayIndex}
@@ -115,7 +113,7 @@ export default function MatchplayScorecardModal({ game, selectedTeam, onClose })
                               : ""
                           }`}
                         >
-                          {netScore}
+                          {gross !== null && gross > 0 ? gross : "-"}
                         </td>
                       );
                     })}
@@ -138,3 +136,4 @@ export default function MatchplayScorecardModal({ game, selectedTeam, onClose })
     </div>
   );
 }
+
