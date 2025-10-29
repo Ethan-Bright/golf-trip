@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
-import AmericanScorecardModal from "./AmericanScorecardModal";
+import AmericanNetScorecardModal from "./AmericanNetScorecardModal";
 
-export default function AmericanLeaderboard({ game }) {
+export default function AmericanNetLeaderboard({ game }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -42,11 +42,12 @@ export default function AmericanLeaderboard({ game }) {
         let isRoundComplete = true;
         let totalPoints = 0;
 
-        // Calculate American scoring points for each hole using gross scores
+        // Calculate American scoring points for each hole using net scores
         for (let i = startIndex; i < startIndex + holeCount; i++) {
           const displayIndex = i - startIndex;
           const playerScore = scores[i];
           const playerGross = playerScore?.gross ?? null;
+          const playerNet = playerScore?.netScore ?? null;
 
           if (playerGross !== null && playerGross > 0) {
             holesThru++;
@@ -55,21 +56,21 @@ export default function AmericanLeaderboard({ game }) {
             isRoundComplete = false;
           }
 
-          // Calculate points using gross scores
-          if (playerGross !== null && playerGross > 0) {
-            // Get all solo players' gross scores for this hole
+          // Calculate points using net scores
+          if (playerNet !== null && playerNet > 0) {
+            // Get all solo players' net scores for this hole
             const allScores = soloPlayers.map((p) => {
               const pScores = gamePlayersMap[p.id]?.scores ?? [];
               const pScore = pScores[i];
               return {
                 userId: p.id,
-                gross: pScore?.gross ?? null,
+                net: pScore?.netScore ?? null,
               };
-            }).filter(s => s.gross !== null && s.gross > 0);
+            }).filter(s => s.net !== null && s.net > 0);
 
             // Only calculate if at least 2 players have scores (for fair comparison)
             if (allScores.length >= 2) {
-              const points = calculateAmericanPointsGross(allScores, player.id);
+              const points = calculateAmericanPointsNet(allScores, player.id);
               totalPoints += points;
             }
           }
@@ -114,11 +115,11 @@ export default function AmericanLeaderboard({ game }) {
   return (
     <div>
       <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">
-        American Scoring Leaderboard
+        American Scoring (Net) Leaderboard
       </h1>
       {pointsFormat && (
         <p className="text-center text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-6">
-          {pointsFormat}
+          {pointsFormat} • Using handicaps
         </p>
       )}
       {leaderboard.length === 0 ? (
@@ -185,18 +186,18 @@ export default function AmericanLeaderboard({ game }) {
         </div>
       )}
       {modalOpen && selectedPlayer && (
-        <AmericanScorecardModal game={game} selectedPlayer={selectedPlayer} onClose={closeModal} />
+        <AmericanNetScorecardModal game={game} selectedPlayer={selectedPlayer} onClose={closeModal} />
       )}
     </div>
   );
 }
 
-// Calculate American scoring points for a hole using gross scores
-function calculateAmericanPointsGross(allScores, currentPlayerId) {
+// Calculate American scoring points for a hole using net scores
+function calculateAmericanPointsNet(allScores, currentPlayerId) {
   const numPlayers = allScores.length;
   
-  // Sort by gross score (lower is better for scoring)
-  const sortedScores = [...allScores].sort((a, b) => a.gross - b.gross);
+  // Sort by net score (lower is better for scoring)
+  const sortedScores = [...allScores].sort((a, b) => a.net - b.net);
   
   // Find the current player's index in the sorted array
   const currentPlayerIndex = sortedScores.findIndex(s => s.userId === currentPlayerId);
@@ -206,8 +207,8 @@ function calculateAmericanPointsGross(allScores, currentPlayerId) {
   // Build position groups (handling ties)
   const groups = [];
   for (let i = 0; i < sortedScores.length; i++) {
-    if (i === 0 || sortedScores[i].gross !== sortedScores[i-1].gross) {
-      groups.push({ gross: sortedScores[i].gross, players: [sortedScores[i]] });
+    if (i === 0 || sortedScores[i].net !== sortedScores[i-1].net) {
+      groups.push({ net: sortedScores[i].net, players: [sortedScores[i]] });
     } else {
       groups[groups.length - 1].players.push(sortedScores[i]);
     }
@@ -272,7 +273,8 @@ function calculateAmericanPointsGross(allScores, currentPlayerId) {
               // So: 8-6-3-3 = 20 total
               return 8;
             } else {
-              return 8; // Solo first, solo second, solo third: 8-6-4-2 = 20
+              // Solo first, solo second, solo third: 8-6-4-2 = 20
+              return 8;
             }
         } else if (numTiedAtPosition === 3) {
           // 3-way tie for first: positions 1-3 normally get 8+6+4=18, distribute evenly as 6-6-6, last gets 2
@@ -337,4 +339,3 @@ function calculateAmericanPointsGross(allScores, currentPlayerId) {
   
   return 0;
 }
-

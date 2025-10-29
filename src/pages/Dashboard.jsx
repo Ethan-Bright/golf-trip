@@ -530,6 +530,32 @@ export default function Dashboard() {
             </div>
           </button>
 
+          {/* Course Information */}
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={() => navigate("/course-info")}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  Course Information
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  View course details and hole information
+                </p>
+              </div>
+            </div>
+          </button>
+
           {/* Sign Out */}
           <button
             className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"

@@ -459,6 +459,7 @@ export default function EnterScore({ userId, user, courses }) {
                   <option value="2v2 matchplay">2v2 Match Play (Team vs Team)</option>
                   <option value="2v2 matchplay gross">2v2 Match Play (No handicaps)</option>
                   <option value="american">American Scoring (3 or 4 players)</option>
+                  <option value="american net">American Scoring Net (3 or 4 players, uses handicaps)</option>
                   <option value="strokeplay">Stroke Play (1v1 no handicaps)</option>
                   <option value="scorecard">Scorecard (Just track scores, no competition)</option>
                 </select>
@@ -551,6 +552,8 @@ export default function EnterScore({ userId, user, courses }) {
                             ? "2v2 Match Play (Gross)"
                             : game.matchFormat === "american"
                             ? "American Scoring"
+                            : game.matchFormat === "american net"
+                            ? "American Scoring (Net)"
                             : game.matchFormat === "scorecard"
                             ? "Scorecard"
                             : "Stroke Play"}
@@ -603,6 +606,8 @@ export default function EnterScore({ userId, user, courses }) {
                         ? "2v2 Match Play (Gross)"
                         : matchFormat === "american"
                         ? "American Scoring"
+                        : matchFormat === "american net"
+                        ? "American Scoring (Net)"
                         : matchFormat === "scorecard"
                         ? "Scorecard"
                         : "Stroke Play"}
@@ -784,7 +789,7 @@ export default function EnterScore({ userId, user, courses }) {
                   American Scoring
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300 mb-3">
-                  For 3 or 4 players competing against each other using net scores (handicaps applied). Points are awarded based on finishing position on each hole. Lower net score wins the hole.
+                  For 3 or 4 players competing against each other using <span className="font-semibold">gross scores</span> (no handicaps). Points are awarded based on finishing position on each hole. Lower gross score wins the hole. All tied players receive equal points.
                 </p>
                 
                 <div className="mt-3 text-gray-600 dark:text-gray-300">
@@ -793,26 +798,26 @@ export default function EnterScore({ userId, user, courses }) {
                     <p>• All tie: 2-2-2 (2 points each)</p>
                     <p>• Clear winner, two tie for second: 4-1-1</p>
                     <p>• Clear winner, clear second, clear third: 4-2-0</p>
-                    <p>• Two tie for first, one second: 3-3-0</p>
-                    <p>• One winner, two tie for second: 4-1-1</p>
+                    <p>• Two tie for first, one second: 3-3-0 (both tied get 3)</p>
                   </div>
                 </div>
                 
                 <div className="mt-4 text-gray-600 dark:text-gray-300">
-                  <p className="font-semibold mb-2 text-green-600 dark:text-green-400">4 Players (8 points per hole)</p>
+                  <p className="font-semibold mb-2 text-green-600 dark:text-green-400">4 Players (20 points per hole)</p>
                   <div className="ml-2 space-y-1">
-                    <p>• All tie: 2-2-2-2 (2 points each)</p>
-                    <p>• Clear winner, three tie for second: 5-1-1-1</p>
-                    <p>• Clear 1st, clear 2nd, two tie for 3rd: 4-2-1-1</p>
-                    <p>• Clear 1st, 2nd, 3rd, 4th (all different): 4-3-1-0</p>
-                    <p>• Two tie for 1st, two tie for last: 3-3-1-1</p>
-                    <p>• Two tie for 1st, one 3rd, one 4th: 3-3-1-1</p>
+                    <p>• All tie: 5-5-5-5 (5 points each)</p>
+                    <p>• Clear 1st, 2nd, 3rd, 4th (all different): 8-6-4-2</p>
+                    <p>• Clear 1st, two tie for 2nd, clear 4th: 8-6-6-0 (both tied get 6)</p>
+                    <p>• Two tie for 1st, clear 3rd, clear 4th: 7-7-4-2 (both tied get 7)</p>
+                    <p>• Two tie for 1st, two tie for last: 7-7-3-3 (both tied pairs get equal points)</p>
+                    <p>• Three tie for 1st, clear 4th: 6-6-6-2 (all three tied get 6)</p>
+                    <p>• Solo 1st, three tie for last: 8-4-4-4 (all three tied get 4)</p>
                   </div>
                 </div>
                 
                 <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    <span className="font-semibold">Note:</span> Points are distributed based on the number of players tied at each position. The scoring system automatically handles all tie scenarios to ensure fair point distribution while keeping totals balanced.
+                    <span className="font-semibold">Important:</span> This format uses <span className="font-semibold">gross scores</span> (actual strokes, no handicap adjustments). All tied players receive equal points. The scoring system automatically handles all tie scenarios to ensure fair point distribution.
                   </p>
                 </div>
               </div>
