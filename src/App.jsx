@@ -19,6 +19,7 @@ import { courses } from "./data/courses";
 import EnterScoreWrapper from "./pages/EnterScoreWrapper";
 import ViewTeams from "./pages/ViewTeams";
 import ViewMembers from "./pages/ViewMembers";
+import CourseInfo from "./pages/CourseInfo";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -79,6 +80,14 @@ function App() {
               }
             />
             <Route path="/members" element={<ViewMembers />} />
+            <Route
+              path="/course-info"
+              element={
+                <PrivateRoute>
+                  <CourseInfo />
+                </PrivateRoute>
+              }
+            />
           </Routes>
         </Router>
         </TournamentProvider>

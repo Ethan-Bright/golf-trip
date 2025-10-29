@@ -5,6 +5,7 @@ import MatchplayGrossLeaderboard from "./MatchplayGrossLeaderboard";
 import Matchplay2v2Leaderboard from "./Matchplay2v2Leaderboard";
 import Matchplay2v2GrossLeaderboard from "./Matchplay2v2GrossLeaderboard";
 import AmericanLeaderboard from "./AmericanLeaderboard";
+import AmericanNetLeaderboard from "./AmericanNetLeaderboard";
 import StablefordLeaderboard from "./StablefordLeaderboard";
 import StrokeplayLeaderboard from "./StrokeplayLeaderboard";
 import ScorecardLeaderboard from "./ScorecardLeaderboard";
@@ -59,6 +60,10 @@ export default function Leaderboard({ game }) {
       case "american":
       case "american scoring":
         return <AmericanLeaderboard game={game} />;
+      case "american net":
+      case "american scoring net":
+      case "american net scoring":
+        return <AmericanNetLeaderboard game={game} />;
       case "stableford":
       case "stableford points":
       case "stableford scoring":
@@ -74,7 +79,7 @@ export default function Leaderboard({ game }) {
         return (
           <div className="text-center text-gray-600 dark:text-gray-300 mt-4">
             <p>Unknown game format: "{game.matchFormat || 'empty'}"</p>
-            <p className="text-sm mt-2">Available formats: matchplay, matchplay gross, 2v2 matchplay, 2v2 matchplay gross, american, stableford, strokeplay, scorecard</p>
+            <p className="text-sm mt-2">Available formats: matchplay, matchplay gross, 2v2 matchplay, 2v2 matchplay gross, american, american net, stableford, strokeplay, scorecard</p>
           </div>
         );
     }

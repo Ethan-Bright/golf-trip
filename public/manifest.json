@@ -8,9 +8,21 @@
   "theme_color": "#ffffff",
   "icons": [
     {
-      "src": "/golf_ball.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/golfappicon-69022232357c6/ios/AppIcon.appiconset/Icon-App-60x60@3x.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/golfappicon-69022232357c6/android/ic_launcher-web.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/golfappicon-69022232357c6/ios/AppIcon.appiconset/ItunesArtwork@2x.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

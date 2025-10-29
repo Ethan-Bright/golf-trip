@@ -3,7 +3,7 @@ import { courses } from "../data/courses";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 
-export default function AmericanScorecardModal({ game, selectedPlayer, onClose }) {
+export default function AmericanNetScorecardModal({ game, selectedPlayer, onClose }) {
   const [soloPlayers, setSoloPlayers] = useState([]);
 
   useEffect(() => {
@@ -65,27 +65,27 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
   const gamePlayersMap = {};
   game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
 
-  // Calculate points for each player on each hole using gross scores
+  // Calculate points for each player on each hole using net scores
   const calculatePointsForPlayerOnHole = (playerId, holeIndex) => {
     const playerScore = gamePlayersMap[playerId]?.scores?.[holeIndex];
-    const playerGross = playerScore?.gross ?? null;
+    const playerNet = playerScore?.netScore ?? null;
     
-    if (playerGross === null || playerGross <= 0) return null;
+    if (playerNet === null || playerNet <= 0) return null;
     
-    // Get all solo players' gross scores for this hole
+    // Get all solo players' net scores for this hole
     const allScores = soloPlayers.map((p) => {
       const pScores = gamePlayersMap[p.id]?.scores ?? [];
       const pScore = pScores[holeIndex];
       return {
         userId: p.id,
-        gross: pScore?.gross ?? null,
+        net: pScore?.netScore ?? null,
       };
-    }).filter(s => s.gross !== null && s.gross > 0);
+    }).filter(s => s.net !== null && s.net > 0);
     
     // Only calculate if at least 2 players have scores (for fair comparison)
     if (allScores.length < 2) return null;
     
-    return calculateAmericanPointsGross(allScores, playerId);
+    return calculateAmericanPointsNet(allScores, playerId);
   };
 
   // Calculate totals for each player
@@ -117,7 +117,7 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
       <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-[95vw] sm:max-w-6xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white pr-3">
-            American Scoring - All Players
+            American Scoring (Net) - All Players
           </h2>
           <button
             onClick={onClose}
@@ -139,6 +139,7 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
                       {player.displayName || "Unknown"}
                     </th>
                     <th className="px-2 py-2 text-center bg-gray-100 dark:bg-gray-800">Gross</th>
+                    <th className="px-2 py-2 text-center bg-gray-100 dark:bg-gray-800">Net</th>
                     <th className="px-2 py-2 text-center font-bold text-green-600 dark:text-green-400 bg-gray-100 dark:bg-gray-800">Pts</th>
                   </React.Fragment>
                 ))}
@@ -160,6 +161,7 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
                     {soloPlayers.map((player) => {
                       const score = gamePlayersMap[player.id]?.scores?.[actualIndex];
                       const gross = score?.gross ?? null;
+                      const net = score?.netScore ?? null;
                       const points = calculatePointsForPlayerOnHole(player.id, actualIndex);
                       
                       return (
@@ -167,6 +169,9 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
                           <td className="px-2 py-2 text-center border-l-2 border-gray-300 dark:border-gray-600"></td>
                           <td className="px-2 py-2 text-center text-gray-900 dark:text-white">
                             {gross !== null && gross > 0 ? gross : "-"}
+                          </td>
+                          <td className="px-2 py-2 text-center text-gray-900 dark:text-white">
+                            {net !== null ? net : "-"}
                           </td>
                           <td className={`px-2 py-2 text-center font-bold ${
                             points !== null && points > 0 
@@ -195,6 +200,9 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
                       <td className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-white">
                         {totals.grossTotal}
                       </td>
+                      <td className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-white">
+                        {totals.netTotal}
+                      </td>
                       <td className="px-2 py-3 text-center font-bold text-green-600 dark:text-green-400">
                         {totals.pointsTotal}
                       </td>
@@ -219,12 +227,12 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
   );
 }
 
-// Calculate American scoring points for a hole using gross scores
-function calculateAmericanPointsGross(allScores, currentPlayerId) {
+// Calculate American scoring points for a hole using net scores
+function calculateAmericanPointsNet(allScores, currentPlayerId) {
   const numPlayers = allScores.length;
   
-  // Sort by gross score (lower is better for scoring)
-  const sortedScores = [...allScores].sort((a, b) => a.gross - b.gross);
+  // Sort by net score (lower is better for scoring)
+  const sortedScores = [...allScores].sort((a, b) => a.net - b.net);
   
   // Find the current player's index in the sorted array
   const currentPlayerIndex = sortedScores.findIndex(s => s.userId === currentPlayerId);
@@ -234,8 +242,8 @@ function calculateAmericanPointsGross(allScores, currentPlayerId) {
   // Build position groups (handling ties)
   const groups = [];
   for (let i = 0; i < sortedScores.length; i++) {
-    if (i === 0 || sortedScores[i].gross !== sortedScores[i-1].gross) {
-      groups.push({ gross: sortedScores[i].gross, players: [sortedScores[i]] });
+    if (i === 0 || sortedScores[i].net !== sortedScores[i-1].net) {
+      groups.push({ net: sortedScores[i].net, players: [sortedScores[i]] });
     } else {
       groups[groups.length - 1].players.push(sortedScores[i]);
     }
