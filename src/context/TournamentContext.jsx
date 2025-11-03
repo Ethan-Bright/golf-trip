@@ -13,6 +13,7 @@ export function TournamentProvider({ children }) {
   useEffect(() => {
     const fetchTournaments = async () => {
       if (!user?.uid) {
+        setCurrentTournament(null);
         setLoading(false);
         return;
       }

@@ -17,9 +17,13 @@ export default function Leaderboard({ tournamentId }) {
   const [selectedFormat, setSelectedFormat] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [isPlayerFilterDropdownOpen, setIsPlayerFilterDropdownOpen] = useState(false);
+  const [isFormatFilterDropdownOpen, setIsFormatFilterDropdownOpen] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const dropdownRef = useRef(null);
   const userDropdownRef = useRef(null);
+  const playerFilterDropdownRef = useRef(null);
+  const formatFilterDropdownRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -142,9 +146,33 @@ export default function Leaderboard({ tournamentId }) {
     return Array.from(formats);
   };
 
+  // Get games filtered by selected users only
+  const getGamesByPlayers = () => {
+    if (selectedUsers.length === 0) return [];
+    
+    return allGames.filter(game => {
+      if (currentTournament && game.tournamentId !== currentTournament) return false;
+      return selectedUsers.some(userId => 
+        game.players?.some(player => player.userId === userId)
+      );
+    });
+  };
+
+  // Get games filtered by selected format only
+  const getGamesByFormat = () => {
+    if (!selectedFormat) return [];
+    
+    return allGames.filter(game => {
+      if (currentTournament && game.tournamentId !== currentTournament) return false;
+      return game.matchFormat?.toLowerCase() === selectedFormat.toLowerCase();
+    });
+  };
+
   const handleGameSelect = (gameId) => {
     setSelectedGameId(gameId);
     setIsDropdownOpen(false);
+    setIsPlayerFilterDropdownOpen(false);
+    setIsFormatFilterDropdownOpen(false);
   };
 
   const toggleUser = (userId) => {
@@ -169,6 +197,12 @@ export default function Leaderboard({ tournamentId }) {
       }
       if (userDropdownRef.current && !userDropdownRef.current.contains(event.target)) {
         setIsUserDropdownOpen(false);
+      }
+      if (playerFilterDropdownRef.current && !playerFilterDropdownRef.current.contains(event.target)) {
+        setIsPlayerFilterDropdownOpen(false);
+      }
+      if (formatFilterDropdownRef.current && !formatFilterDropdownRef.current.contains(event.target)) {
+        setIsFormatFilterDropdownOpen(false);
       }
     };
 
@@ -225,18 +259,71 @@ export default function Leaderboard({ tournamentId }) {
               </button>
             </div>
 
-            {/* Search Input */}
-            <div className="mb-3 sm:mb-4">
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Search Game Names
+            {/* Searchable Game Selection Dropdown */}
+            <div className="relative mb-3 sm:mb-4" ref={dropdownRef}>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Select Game ({filteredGames.length} games)
               </label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Type to search game names..."
-                className="w-full p-2 sm:p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-              />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDropdownOpen(!isDropdownOpen);
+                    setSearchTerm(""); // Reset search when opening
+                  }}
+                  className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 text-left flex items-center justify-between"
+                >
+                  <span>
+                    {game ? `${game.name} - ${game.course?.name || 'Unknown Course'}` : 'Select a game'}
+                  </span>
+                  <svg className={`w-5 h-5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {isDropdownOpen && (
+                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg">
+                    {/* Search Input inside Dropdown */}
+                    <div className="p-2 border-b border-gray-200 dark:border-gray-600">
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Type to search game names..."
+                        className="w-full p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-700"
+                        autoFocus
+                      />
+                    </div>
+                    
+                    {/* Game List */}
+                    <div className="max-h-60 overflow-y-auto">
+                      {filteredGames.length === 0 ? (
+                        <div className="p-3 text-gray-500 dark:text-gray-400 text-center">
+                          No games found matching your filters
+                        </div>
+                      ) : (
+                        filteredGames.map(gameItem => (
+                          <button
+                            key={gameItem.id}
+                            onClick={() => handleGameSelect(gameItem.id)}
+                            className={`w-full p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors ${
+                              selectedGameId === gameItem.id ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'text-gray-900 dark:text-white'
+                            }`}
+                          >
+                            <div className="font-medium">{gameItem.name}</div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              {gameItem.course?.name || 'Unknown Course'} • {gameItem.matchFormat || 'Unknown Format'}
+                              {gameItem.createdAt && (
+                                <span> • {new Date(gameItem.createdAt.seconds * 1000).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Filter Row */}
@@ -321,6 +408,49 @@ export default function Leaderboard({ tournamentId }) {
                     })}
                   </div>
                 )}
+
+                {/* Player Filter Games Dropdown */}
+                {selectedUsers.length > 0 && (
+                  <div className="mt-3 relative" ref={playerFilterDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsPlayerFilterDropdownOpen(!isPlayerFilterDropdownOpen)}
+                      className="w-full p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 text-left flex items-center justify-between text-sm"
+                    >
+                      <span>
+                        {getGamesByPlayers().length} game{getGamesByPlayers().length !== 1 ? 's' : ''} with selected players
+                      </span>
+                      <svg className={`w-4 h-4 transition-transform ${isPlayerFilterDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+
+                    {isPlayerFilterDropdownOpen && (
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                        {getGamesByPlayers().length === 0 ? (
+                          <div className="p-3 text-gray-500 dark:text-gray-400 text-center text-sm">
+                            No games found
+                          </div>
+                        ) : (
+                          getGamesByPlayers().map(gameItem => (
+                            <button
+                              key={gameItem.id}
+                              onClick={() => handleGameSelect(gameItem.id)}
+                              className={`w-full p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors ${
+                                selectedGameId === gameItem.id ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'text-gray-900 dark:text-white'
+                              }`}
+                            >
+                              <div className="font-medium text-sm">{gameItem.name}</div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400">
+                                {gameItem.course?.name || 'Unknown Course'} • {gameItem.matchFormat || 'Unknown Format'}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Format Filter */}
@@ -340,52 +470,46 @@ export default function Leaderboard({ tournamentId }) {
                     </option>
                   ))}
                 </select>
-              </div>
-            </div>
 
-            {/* Searchable Game Selection Dropdown */}
-            <div className="relative" ref={dropdownRef}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Select Game ({filteredGames.length} games)
-              </label>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 text-left flex items-center justify-between"
-                >
-                  <span>
-                    {game ? `${game.name} - ${game.course?.name || 'Unknown Course'}` : 'Select a game'}
-                  </span>
-                  <svg className={`w-5 h-5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
+                {/* Format Filter Games Dropdown */}
+                {selectedFormat && (
+                  <div className="mt-3 relative" ref={formatFilterDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsFormatFilterDropdownOpen(!isFormatFilterDropdownOpen)}
+                      className="w-full p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 text-left flex items-center justify-between text-sm"
+                    >
+                      <span>
+                        {getGamesByFormat().length} game{getGamesByFormat().length !== 1 ? 's' : ''} with this format
+                      </span>
+                      <svg className={`w-4 h-4 transition-transform ${isFormatFilterDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
 
-                {isDropdownOpen && (
-                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg max-h-60 overflow-y-auto">
-                    {filteredGames.length === 0 ? (
-                      <div className="p-3 text-gray-500 dark:text-gray-400 text-center">
-                        No games found matching your filters
-                      </div>
-                    ) : (
-                      filteredGames.map(game => (
-                        <button
-                          key={game.id}
-                          onClick={() => handleGameSelect(game.id)}
-                          className={`w-full p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors ${
-                            selectedGameId === game.id ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'text-gray-900 dark:text-white'
-                          }`}
-                        >
-                          <div className="font-medium">{game.name}</div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            {game.course?.name || 'Unknown Course'} • {game.matchFormat || 'Unknown Format'}
-                            {game.createdAt && (
-                              <span> • {new Date(game.createdAt.seconds * 1000).toLocaleDateString()}</span>
-                            )}
+                    {isFormatFilterDropdownOpen && (
+                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                        {getGamesByFormat().length === 0 ? (
+                          <div className="p-3 text-gray-500 dark:text-gray-400 text-center text-sm">
+                            No games found
                           </div>
-                        </button>
-                      ))
+                        ) : (
+                          getGamesByFormat().map(gameItem => (
+                            <button
+                              key={gameItem.id}
+                              onClick={() => handleGameSelect(gameItem.id)}
+                              className={`w-full p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors ${
+                                selectedGameId === gameItem.id ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'text-gray-900 dark:text-white'
+                              }`}
+                            >
+                              <div className="font-medium text-sm">{gameItem.name}</div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400">
+                                {gameItem.course?.name || 'Unknown Course'} • {gameItem.matchFormat || 'Unknown Format'}
+                              </div>
+                            </button>
+                          ))
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
