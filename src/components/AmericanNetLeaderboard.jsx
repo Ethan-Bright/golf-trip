@@ -342,3 +342,4 @@ function calculateAmericanPointsNet(allScores, currentPlayerId) {
 
 
 
+

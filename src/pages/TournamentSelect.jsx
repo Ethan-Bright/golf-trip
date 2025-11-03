@@ -10,12 +10,14 @@ import {
   where,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { useTournament } from "../context/TournamentContext";
 import { useNavigate } from "react-router-dom";
 import { Modal, useModal } from "../components/Modal";
 import bcrypt from "bcryptjs";
 
 export default function TournamentSelect() {
   const { user } = useAuth();
+  const { setTournament } = useTournament();
   const navigate = useNavigate();
   const { modal, showInput, hideModal } = useModal();
   const [tournaments, setTournaments] = useState([]);
@@ -128,6 +130,8 @@ export default function TournamentSelect() {
         { merge: true }
       );
 
+      // Set the tournament in context and navigate to dashboard
+      setTournament(tournamentId);
       navigate("/dashboard");
     } catch (err) {
       console.error("Error creating tournament:", err);
@@ -216,6 +220,8 @@ export default function TournamentSelect() {
         );
       }
 
+      // Set the tournament in context and navigate to dashboard
+      setTournament(selectedTournamentId);
       navigate("/dashboard");
     } catch (err) {
       console.error("Error joining tournament:", err);
