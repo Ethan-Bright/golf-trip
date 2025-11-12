@@ -78,7 +78,7 @@ export default function ScoreEntry({ tournamentId, course }) {
   return (
     <div className="bg-green-50 p-6 rounded-2xl shadow-lg border border-green-100">
       <h3 className="text-xl font-bold text-green-700 mb-6 text-center">
-        Enter Your Gross Scores
+        Enter Your With Handicaps Scores
       </h3>
 
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
@@ -105,7 +105,7 @@ export default function ScoreEntry({ tournamentId, course }) {
               placeholder="-"
             />
             <div className="text-xs text-green-600 mt-1 text-center">
-              Net: {netScores[idx] || "-"} | Points:{" "}
+              With Handicaps: {netScores[idx] || "-"} | Points:{" "}
               {netScores[idx]
                 ? Math.max(0, course.holes[idx].par + 2 - netScores[idx])
                 : "-"}

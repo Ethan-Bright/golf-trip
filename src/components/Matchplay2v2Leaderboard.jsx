@@ -2,13 +2,11 @@ import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 import Matchplay2v2ScorecardModal from "./Matchplay2v2ScorecardModal";
-import Matchplay2v2GameScorecardModal from "./Matchplay2v2GameScorecardModal";
 
 export default function Matchplay2v2Leaderboard({ game }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
-  const [gameModalOpen, setGameModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -30,17 +28,18 @@ export default function Matchplay2v2Leaderboard({ game }) {
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
 
       // Calculate match status based on best ball scores from each team
-      const calculateMatchStatus = (team1Players, team2Players) => {
+      const calculateMatchStatus = (team1Players, team2Players, holeCount, team1Name, team2Name) => {
         let status = 0;
         let holesPlayed = 0;
+        let lockedWinStatus = null; // Track if match was won at any point
         
         for (let i = 0; i < 18; i++) {
-          // Get best ball (highest net score) from team 1
+          // Get best ball (lowest net score) from team 1
           const team1Scores = team1Players
             .map(player => gamePlayersMap[player.id]?.scores?.[i]?.net)
             .filter(score => score != null);
           
-          // Get best ball (highest net score) from team 2
+          // Get best ball (lowest net score) from team 2
           const team2Scores = team2Players
             .map(player => gamePlayersMap[player.id]?.scores?.[i]?.net)
             .filter(score => score != null);
@@ -48,17 +47,38 @@ export default function Matchplay2v2Leaderboard({ game }) {
           if (team1Scores.length === 0 || team2Scores.length === 0) continue;
           
           holesPlayed++;
-          const team1Best = Math.max(...team1Scores);
-          const team2Best = Math.max(...team2Scores);
+          const team1Best = Math.min(...team1Scores);
+          const team2Best = Math.min(...team2Scores);
           
-          if (team1Best > team2Best) status++;
-          else if (team2Best > team1Best) status--;
+          if (team1Best < team2Best) status++;
+          else if (team2Best < team1Best) status--;
+          
+          // Check if match is won at this point
+          const holesRemaining = holeCount - holesPlayed;
+          const absStatus = Math.abs(status);
+          
+          if (absStatus > holesRemaining && !lockedWinStatus) {
+            // Match is won - lock this status
+            if (status > 0) {
+              lockedWinStatus = `${team1Name} won ${absStatus}-${holesRemaining}`;
+            } else {
+              lockedWinStatus = `${team2Name} won ${absStatus}-${holesRemaining}`;
+            }
+          }
         }
         
         if (holesPlayed === 0) return "Waiting for opponent";
+        
+        // If match was won at any point, return the locked status
+        if (lockedWinStatus) return lockedWinStatus;
+        
+        // Otherwise calculate current status
+        const holesRemaining = holeCount - holesPlayed;
+        const absStatus = Math.abs(status);
+        
         if (status === 0) return "All Square";
         if (status > 0) return `${status} Up`;
-        return `${Math.abs(status)} Down`;
+        return `${absStatus} Down`;
       };
 
       const leaderboardData = [];
@@ -94,6 +114,8 @@ export default function Matchplay2v2Leaderboard({ game }) {
         }
 
         // Find opposing team
+        const opponentPlayers = [];
+        let opponentDisplayName = "";
         const opponentTeam = teams.find(
           (t) => t.id !== team.id && t.player1?.uid && t.player2?.uid
         );
@@ -108,10 +130,17 @@ export default function Matchplay2v2Leaderboard({ game }) {
             (u) => u.id === opponentTeam.player2?.uid && gamePlayersMap[u.id]
           );
 
+          if (opponent1) opponentPlayers.push(opponent1);
+          if (opponent2) opponentPlayers.push(opponent2);
+          opponentDisplayName = opponentTeam.name;
+
           if (opponent1 && opponent2) {
             matchStatus = calculateMatchStatus(
               [player1, player2],
-              [opponent1, opponent2]
+              [opponent1, opponent2],
+              game.holeCount || 18,
+              team.name,
+              opponentTeam.name
             );
           }
         }
@@ -125,6 +154,14 @@ export default function Matchplay2v2Leaderboard({ game }) {
           matchStatus,
           totalStrokes,
           isRoundComplete,
+          opponentPlayers,
+          opponentDisplayName:
+            opponentDisplayName ||
+            (opponentPlayers.length > 0
+              ? opponentPlayers
+                  .map((p) => p.displayName || p.name || "Opponent")
+                  .join(" & ")
+              : ""),
         });
       });
 
@@ -133,7 +170,11 @@ export default function Matchplay2v2Leaderboard({ game }) {
         let aVal = 0;
         let bVal = 0;
         
-        if (a.matchStatus.includes("Up")) {
+        if (a.matchStatus.includes("won")) {
+          // Extract the number before the dash (e.g., "Team won 4-3" -> 4)
+          const match = a.matchStatus.match(/(\d+)-/);
+          aVal = match ? parseInt(match[1]) : 0;
+        } else if (a.matchStatus.includes("Up")) {
           aVal = parseInt(a.matchStatus);
         } else if (a.matchStatus.includes("Down")) {
           aVal = -parseInt(a.matchStatus);
@@ -141,7 +182,11 @@ export default function Matchplay2v2Leaderboard({ game }) {
           aVal = 0;
         }
         
-        if (b.matchStatus.includes("Up")) {
+        if (b.matchStatus.includes("won")) {
+          // Extract the number before the dash (e.g., "Team won 4-3" -> 4)
+          const match = b.matchStatus.match(/(\d+)-/);
+          bVal = match ? parseInt(match[1]) : 0;
+        } else if (b.matchStatus.includes("Up")) {
           bVal = parseInt(b.matchStatus);
         } else if (b.matchStatus.includes("Down")) {
           bVal = -parseInt(b.matchStatus);
@@ -168,29 +213,11 @@ export default function Matchplay2v2Leaderboard({ game }) {
     setModalOpen(false);
   };
 
-  const openGameModal = () => {
-    setGameModalOpen(true);
-  };
-
-  const closeGameModal = () => {
-    setGameModalOpen(false);
-  };
-
   return (
     <div>
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-3">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white text-center flex-1">
-          2v2 Matchplay Leaderboard
-        </h1>
-        {leaderboard.length > 0 && (
-          <button
-            onClick={openGameModal}
-            className="px-3 py-2 text-sm sm:text-base bg-blue-600 dark:bg-blue-500 text-white rounded-xl hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors w-full sm:w-auto"
-          >
-            View Game Scorecard
-          </button>
-        )}
-      </div>
+      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
+        2v2 Matchplay Leaderboard
+      </h1>
       {leaderboard.length === 0 ? (
         <p className="text-center text-gray-600 dark:text-gray-300 text-sm sm:text-base">
           There needs to be 2 teams for the 2v2 matchplay format
@@ -261,9 +288,6 @@ export default function Matchplay2v2Leaderboard({ game }) {
       )}
       {modalOpen && selectedTeam && (
         <Matchplay2v2ScorecardModal game={game} selectedTeam={selectedTeam} onClose={closeModal} />
-      )}
-      {gameModalOpen && (
-        <Matchplay2v2GameScorecardModal game={game} teamsData={leaderboard} onClose={closeGameModal} />
       )}
     </div>
   );

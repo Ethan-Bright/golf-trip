@@ -10,6 +10,10 @@ import StablefordLeaderboard from "./StablefordLeaderboard";
 import StrokeplayLeaderboard from "./StrokeplayLeaderboard";
 import ScorecardLeaderboard from "./ScorecardLeaderboard";
 import MatchplayScorecardModal from "./MatchplayScorecardModal";
+import {
+  getMatchFormatLabel,
+  normalizeMatchFormat,
+} from "../lib/matchFormats";
 
 export default function Leaderboard({ game }) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -38,48 +42,34 @@ export default function Leaderboard({ game }) {
     }
 
     // Check matchFormat field (the actual field name in Firebase)
-    const format = (game.matchFormat || "").toLowerCase();
-    
-    switch (format) {
-      case "matchplay":
-      case "match play":
-      case "match":
+    const formatId = normalizeMatchFormat(game.matchFormat);
+
+    switch (formatId) {
+      case "1v1matchplayhandicaps":
         return <MatchplayLeaderboard game={game} />;
-      case "matchplay gross":
-      case "match play gross":
-      case "match gross":
+      case "1v1matchplaynohandicap":
         return <MatchplayGrossLeaderboard game={game} />;
-      case "2v2 matchplay":
-      case "2v2 match play":
-      case "2v2":
+      case "2v2matchplayhandicaps":
         return <Matchplay2v2Leaderboard game={game} />;
-      case "2v2 matchplay gross":
-      case "2v2 match play gross":
-      case "2v2 gross":
+      case "2v2matchplaynohandicap":
         return <Matchplay2v2GrossLeaderboard game={game} />;
       case "american":
-      case "american scoring":
         return <AmericanLeaderboard game={game} />;
       case "american net":
-      case "american scoring net":
-      case "american net scoring":
         return <AmericanNetLeaderboard game={game} />;
       case "stableford":
-      case "stableford points":
-      case "stableford scoring":
         return <StablefordLeaderboard game={game} />;
       case "strokeplay":
-      case "stroke play":
-      case "stroke":
-      case "medal":
         return <StrokeplayLeaderboard game={game} />;
       case "scorecard":
         return <ScorecardLeaderboard game={game} />;
       default:
         return (
           <div className="text-center text-gray-600 dark:text-gray-300 mt-4">
-            <p>Unknown game format: "{game.matchFormat || 'empty'}"</p>
-            <p className="text-sm mt-2">Available formats: matchplay, matchplay gross, 2v2 matchplay, 2v2 matchplay gross, american, american net, stableford, strokeplay, scorecard</p>
+            <p>Unknown game format: "{game.matchFormat || "empty"}"</p>
+            <p className="text-sm mt-2">
+              Available formats: 1v1 Match Play (With Handicaps), 1v1 Match Play (No Handicaps), 2v2 Match Play (With Handicaps), 2v2 Match Play (No Handicaps), American, American With Handicaps, Stableford, Stroke Play, Scorecard
+            </p>
           </div>
         );
     }
@@ -91,10 +81,14 @@ export default function Leaderboard({ game }) {
       {renderLeaderboard()}
 
       {/* Modals */}
-      {modalOpen && selectedTeam && game?.format === "matchplay" && (
+      {modalOpen &&
+        selectedTeam &&
+        normalizeMatchFormat(game?.matchFormat) === "1v1matchplayhandicaps" && (
         <MatchplayScorecardModal game={game} onClose={closeModal} />
       )}
-      {modalOpen && selectedTeam && game?.format !== "matchplay" && (
+      {modalOpen &&
+        selectedTeam &&
+        normalizeMatchFormat(game?.matchFormat) !== "1v1matchplayhandicaps" && (
         <ScorecardModal
           team={selectedTeam}
           game={game}

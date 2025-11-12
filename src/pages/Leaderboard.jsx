@@ -5,6 +5,10 @@ import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from "
 import LeaderboardComponent from "../components/Leaderboard";
 import AchievementsModal from "../components/AchievementsModal";
 import { useTournament } from "../context/TournamentContext";
+import {
+  getMatchFormatLabel,
+  normalizeMatchFormat,
+} from "../lib/matchFormats";
 
 export default function Leaderboard({ tournamentId }) {
   const { currentTournament } = useTournament();
@@ -104,8 +108,8 @@ export default function Leaderboard({ tournamentId }) {
 
     // Filter by format
     if (selectedFormat) {
-      filtered = filtered.filter(game => 
-        game.matchFormat?.toLowerCase() === selectedFormat.toLowerCase()
+      filtered = filtered.filter(
+        (game) => normalizeMatchFormat(game.matchFormat) === selectedFormat
       );
     }
 
@@ -138,12 +142,15 @@ export default function Leaderboard({ tournamentId }) {
   // Get unique formats from all games
   const getUniqueFormats = () => {
     const formats = new Set();
-    allGames.forEach(game => {
-      if (game.matchFormat) {
-        formats.add(game.matchFormat);
+    allGames.forEach((game) => {
+      const normalized = normalizeMatchFormat(game.matchFormat);
+      if (normalized) {
+        formats.add(normalized);
       }
     });
-    return Array.from(formats);
+    return Array.from(formats).sort((a, b) =>
+      getMatchFormatLabel(a).localeCompare(getMatchFormatLabel(b))
+    );
   };
 
   // Get games filtered by selected users only
@@ -162,9 +169,10 @@ export default function Leaderboard({ tournamentId }) {
   const getGamesByFormat = () => {
     if (!selectedFormat) return [];
     
-    return allGames.filter(game => {
-      if (currentTournament && game.tournamentId !== currentTournament) return false;
-      return game.matchFormat?.toLowerCase() === selectedFormat.toLowerCase();
+    return allGames.filter((game) => {
+      if (currentTournament && game.tournamentId !== currentTournament)
+        return false;
+      return normalizeMatchFormat(game.matchFormat) === selectedFormat;
     });
   };
 
@@ -312,7 +320,7 @@ export default function Leaderboard({ tournamentId }) {
                           >
                             <div className="font-medium">{gameItem.name}</div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">
-                              {gameItem.course?.name || 'Unknown Course'} • {gameItem.matchFormat || 'Unknown Format'}
+                              {gameItem.course?.name || "Unknown Course"} • {getMatchFormatLabel(gameItem.matchFormat)}
                               {gameItem.createdAt && (
                                 <span> • {new Date(gameItem.createdAt.seconds * 1000).toLocaleDateString()}</span>
                               )}
@@ -442,7 +450,7 @@ export default function Leaderboard({ tournamentId }) {
                             >
                               <div className="font-medium text-sm">{gameItem.name}</div>
                               <div className="text-xs text-gray-600 dark:text-gray-400">
-                                {gameItem.course?.name || 'Unknown Course'} • {gameItem.matchFormat || 'Unknown Format'}
+                                {gameItem.course?.name || "Unknown Course"} • {getMatchFormatLabel(gameItem.matchFormat)}
                               </div>
                             </button>
                           ))
@@ -464,9 +472,9 @@ export default function Leaderboard({ tournamentId }) {
                   className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
                 >
                   <option value="">All Formats</option>
-                  {getUniqueFormats().map(format => (
+                  {getUniqueFormats().map((format) => (
                     <option key={format} value={format}>
-                      {format.charAt(0).toUpperCase() + format.slice(1)}
+                      {getMatchFormatLabel(format)}
                     </option>
                   ))}
                 </select>
@@ -504,7 +512,7 @@ export default function Leaderboard({ tournamentId }) {
                             >
                               <div className="font-medium text-sm">{gameItem.name}</div>
                               <div className="text-xs text-gray-600 dark:text-gray-400">
-                                {gameItem.course?.name || 'Unknown Course'} • {gameItem.matchFormat || 'Unknown Format'}
+                                {gameItem.course?.name || "Unknown Course"} • {getMatchFormatLabel(gameItem.matchFormat)}
                               </div>
                             </button>
                           ))
@@ -522,10 +530,10 @@ export default function Leaderboard({ tournamentId }) {
         <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-6 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{game.name}</h2>
           <p className="text-lg font-medium text-green-600 dark:text-green-400 mb-1">
-            {game.course?.name || 'Unknown Course'}
+            {game.course?.name || "Unknown Course"}
           </p>
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Match Format: {game.matchFormat || 'Unknown Format'}
+            Match Format: {getMatchFormatLabel(game.matchFormat)}
           </p>
           {game.createdAt && (
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">

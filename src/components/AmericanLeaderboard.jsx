@@ -23,11 +23,12 @@ export default function AmericanLeaderboard({ game }) {
       const gamePlayersMap = {};
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
 
+      // For American scoring, show all players in the game (not just solo players)
       const soloPlayers = users.filter(
-        (u) => !u.teamId && gamePlayersMap[u.id]
+        (u) => gamePlayersMap[u.id]
       );
 
-      // Set the number of solo players for the points format display
+      // Set the number of players for the points format display
       setNumSoloPlayers(soloPlayers.length);
 
       // Determine which holes to calculate for
@@ -169,15 +170,25 @@ export default function AmericanLeaderboard({ game }) {
                 </div>
                 
                 <div className="flex items-center space-x-3 w-full sm:w-auto">
-                  <span className="text-green-600 dark:text-green-400 font-bold text-lg sm:text-xl">
-                    {playerData.totalPoints} pts
-                  </span>
-                  <button
-                    onClick={() => openModal(playerData)}
-                    className="px-3 py-2 text-sm bg-green-600 dark:bg-green-500 text-white rounded-xl flex-1 sm:flex-none whitespace-nowrap"
-                  >
-                    View Scores
-                  </button>
+                  {numSoloPlayers < 3 ? (
+                    <span className="text-gray-600 dark:text-gray-400 font-semibold text-sm sm:text-base">
+                      {numSoloPlayers === 1 
+                        ? "Waiting for 2 more players" 
+                        : "Waiting for 1 more player"}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-green-600 dark:text-green-400 font-bold text-lg sm:text-xl">
+                        {playerData.totalPoints} pts
+                      </span>
+                      <button
+                        onClick={() => openModal(playerData)}
+                        className="px-3 py-2 text-sm bg-green-600 dark:bg-green-500 text-white rounded-xl flex-1 sm:flex-none whitespace-nowrap"
+                      >
+                        View Scores
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

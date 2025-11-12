@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { courses } from "../data/courses";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
+import { formatGrossWithNet } from "../utils/scorecardUtils";
+import { buildColumnBorderClasses } from "../utils/scorecardUtils";
 
 export default function AmericanNetScorecardModal({ game, selectedPlayer, onClose }) {
   const [soloPlayers, setSoloPlayers] = useState([]);
@@ -19,8 +21,9 @@ export default function AmericanNetScorecardModal({ game, selectedPlayer, onClos
       const gamePlayersMap = {};
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
 
+      // For American scoring, show all players in the game (not just solo players)
       const solo = users.filter(
-        (u) => !u.teamId && gamePlayersMap[u.id]
+        (u) => gamePlayersMap[u.id]
       );
 
       setSoloPlayers(solo);
@@ -41,8 +44,8 @@ export default function AmericanNetScorecardModal({ game, selectedPlayer, onClos
 
   if (!players || players.length === 0 || soloPlayers.length === 0) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
+        <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl shadow-2xl border border-blue-500 dark:border-blue-400 max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
             {game.name}
           </h2>
@@ -52,7 +55,7 @@ export default function AmericanNetScorecardModal({ game, selectedPlayer, onClos
           <div className="mt-6 flex justify-center">
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl text-sm font-medium"
+              className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
             >
               Close
             </button>
@@ -113,11 +116,11 @@ export default function AmericanNetScorecardModal({ game, selectedPlayer, onClos
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
-      <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-[95vw] sm:max-w-6xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
+      <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-blue-500 dark:border-blue-400 max-w-6xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white pr-3">
-            American Scoring (Net) - All Players
+            {game.name}
           </h2>
           <button
             onClick={onClose}
@@ -129,58 +132,104 @@ export default function AmericanNetScorecardModal({ game, selectedPlayer, onClos
 
         {/* Responsive Table */}
         <div className="overflow-x-auto -mx-3 sm:mx-0">
-          <table className="w-full border-separate border-spacing-1 text-xs sm:text-sm min-w-[600px]">
+          <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
             <thead>
               <tr>
-                <th className="px-2 py-2 text-center bg-gray-100 dark:bg-gray-800 sticky left-0 z-10">Hole</th>
-                {soloPlayers.map((player) => (
-                  <React.Fragment key={player.id}>
-                    <th className="px-2 py-2 text-center bg-gray-100 dark:bg-gray-800 font-semibold text-gray-900 dark:text-white border-l-2 border-gray-300 dark:border-gray-600">
-                      {player.displayName || "Unknown"}
-                    </th>
-                    <th className="px-2 py-2 text-center bg-gray-100 dark:bg-gray-800">Gross</th>
-                    <th className="px-2 py-2 text-center bg-gray-100 dark:bg-gray-800">Net</th>
-                    <th className="px-2 py-2 text-center font-bold text-green-600 dark:text-green-400 bg-gray-100 dark:bg-gray-800">Pts</th>
-                  </React.Fragment>
+                <th
+                  className="px-2 py-1 text-left align-bottom border-2 border-solid border-blue-500 dark:border-blue-400 rounded-tl-lg"
+                >
+                  Hole
+                </th>
+                {soloPlayers.map((player, idx) => (
+                  <th
+                    key={player.id}
+                    className={`px-2 py-1 text-center font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
+                      "border-blue-500 dark:border-blue-400 border-solid",
+                      idx,
+                      soloPlayers.length,
+                      {
+                        top: true,
+                        bottom: false,
+                        roundBottomLeft: false,
+                        roundBottomRight: false,
+                      }
+                    )}`}
+                  >
+                    {player.displayName || "Unknown"}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {Array.from({ length: holeCount }).map((_, displayIndex) => {
                 const holeIndex = startIndex + displayIndex;
-                const actualIndex = startIndex + displayIndex;
-                
+                const hole = course?.holes?.[holeIndex];
+                const par = hole?.par || "?";
+
                 return (
                   <tr
                     key={displayIndex}
-                    className="border-t border-gray-200 dark:border-gray-600"
+                    className="border-t border-blue-500 dark:border-blue-400"
                   >
-                    <td className="px-2 py-2 text-center font-medium text-gray-900 dark:text-white sticky left-0 bg-gray-50 dark:bg-gray-700 z-10">
-                      {holeIndex + 1}
+                    <td
+                      className={`px-2 py-1 font-medium text-gray-900 dark:text-white ${buildColumnBorderClasses(
+                        "border-blue-500 dark:border-blue-400 border-solid",
+                        0,
+                        1,
+                        {
+                          top: displayIndex === 0,
+                          bottom: displayIndex === holeCount - 1,
+                          roundBottomLeft: true,
+                        }
+                      )}`}
+                    >
+                      <div>
+                        <span className="font-bold">{holeIndex + 1}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                          Par {par}
+                          {hole?.strokeIndex && (
+                            <span className="ml-1">SI {hole.strokeIndex}</span>
+                          )}
+                        </span>
+                      </div>
                     </td>
-                    {soloPlayers.map((player) => {
-                      const score = gamePlayersMap[player.id]?.scores?.[actualIndex];
+                    {soloPlayers.map((player, idx) => {
+                      const score = gamePlayersMap[player.id]?.scores?.[holeIndex];
                       const gross = score?.gross ?? null;
                       const net = score?.netScore ?? null;
-                      const points = calculatePointsForPlayerOnHole(player.id, actualIndex);
+                      const points = calculatePointsForPlayerOnHole(player.id, holeIndex);
+                      const grossWithNet =
+                        gross !== null && gross > 0
+                          ? formatGrossWithNet(gross, net) ?? `${gross}`
+                          : null;
                       
                       return (
-                        <React.Fragment key={player.id}>
-                          <td className="px-2 py-2 text-center border-l-2 border-gray-300 dark:border-gray-600"></td>
-                          <td className="px-2 py-2 text-center text-gray-900 dark:text-white">
-                            {gross !== null && gross > 0 ? gross : "-"}
-                          </td>
-                          <td className="px-2 py-2 text-center text-gray-900 dark:text-white">
-                            {net !== null ? net : "-"}
-                          </td>
-                          <td className={`px-2 py-2 text-center font-bold ${
-                            points !== null && points > 0 
-                              ? "text-green-600 dark:text-green-400" 
-                              : "text-gray-600 dark:text-gray-400"
-                          }`}>
-                            {points !== null ? points : "-"}
-                          </td>
-                        </React.Fragment>
+                        <td
+                          key={`${player.id}-${displayIndex}`}
+                          className={`px-2 py-1 text-center text-gray-900 dark:text-white ${buildColumnBorderClasses(
+                            "border-blue-500 dark:border-blue-400 border-solid",
+                            idx,
+                            soloPlayers.length,
+                            {
+                              top: displayIndex === 0,
+                              bottom: displayIndex === holeCount - 1,
+                              roundBottomRight: displayIndex === holeCount - 1 && idx === soloPlayers.length - 1,
+                            }
+                          )}`}
+                        >
+                          <div className="space-y-0.5">
+                            {grossWithNet ? (
+                              <div className="text-sm font-semibold">{grossWithNet}</div>
+                            ) : (
+                              <div className="text-sm text-gray-400 dark:text-gray-500">—</div>
+                            )}
+                            {points !== null && (
+                              <div className="text-[10px] font-bold text-green-600 dark:text-green-400">
+                                {points} pts
+                              </div>
+                            )}
+                          </div>
+                        </td>
                       );
                     })}
                   </tr>
@@ -188,25 +237,53 @@ export default function AmericanNetScorecardModal({ game, selectedPlayer, onClos
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-gray-400 dark:border-gray-500 bg-gray-100 dark:bg-gray-700">
-                <td className="px-2 py-3 font-bold text-gray-900 dark:text-white text-center sticky left-0 z-10">
+              <tr className="border-t-2 border-blue-500 dark:border-blue-400 bg-gray-100 dark:bg-gray-800">
+                <td
+                  className={`px-2 py-3 font-bold text-gray-900 dark:text-white ${buildColumnBorderClasses(
+                    "border-blue-500 dark:border-blue-400 border-solid",
+                    0,
+                    1,
+                    {
+                      top: false,
+                      bottom: true,
+                      roundBottomLeft: true,
+                    }
+                  )}`}
+                >
                   Total
                 </td>
-                {soloPlayers.map((player) => {
+                {soloPlayers.map((player, idx) => {
                   const totals = calculatePlayerTotals(player.id);
+                  const grossWithNet =
+                    totals.grossTotal > 0
+                      ? formatGrossWithNet(totals.grossTotal, totals.netTotal) ??
+                        `${totals.grossTotal}`
+                      : null;
                   return (
-                    <React.Fragment key={player.id}>
-                      <td className="px-2 py-3 text-center border-l-2 border-gray-300 dark:border-gray-600"></td>
-                      <td className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-white">
-                        {totals.grossTotal}
-                      </td>
-                      <td className="px-2 py-3 text-center font-semibold text-gray-900 dark:text-white">
-                        {totals.netTotal}
-                      </td>
-                      <td className="px-2 py-3 text-center font-bold text-green-600 dark:text-green-400">
-                        {totals.pointsTotal}
-                      </td>
-                    </React.Fragment>
+                    <td
+                      key={`total-${player.id}`}
+                      className={`px-2 py-3 text-center font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
+                        "border-blue-500 dark:border-blue-400 border-solid",
+                        idx,
+                        soloPlayers.length,
+                        {
+                          top: false,
+                          bottom: true,
+                          roundBottomRight: idx === soloPlayers.length - 1,
+                        }
+                      )}`}
+                    >
+                      <div className="space-y-0.5">
+                        {grossWithNet ? (
+                          <div className="text-sm">{grossWithNet}</div>
+                        ) : (
+                          <div className="text-sm text-gray-400 dark:text-gray-500">—</div>
+                        )}
+                        <div className="text-xs font-bold text-green-600 dark:text-green-400">
+                          {totals.pointsTotal} pts
+                        </div>
+                      </div>
+                    </td>
                   );
                 })}
               </tr>

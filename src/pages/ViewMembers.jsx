@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { collection, getDocs, query, orderBy, limit, where } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
-import { courses } from "../data/courses";
 import { useTournament } from "../context/TournamentContext";
+import { useAuth } from "../context/AuthContext";
 
 export default function ViewMembers() {
   const navigate = useNavigate();
   const { currentTournament } = useTournament();
+  const { user } = useAuth();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedMember, setSelectedMember] = useState(null);
-  const [showScoresModal, setShowScoresModal] = useState(false);
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -24,6 +23,8 @@ export default function ViewMembers() {
 
       try {
         setLoading(true);
+        setError("");
+        
         // Fetch members from the tournament's members subcollection
         const membersRef = collection(
           db,
@@ -32,32 +33,84 @@ export default function ViewMembers() {
           "members"
         );
         const querySnapshot = await getDocs(membersRef);
-        const membersData = querySnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        membersData.sort((a, b) => a.displayName.localeCompare(b.displayName));
+        
+        const membersData = querySnapshot.docs.map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id, // This is the user's uid
+            uid: data.uid || doc.id, // Ensure uid is set
+            displayName: data.displayName || "Unknown",
+            handicap: data.handicap || null,
+            profilePictureUrl: data.profilePictureUrl || null,
+            joinedAt: data.joinedAt || data.createdAt || null,
+            createdAt: data.createdAt || null,
+          };
+        });
+        
+        // Check if current user is in the members list
+        if (user?.uid) {
+          const currentUserInMembers = membersData.find(
+            (m) => m.id === user.uid || m.uid === user.uid
+          );
+          
+          // If current user is not in members subcollection, add them
+          if (!currentUserInMembers) {
+            try {
+              // Get fresh user data from Firestore
+              const userRef = doc(db, "users", user.uid);
+              const userSnap = await getDoc(userRef);
+              
+              if (userSnap.exists()) {
+                const userData = userSnap.data();
+                const memberData = {
+                  uid: user.uid,
+                  displayName: userData.displayName || user.displayName || "Unknown",
+                  handicap: userData.handicap || user.handicap || null,
+                  profilePictureUrl: userData.profilePictureUrl || user.profilePictureUrl || null,
+                  joinedAt: new Date(),
+                };
+                
+                // Add to members subcollection
+                await setDoc(
+                  doc(db, "tournaments", currentTournament, "members", user.uid),
+                  memberData
+                );
+                
+                // Add to members list
+                membersData.push({
+                  id: user.uid,
+                  uid: user.uid,
+                  displayName: memberData.displayName,
+                  handicap: memberData.handicap,
+                  profilePictureUrl: memberData.profilePictureUrl,
+                  joinedAt: memberData.joinedAt,
+                  createdAt: null,
+                });
+              }
+            } catch (err) {
+              console.error("Error adding current user to members:", err);
+            }
+          }
+        }
+        
+        // Sort by display name
+        membersData.sort((a, b) => {
+          const nameA = a.displayName || "";
+          const nameB = b.displayName || "";
+          return nameA.localeCompare(nameB);
+        });
+        
         setMembers(membersData);
       } catch (err) {
-        setError("Failed to load members");
-        console.error(err);
+        console.error("Error fetching members:", err);
+        setError("Failed to load members: " + (err.message || "Unknown error"));
       } finally {
         setLoading(false);
       }
     };
 
     fetchMembers();
-  }, [currentTournament]);
-
-  const handleViewScores = (member) => {
-    setSelectedMember(member);
-    setShowScoresModal(true);
-  };
-
-  const handleCloseScoresModal = () => {
-    setSelectedMember(null);
-    setShowScoresModal(false);
-  };
+  }, [currentTournament, user?.uid]);
 
   return (
     <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 relative overflow-hidden">
@@ -164,26 +217,24 @@ export default function ViewMembers() {
                         </div>
                         <div>
                           <span className="font-medium">Joined:</span>{" "}
-                          {member.joinedAt
-                            ? new Date(
-                                member.joinedAt.seconds * 1000
-                              ).toLocaleDateString()
-                            : member.createdAt
-                            ? new Date(
-                                member.createdAt.seconds * 1000
-                              ).toLocaleDateString()
-                            : "—"}
+                          {(() => {
+                            const date = member.joinedAt || member.createdAt;
+                            if (!date) return "—";
+                            try {
+                              if (date.seconds) {
+                                return new Date(date.seconds * 1000).toLocaleDateString();
+                              }
+                              if (date.toDate && typeof date.toDate === "function") {
+                                return date.toDate().toLocaleDateString();
+                              }
+                              return new Date(date).toLocaleDateString();
+                            } catch {
+                              return "—";
+                            }
+                          })()}
                         </div>
                       </div>
                     </div>
-
-                    {/* View Scores Button */}
-                    <button
-                      onClick={() => handleViewScores(member)}
-                      className="px-3 py-1 bg-green-600 dark:bg-green-500 text-white rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 hover:bg-green-700 dark:hover:bg-green-600 transition-colors duration-200"
-                    >
-                      View All Scores
-                    </button>
                   </div>
                 ))}
               </div>
@@ -214,231 +265,6 @@ export default function ViewMembers() {
         <footer className="text-center text-gray-500 dark:text-gray-400 text-xs mt-6">
           Golf Trip Leaderboard
         </footer>
-      </div>
-
-      {/* User Scores Modal */}
-      {showScoresModal && selectedMember && (
-        <UserScoresModal
-          member={selectedMember}
-          onClose={handleCloseScoresModal}
-        />
-      )}
-    </div>
-  );
-}
-
-// User Scores Modal Component (mobile-friendly)
-function UserScoresModal({ member, onClose }) {
-  const { currentTournament } = useTournament();
-  const [games, setGames] = useState([]);
-  const [selectedGameId, setSelectedGameId] = useState("");
-  const [selectedGame, setSelectedGame] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    const fetchGames = async () => {
-      try {
-        setLoading(true);
-        
-        let q;
-        if (currentTournament) {
-          q = query(
-            collection(db, "games"),
-            where("tournamentId", "==", currentTournament),
-            orderBy("createdAt", "desc"),
-            limit(20)
-          );
-        } else {
-          q = query(
-            collection(db, "games"),
-            orderBy("createdAt", "desc"),
-            limit(20)
-          );
-        }
-        const snapshot = await getDocs(q);
-        const gamesData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setGames(gamesData);
-        if (gamesData.length > 0) setSelectedGameId(gamesData[0].id);
-      } catch (err) {
-        setError("Failed to load games");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchGames();
-  }, [currentTournament]);
-
-  useEffect(() => {
-    if (selectedGameId && games.length > 0) {
-      const game = games.find((g) => g.id === selectedGameId);
-      setSelectedGame(game);
-    }
-  }, [selectedGameId, games]);
-
-  const course = selectedGame
-    ? courses.find((c) => c.id === selectedGame.courseId)
-    : null;
-  const playerData = selectedGame?.players?.find((p) => p.userId === member.id);
-
-  return (
-    <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 p-2">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-            {member.displayName} - Scores
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 dark:text-gray-400 text-2xl p-1 focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 rounded-xl"
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="p-4">
-          {loading ? (
-            <div className="flex justify-center items-center py-8">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
-              <span className="ml-2 text-gray-600 dark:text-gray-300 text-sm">
-                Loading games...
-              </span>
-            </div>
-          ) : error ? (
-            <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-xl text-sm text-center">
-              {error}
-            </div>
-          ) : games.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="w-12 h-12 mx-auto mb-2 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-gray-400"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7H3v2h16V4z" />
-                </svg>
-              </div>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                No Games Found
-              </h3>
-              <p className="text-gray-600 dark:text-gray-300 text-xs">
-                No games have been created yet.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Game Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Select Game
-                </label>
-                <select
-                  value={selectedGameId}
-                  onChange={(e) => setSelectedGameId(e.target.value)}
-                  className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400"
-                >
-                  {games.map((game) => (
-                    <option key={game.id} value={game.id}>
-                      {game.name} - {game.course?.name || "Unknown"} -{" "}
-                      {game.createdAt
-                        ? new Date(
-                            game.createdAt.seconds * 1000
-                          ).toLocaleDateString()
-                        : "Unknown"}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Scorecard */}
-              {selectedGame && playerData && course && (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-gray-100 dark:bg-gray-700 text-left">
-                        <th className="p-2 text-gray-700 dark:text-gray-300">
-                          Hole
-                        </th>
-                        <th className="p-2 text-gray-700 dark:text-gray-300">
-                          Par
-                        </th>
-                        <th className="p-2 text-gray-700 dark:text-gray-300">
-                          SI
-                        </th>
-                        <th className="p-2 text-gray-700 dark:text-gray-300">
-                          Gross
-                        </th>
-                        <th className="p-2 text-gray-700 dark:text-gray-300">
-                          Net
-                        </th>
-                        <th className="p-2 text-gray-700 dark:text-gray-300">
-                          Points
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {course.holes.map((hole, index) => {
-                        const score = playerData.scores?.[index];
-                        const gross = score?.gross || 0;
-                        const net = score?.net || 0;
-                        const points =
-                          net > 0 ? Math.max(0, hole.par + 2 - net) : 0;
-
-                        return (
-                          <tr
-                            key={index}
-                            className="border-b border-gray-200 dark:border-gray-700"
-                          >
-                            <td className="p-2 font-medium text-gray-900 dark:text-white">
-                              {index + 1}
-                            </td>
-                            <td className="p-2 text-gray-600 dark:text-gray-300">
-                              {hole.par}
-                            </td>
-                            <td className="p-2 text-gray-600 dark:text-gray-300">
-                              {hole.strokeIndex}
-                            </td>
-                            <td className="p-2 text-gray-900 dark:text-white">
-                              {gross || "-"}
-                            </td>
-                            <td className="p-2">
-                              {net > 0 ? (
-                                <div className="inline-block px-2 py-0.5 rounded-xl bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-semibold border border-green-300 dark:border-green-700">
-                                  {net}
-                                </div>
-                              ) : (
-                                <span className="text-gray-400 dark:text-gray-500">
-                                  -
-                                </span>
-                              )}
-                            </td>
-                            <td className="p-2 text-center font-semibold text-green-600 dark:text-green-400">
-                              {points > 0 ? points : "-"}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              <div className="flex justify-center mt-4">
-                <button
-                  onClick={onClose}
-                  className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );

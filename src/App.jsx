@@ -17,6 +17,7 @@ import JoinTeam from "./pages/JoinTeam";
 import TournamentSelect from "./pages/TournamentSelect";
 import { courses } from "./data/courses";
 import EnterScoreWrapper from "./pages/EnterScoreWrapper";
+import CreateGameWrapper from "./pages/CreateGameWrapper";
 import ViewTeams from "./pages/ViewTeams";
 import ViewMembers from "./pages/ViewMembers";
 import CourseInfo from "./pages/CourseInfo";
@@ -42,7 +43,15 @@ function App() {
               path="/scores"
               element={
                 <PrivateRoute>
-                  <EnterScoreWrapper courses={courses} />
+                  <EnterScoreWrapper />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/create-game"
+              element={
+                <PrivateRoute>
+                  <CreateGameWrapper courses={courses} />
                 </PrivateRoute>
               }
             />

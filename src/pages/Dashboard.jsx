@@ -426,6 +426,32 @@ export default function Dashboard() {
             </div>
           </button>
 
+          {/* Create Game */}
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={() => navigate("/create-game")}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  Create Match
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Set up a new match for your group
+                </p>
+              </div>
+            </div>
+          </button>
+
           {/* Enter Scores */}
           <button
             className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
@@ -446,7 +472,7 @@ export default function Dashboard() {
                   Enter Scores
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Record your round scores
+                  Join an existing match to enter scores
                 </p>
               </div>
             </div>

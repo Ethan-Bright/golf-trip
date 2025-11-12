@@ -1,22 +1,64 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { courses } from "../data/courses";
+import {
+  TEAM_BORDER_COLOR,
+  buildColumnBorderClasses,
+  formatGrossWithNet,
+} from "../utils/scorecardUtils";
+
+const getStablefordPoints = (score) => {
+  if (typeof score?.net === "number") return score.net;
+  if (typeof score?.points === "number") return score.points;
+  return null;
+};
+
+const getGrossScore = (score) => {
+  if (typeof score?.gross === "number") return score.gross;
+  return null;
+};
 
 export default function StablefordScorecardModal({ game, selectedTeam, onClose }) {
   if (!game || !selectedTeam) return null;
 
+  const courseData = game.course || courses.find((c) => c.id === game.courseId);
   const players = game.players || [];
-  const course = courses.find(c => c.id === game.courseId);
-  
-  // Determine which holes to display
-  const holeCount = game.holeCount || 18;
-  const nineType = game.nineType || "front";
-  const startIndex = nineType === "back" ? 9 : 0;
-  const endIndex = startIndex + holeCount;
+  const playerMap = new Map(players.map((p) => [p.userId, p]));
 
-  if (!players || players.length === 0) {
+  const formatDisplayPlayer = (player, fallbackName) => {
+    if (!player) return null;
+    return {
+      ...player,
+      displayLabel: fallbackName || player.name || "Unknown Golfer",
+    };
+  };
+
+  const selectedTeamRoster = Array.isArray(selectedTeam.players)
+    ? selectedTeam.players
+    : [];
+  const selectedTeamPlayerIds = selectedTeamRoster
+    .map((p) => p?.id || p?.uid)
+    .filter(Boolean);
+
+  const teamPlayers = selectedTeamPlayerIds
+    .map((id) => {
+      const gamePlayer = playerMap.get(id);
+      if (!gamePlayer) return null;
+      const rosterEntry = selectedTeamRoster.find(
+        (p) => (p?.id || p?.uid) === id
+      );
+      return formatDisplayPlayer(
+        gamePlayer,
+        rosterEntry?.displayName || rosterEntry?.name
+      );
+    })
+    .filter(Boolean);
+
+  const displayPlayers = teamPlayers.length > 0 ? teamPlayers : [];
+
+  if (!players || players.length === 0 || displayPlayers.length === 0) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
+        <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl shadow-2xl border border-blue-500 dark:border-blue-400 max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
             {game.name}
           </h2>
@@ -36,36 +78,86 @@ export default function StablefordScorecardModal({ game, selectedTeam, onClose }
     );
   }
 
-  // Get team player IDs
-  const teamPlayerIds = selectedTeam.players.map(p => p.id || p.uid);
-  const teamPlayers = players.filter(p => teamPlayerIds.includes(p.userId));
+  const teamDisplayName =
+    selectedTeam.name ||
+    selectedTeam.displayName ||
+    (displayPlayers.length > 1
+      ? "Team"
+      : displayPlayers[0]?.displayLabel || "Player");
 
-  // Calculate running totals
-  const calculateTotals = () => {
-    const totals = teamPlayers.map(() => ({ points: 0, gross: 0 }));
-    
+  const holeCount = game.holeCount || 18;
+  const nineType = game.nineType || "front";
+  const startIndex = nineType === "back" ? 9 : 0;
+
+  const hasTeamGrouping = displayPlayers.length > 1;
+
+  const { runningTotals, bestPlayerIdsByHole } = useMemo(() => {
+    const totals = [];
+    const bestPlayerMap = new Map();
+    let runningTotal = 0;
+
     for (let displayIndex = 0; displayIndex < holeCount; displayIndex++) {
-      const actualIndex = startIndex + displayIndex;
-      teamPlayers.forEach((p, playerIndex) => {
-        const playerPoints = p.scores[actualIndex]?.net ?? null;
-        const playerGross = p.scores[actualIndex]?.gross ?? null;
-        
-        if (playerPoints !== null) totals[playerIndex].points += playerPoints;
-        if (playerGross !== null) totals[playerIndex].gross += playerGross;
-      });
-    }
-    
-    return totals;
-  };
+      const actualHoleIndex = startIndex + displayIndex;
+      
+      let bestPoints = null;
+      const bestPlayerIds = new Set();
+      
+      for (const player of displayPlayers) {
+        const score = player?.scores?.[actualHoleIndex];
+        const points = getStablefordPoints(score);
+        if (typeof points === "number") {
+          if (bestPoints === null || points > bestPoints) {
+            bestPoints = points;
+            bestPlayerIds.clear();
+            bestPlayerIds.add(player.userId);
+          } else if (points === bestPoints) {
+            bestPlayerIds.add(player.userId);
+          }
+        }
+      }
 
-  const totals = calculateTotals();
+      if (typeof bestPoints === "number") {
+        runningTotal += bestPoints;
+      }
+      totals.push(runningTotal);
+      bestPlayerMap.set(displayIndex, bestPlayerIds);
+    }
+
+    return { runningTotals: totals, bestPlayerIdsByHole: bestPlayerMap };
+  }, [holeCount, startIndex, displayPlayers]);
+
+  const playerTotals = useMemo(() => {
+    return displayPlayers.map((player) => {
+      let points = 0;
+      let gross = 0;
+      let netScoreTotal = 0;
+      for (let i = 0; i < holeCount; i++) {
+        const actualIndex = startIndex + i;
+        const score = player?.scores?.[actualIndex];
+        const holePoints = getStablefordPoints(score);
+        const holeGross = getGrossScore(score);
+        const holeNetScore = typeof score?.netScore === "number" ? score.netScore : null;
+        if (typeof holePoints === "number") points += holePoints;
+        if (typeof holeGross === "number") gross += holeGross;
+        if (typeof holeNetScore === "number") netScoreTotal += holeNetScore;
+      }
+      return { points, gross, netScore: netScoreTotal };
+    });
+  }, [displayPlayers, holeCount, startIndex]);
+
+  const teamTotalPoints = useMemo(() => {
+    if (displayPlayers.length === 1) {
+      return playerTotals[0]?.points ?? 0;
+    }
+    return runningTotals[runningTotals.length - 1] ?? 0;
+  }, [displayPlayers.length, playerTotals, runningTotals]);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
-      <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-4xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
+      <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-blue-500 dark:border-blue-400 max-w-4xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white pr-3">
-            {selectedTeam.name || selectedTeam.displayName}
+            {game.name} - {teamDisplayName}
           </h2>
           <button
             onClick={onClose}
@@ -77,87 +169,225 @@ export default function StablefordScorecardModal({ game, selectedTeam, onClose }
 
         {/* Responsive Table */}
         <div className="overflow-x-auto -mx-3 sm:mx-0">
-          <table className="w-full border-separate border-spacing-1 text-xs sm:text-sm min-w-[500px]">
+          <table className="w-full border-collapse text-xs sm:text-sm min-w-[500px]">
             <thead>
               <tr>
-                <th className="px-2 py-2 text-left bg-gray-100 dark:bg-gray-800">Hole</th>
-                {course && <th className="px-2 py-2 text-center bg-gray-100 dark:bg-gray-800">Par</th>}
-                {teamPlayers.map((p) => (
-                  <th
-                    key={p.userId}
-                    className="px-2 py-2 text-center font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800"
-                  >
-                    {p.name}
-                  </th>
-                ))}
+                <th
+                  className="px-2 py-1 text-left align-bottom border-2 border-solid border-blue-500 dark:border-blue-400 rounded-tl-lg"
+                  rowSpan={hasTeamGrouping ? 2 : 1}
+                >
+                  Hole
+                </th>
+                {hasTeamGrouping ? (
+                  <>
+                    <th
+                      colSpan={displayPlayers.length}
+                      className={`px-2 py-1 text-center font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-700 rounded-tl-lg border-2 border-b-0 ${TEAM_BORDER_COLOR}`}
+                    >
+                      {teamDisplayName}
+                    </th>
+                    <th
+                      className="px-2 py-1 text-center font-semibold text-gray-900 dark:text-white align-bottom border-2 border-solid border-blue-500 dark:border-blue-400 rounded-tr-lg"
+                      rowSpan={2}
+                    >
+                      Running Total
+                    </th>
+                  </>
+                ) : (
+                  <>
+                    <th className="px-2 py-1 text-center font-semibold text-gray-900 dark:text-white border-2 border-solid border-blue-500 dark:border-blue-400">
+                      {displayPlayers[0]?.displayLabel || displayPlayers[0]?.name}
+                    </th>
+                    <th className="px-2 py-1 text-center font-semibold text-gray-900 dark:text-white border-2 border-solid border-blue-500 dark:border-blue-400 rounded-tr-lg">
+                      Running Total
+                    </th>
+                  </>
+                )}
               </tr>
+              {hasTeamGrouping && (
+                <tr>
+                  {displayPlayers.map((p, idx) => (
+                    <th
+                      key={`team-${p.userId}`}
+                      className={`px-2 py-1 text-center font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
+                        TEAM_BORDER_COLOR,
+                        idx,
+                        displayPlayers.length,
+                        { top: false, bottom: false }
+                      )}`}
+                    >
+                      {p.displayLabel || p.name}
+                    </th>
+                  ))}
+                </tr>
+              )}
             </thead>
             <tbody>
               {Array.from({ length: holeCount }).map((_, displayIndex) => {
                 const holeIndex = startIndex + displayIndex;
-                const hole = course?.holes?.[holeIndex];
+                const hole = courseData?.holes?.[holeIndex];
                 const par = hole?.par || "?";
-                
+                const runningTotal = runningTotals[displayIndex] ?? 0;
+
                 return (
                   <tr
                     key={displayIndex}
-                    className="border-t border-gray-200 dark:border-gray-600"
+                    className="border-t border-blue-500 dark:border-blue-400"
                   >
-                    <td className="px-2 py-2 font-medium text-gray-900 dark:text-white">
-                      {holeIndex + 1}
+                    <td
+                      className={`px-2 py-1 font-medium text-gray-900 dark:text-white ${buildColumnBorderClasses(
+                        "border-blue-500 dark:border-blue-400 border-solid",
+                        0,
+                        1,
+                        {
+                          top: displayIndex === 0,
+                          bottom: displayIndex === holeCount - 1,
+                          roundBottomLeft: true,
+                        }
+                      )}`}
+                    >
+                      <div>
+                        <span className="font-bold">{holeIndex + 1}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                          Par {par}
+                          {hole?.strokeIndex && (
+                            <span className="ml-1">SI {hole.strokeIndex}</span>
+                          )}
+                        </span>
+                      </div>
                     </td>
-                    {course && (
-                      <td className="px-2 py-2 text-center text-gray-600 dark:text-gray-300">
-                        {par}
-                      </td>
-                    )}
-                    {teamPlayers.map((p) => {
-                      // The 'net' field in the data structure actually contains the Stableford points
-                      const actualIndex = startIndex + displayIndex;
-                      const points = p.scores[actualIndex]?.net ?? null;
-                      const gross = p.scores[actualIndex]?.gross ?? null;
-                      
-                      // For teams, find the maximum points to highlight the best ball
-                      let isBestBall = false;
-                      if (teamPlayers.length > 1) {
-                        const allPoints = teamPlayers.map(player => player.scores[actualIndex]?.net ?? -1);
-                        const maxPoints = Math.max(...allPoints);
-                        isBestBall = points === maxPoints && points !== null;
-                      }
-                      
+                    {displayPlayers.map((p, idx) => {
+                      const score = p.scores?.[holeIndex];
+                      const points = getStablefordPoints(score);
+                      const gross = getGrossScore(score);
+                      const netScore =
+                        typeof score?.netScore === "number" ? score.netScore : null;
+                      const grossWithNet =
+                        typeof gross === "number"
+                          ? formatGrossWithNet(gross, netScore) ?? `${gross}`
+                          : null;
+
+                      const isBestBall = hasTeamGrouping && bestPlayerIdsByHole.get(displayIndex)?.has(p.userId);
+                      const isTie = isBestBall && (bestPlayerIdsByHole.get(displayIndex)?.size ?? 0) > 1;
+
+                      const highlightClass = isBestBall
+                        ? isTie
+                          ? "bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold rounded-lg"
+                          : "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 font-bold rounded-lg"
+                        : "text-gray-900 dark:text-white";
+
+                      const borderClasses =
+                        hasTeamGrouping
+                          ? buildColumnBorderClasses(
+                              TEAM_BORDER_COLOR,
+                              idx,
+                              displayPlayers.length,
+                              {
+                                top: displayIndex === 0,
+                                bottom: displayIndex === holeCount - 1,
+                                roundBottomLeft:
+                                  displayIndex === holeCount - 1 && idx === 0,
+                                roundBottomRight:
+                                  displayIndex === holeCount - 1 &&
+                                  idx === displayPlayers.length - 1,
+                              }
+                            )
+                          : "border-2 border-blue-500 dark:border-blue-400 border-solid";
+
+                      const hasDisplay =
+                        typeof points === "number" || typeof grossWithNet === "string";
+
                       return (
                         <td
-                          key={p.userId + holeIndex}
-                          className="px-2 py-2 text-center"
+                          key={`${p.userId}-${displayIndex}`}
+                          className={`px-2 py-1 text-center ${highlightClass} ${borderClasses}`}
                         >
-                          {points !== null && gross !== null ? (
-                            <div className={`text-sm ${isBestBall ? 'bg-green-200 dark:bg-green-900/30 rounded-lg p-1' : ''}`}>
-                              <div className="text-gray-900 dark:text-white">{gross}</div>
-                              <div className="font-bold text-green-600 dark:text-green-400">{points} pts</div>
+                          {hasDisplay ? (
+                            <div className="space-y-0.5">
+                              {grossWithNet && (
+                                <div className="text-sm font-semibold">
+                                  {grossWithNet}
+                                </div>
+                              )}
+                              {typeof points === "number" && (
+                                <div className="text-[10px] opacity-90">
+                                  {points} pts
+                                </div>
+                              )}
                             </div>
                           ) : (
-                            <span className="text-gray-400 dark:text-gray-500">-</span>
+                            <span className="text-gray-400 dark:text-gray-500">—</span>
                           )}
                         </td>
                       );
                     })}
+                    <td
+                      className={`px-2 py-1 text-center font-semibold text-blue-800 dark:text-blue-200 bg-blue-100 dark:bg-blue-900/30 ${buildColumnBorderClasses(
+                        "border-blue-500 dark:border-blue-400 border-solid",
+                        0,
+                        1,
+                        {
+                          top: displayIndex === 0,
+                          bottom: displayIndex === holeCount - 1,
+                          roundBottomRight: true,
+                        }
+                      )}`}
+                    >
+                      {runningTotal} pts
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-gray-400 dark:border-gray-500 bg-gray-100 dark:bg-gray-700">
-                <td className="px-2 py-3 font-bold text-gray-900 dark:text-white" colSpan={course ? "2" : "1"}>
+              <tr>
+                <th
+                  className="px-2 py-2 text-left font-semibold border-2 border-blue-500 dark:border-blue-400 border-solid rounded-bl-lg"
+                >
                   Total
+                </th>
+                {displayPlayers.map((player, idx) => {
+                  const totals = playerTotals[idx];
+                  const borderClasses =
+                    hasTeamGrouping
+                      ? buildColumnBorderClasses(
+                          TEAM_BORDER_COLOR,
+                          idx,
+                          displayPlayers.length,
+                          {
+                            top: true,
+                            bottom: true,
+                            roundBottomLeft: idx === 0,
+                            roundBottomRight: idx === displayPlayers.length - 1,
+                          }
+                        )
+                      : "border-2 border-blue-500 dark:border-blue-400 border-solid";
+
+                  const grossWithNet =
+                    typeof totals.gross === "number"
+                      ? formatGrossWithNet(totals.gross, totals.netScore) ??
+                        `${totals.gross}`
+                      : null;
+
+                  return (
+                    <td
+                      key={`total-${player?.userId ?? idx}`}
+                      className={`px-2 py-2 text-center font-semibold text-blue-800 dark:text-blue-200 bg-blue-100 dark:bg-blue-900/30 ${borderClasses}`}
+                    >
+                      <div className="space-y-0.5">
+                        <div>{totals.points} pts</div>
+                        {grossWithNet && (
+                          <div className="text-[10px] text-blue-700 dark:text-blue-300">
+                            {grossWithNet}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  );
+                })}
+                <td className="px-2 py-2 text-center font-semibold text-blue-800 dark:text-blue-200 bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-500 dark:border-blue-400 border-solid rounded-br-lg">
+                  {teamTotalPoints} pts
                 </td>
-                {teamPlayers.map((p, idx) => (
-                  <td key={p.userId + "total"} className="px-2 py-3 text-center">
-                    <div className="text-sm">
-                      <div className="text-gray-900 dark:text-white font-semibold">{totals[idx].gross}</div>
-                      <div className="font-bold text-green-600 dark:text-green-400">{totals[idx].points} pts</div>
-                    </div>
-                  </td>
-                ))}
               </tr>
             </tfoot>
           </table>
@@ -175,4 +405,3 @@ export default function StablefordScorecardModal({ game, selectedTeam, onClose }
     </div>
   );
 }
-

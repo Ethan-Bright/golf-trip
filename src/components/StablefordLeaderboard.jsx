@@ -63,6 +63,24 @@ export default function StablefordLeaderboard({ game }) {
           }
         }
 
+        const opponentPlayers = [];
+        let opponentDisplayName = "";
+        const opponentTeam = teams.find(
+          (t) => t.id !== team.id && t.player1?.uid && t.player2?.uid
+        );
+
+        if (opponentTeam) {
+          const opponent1 = users.find(
+            (u) => u.id === opponentTeam.player1?.uid && gamePlayersMap[u.id]
+          );
+          const opponent2 = users.find(
+            (u) => u.id === opponentTeam.player2?.uid && gamePlayersMap[u.id]
+          );
+          if (opponent1) opponentPlayers.push(opponent1);
+          if (opponent2) opponentPlayers.push(opponent2);
+          opponentDisplayName = opponentTeam.name;
+        }
+
         leaderboardData.push({
           id: team.id,
           name: team.name,
@@ -72,6 +90,14 @@ export default function StablefordLeaderboard({ game }) {
           isSolo: false,
           totalStrokes,
           isRoundComplete,
+          opponentPlayers,
+          opponentDisplayName:
+            opponentDisplayName ||
+            (opponentPlayers.length > 0
+              ? opponentPlayers
+                  .map((p) => p.displayName || p.name || "Opponent")
+                  .join(" & ")
+              : ""),
         });
       });
 
@@ -195,9 +221,6 @@ export default function StablefordLeaderboard({ game }) {
                       </div>
                     )}
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {team.isRoundComplete ? 'Total strokes' : 'Current strokes'}: {team.totalStrokes}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                       {team.isRoundComplete ? "Completed Match" : `Thru ${team.thru}`}
                     </p>
                   </div>

@@ -54,6 +54,7 @@ export default function MatchplayGrossLeaderboard({ game }) {
           )?.userId;
           const otherAllScores = gamePlayersMap[otherPlayerId]?.scores ?? [];
           const otherRelevantScores = otherAllScores.slice(startIndex, startIndex + holeCount);
+          const otherPlayer = users.find((u) => u.id === otherPlayerId);
           const pHasScore = relevantScores.some(
             (s) => s?.gross != null && s.gross > 0
           );
@@ -61,7 +62,13 @@ export default function MatchplayGrossLeaderboard({ game }) {
             (s) => s?.gross != null && s.gross > 0
           );
           if (pHasScore && oHasScore) {
-            matchStatus = calculateMatchPlayStatus(relevantScores, otherRelevantScores);
+            matchStatus = calculateMatchPlayStatus(
+              relevantScores,
+              otherRelevantScores,
+              holeCount,
+              player.displayName ?? "Player 1",
+              otherPlayer?.displayName ?? "Player 2"
+            );
           }
         }
 
@@ -81,7 +88,11 @@ export default function MatchplayGrossLeaderboard({ game }) {
         let aVal = 0;
         let bVal = 0;
         
-        if (a.matchStatus.includes("Up")) {
+        if (a.matchStatus.includes("won")) {
+          // Extract the number before the dash (e.g., "Player won 4-3" -> 4)
+          const match = a.matchStatus.match(/(\d+)-/);
+          aVal = match ? parseInt(match[1]) : 0;
+        } else if (a.matchStatus.includes("Up")) {
           aVal = parseInt(a.matchStatus);
         } else if (a.matchStatus.includes("Down")) {
           aVal = -parseInt(a.matchStatus);
@@ -89,7 +100,11 @@ export default function MatchplayGrossLeaderboard({ game }) {
           aVal = 0;
         }
         
-        if (b.matchStatus.includes("Up")) {
+        if (b.matchStatus.includes("won")) {
+          // Extract the number before the dash (e.g., "Player won 4-3" -> 4)
+          const match = b.matchStatus.match(/(\d+)-/);
+          bVal = match ? parseInt(match[1]) : 0;
+        } else if (b.matchStatus.includes("Up")) {
           bVal = parseInt(b.matchStatus);
         } else if (b.matchStatus.includes("Down")) {
           bVal = -parseInt(b.matchStatus);
@@ -119,7 +134,7 @@ export default function MatchplayGrossLeaderboard({ game }) {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
-        Matchplay Leaderboard (Gross)
+        Matchplay Leaderboard (Without Handicaps)
       </h1>
       {leaderboard.length === 0 ? (
         <p className="text-center text-gray-600 dark:text-gray-300">
@@ -191,9 +206,11 @@ export default function MatchplayGrossLeaderboard({ game }) {
   );
 }
 
-function calculateMatchPlayStatus(p1Scores, p2Scores) {
+function calculateMatchPlayStatus(p1Scores, p2Scores, holeCount, p1Name, p2Name) {
   let status = 0;
   let holesPlayed = 0;
+  let lockedWinStatus = null; // Track if match was won at any point
+  
   for (let i = 0; i < Math.min(p1Scores.length, p2Scores.length); i++) {
     const p1Score = p1Scores[i]?.gross;
     const p2Score = p2Scores[i]?.gross;
@@ -203,10 +220,32 @@ function calculateMatchPlayStatus(p1Scores, p2Scores) {
     // In gross matchplay, lower score wins the hole
     if (p1Score < p2Score) status++;
     else if (p2Score < p1Score) status--;
+    
+    // Check if match is won at this point
+    const holesRemaining = holeCount - holesPlayed;
+    const absStatus = Math.abs(status);
+    
+    if (absStatus > holesRemaining && !lockedWinStatus) {
+      // Match is won - lock this status
+      if (status > 0) {
+        lockedWinStatus = `${p1Name} won ${absStatus}-${holesRemaining}`;
+      } else {
+        lockedWinStatus = `${p2Name} won ${absStatus}-${holesRemaining}`;
+      }
+    }
   }
+  
   if (holesPlayed === 0) return "Waiting for opponent";
+  
+  // If match was won at any point, return the locked status
+  if (lockedWinStatus) return lockedWinStatus;
+  
+  // Otherwise calculate current status
+  const holesRemaining = holeCount - holesPlayed;
+  const absStatus = Math.abs(status);
+  
   if (status === 0) return "All Square";
   if (status > 0) return `${status} Up`;
-  return `${Math.abs(status)} Down`;
+  return `${absStatus} Down`;
 }
 

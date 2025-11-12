@@ -161,7 +161,7 @@ export const courses = [
     id: "goose_valley",
     name: "Goose Valley",
     holes: [
-      { holeNumber: 1, par: 4, strokeIndex: 3, info: "PLACEHOLDER INFO" },
+      { holeNumber: 51, par: 4, strokeIndex: 3, info: "PLACEHOLDER INFO" },
       { holeNumber: 2, par: 3, strokeIndex: 7, info: "PLACEHOLDER INFO" },
       { holeNumber: 3, par: 4, strokeIndex: 15, info: "PLACEHOLDER INFO" },
       { holeNumber: 4, par: 4, strokeIndex: 9, info: "PLACEHOLDER INFO" },

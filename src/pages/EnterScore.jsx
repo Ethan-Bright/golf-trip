@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   collection,
-  addDoc,
   getDocs,
   doc,
   updateDoc,
@@ -14,8 +13,12 @@ import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { Modal, useModal } from "../components/Modal";
 import { useTournament } from "../context/TournamentContext";
+import {
+  getMatchFormatLabel,
+  normalizeMatchFormat,
+} from "../lib/matchFormats";
 
-export default function EnterScore({ userId, user, courses }) {
+export default function EnterScore({ userId, user }) {
   const navigate = useNavigate();
   const { modal, showModal, hideModal, showSuccess, showError } = useModal();
   const { currentTournament } = useTournament();
@@ -28,10 +31,54 @@ export default function EnterScore({ userId, user, courses }) {
   const [points, setPoints] = useState(0);
   const [holeCount, setHoleCount] = useState(""); // start empty for "Select Number of Holes"
   const [nineType, setNineType] = useState(""); // start empty for "Select 9 Holes"
-  const [errors, setErrors] = useState({});
   const [isLoadingGames, setIsLoadingGames] = useState(true);
   const [resumedGame, setResumedGame] = useState(false);
   const [showFormatHelp, setShowFormatHelp] = useState(false);
+
+  const isGameIncompleteForUser = useCallback(
+    (game) => {
+      const player = game.players?.find((p) => p.userId === userId);
+      if (!player) return false;
+
+      const expectedHoles = game.holeCount || 18;
+      const startIndex = game.nineType === "back" ? 9 : 0;
+      const endIndex =
+        expectedHoles === 9
+          ? startIndex + 9
+          : game.course?.holes?.length || player.scores?.length || 18;
+
+      const relevantScores = (player.scores || []).slice(startIndex, endIndex);
+
+      return !relevantScores.every((score) => score?.gross !== null);
+    },
+    [userId]
+  );
+
+  const isGameComplete = useCallback((game) => {
+    if (!game.players || game.players.length === 0) return false;
+
+    const expectedHoles = game.holeCount || 18;
+    const startIndex = game.nineType === "back" ? 9 : 0;
+    const endIndex =
+      expectedHoles === 9
+        ? startIndex + 9
+        : game.course?.holes?.length || 18;
+
+    const expectedScoreCount = endIndex - startIndex;
+
+    // Check if all players have completed all their scores
+    return game.players.every((player) => {
+      const allScores = player.scores || [];
+      // Ensure we have at least enough scores in the array
+      if (allScores.length < endIndex) return false;
+      
+      const relevantScores = allScores.slice(startIndex, endIndex);
+      // Ensure we have the right number of scores
+      if (relevantScores.length !== expectedScoreCount) return false;
+      // Check that all scores have a gross value (not null)
+      return relevantScores.every((score) => score?.gross !== null && score?.gross !== undefined);
+    });
+  }, []);
 
   // --- Check for incomplete games and fetch games in progress ---
   useEffect(() => {
@@ -49,23 +96,24 @@ export default function EnterScore({ userId, user, courses }) {
       );
       const snapshot = await getDocs(q);
       const games = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-      setInProgressGames(games);
+
+      const sortedGames = [...games].sort((a, b) => {
+        const aIncomplete = isGameIncompleteForUser(a);
+        const bIncomplete = isGameIncompleteForUser(b);
+
+        if (aIncomplete !== bIncomplete) {
+          return aIncomplete ? -1 : 1;
+        }
+
+        const aUpdated = a.updatedAt?.seconds || 0;
+        const bUpdated = b.updatedAt?.seconds || 0;
+        return bUpdated - aUpdated;
+      });
+
+      setInProgressGames(sortedGames);
       
       // Check if user has any incomplete games
-      const userIncompleteGame = games.find(game => {
-        const player = game.players.find(p => p.userId === userId);
-        if (!player) return false;
-        
-        // Determine expected hole count
-        const expectedHoles = game.holeCount || 18;
-        const startIndex = game.nineType === "back" ? 9 : 0;
-        const endIndex = expectedHoles === 9 ? startIndex + 9 : game.course.holes.length;
-        const relevantScores = player.scores.slice(startIndex, endIndex);
-        
-        // Check if all relevant holes have scores
-        const hasAllScores = relevantScores.every(score => score.gross !== null);
-        return !hasAllScores;
-      });
+      const userIncompleteGame = sortedGames.find(isGameIncompleteForUser);
       
       // If user has incomplete game, automatically load it
       if (userIncompleteGame && !gameId) {
@@ -75,7 +123,7 @@ export default function EnterScore({ userId, user, courses }) {
       setIsLoadingGames(false);
     };
     fetchGames();
-  }, [gameId, userId, currentTournament]);
+  }, [gameId, userId, currentTournament, isGameIncompleteForUser]);
 
   // --- Fetch scores for current game ---
   useEffect(() => {
@@ -105,71 +153,6 @@ export default function EnterScore({ userId, user, courses }) {
     fetchScores();
   }, [gameId, userId]);
 
-  // --- Handle course selection ---
-  const handleCourseSelect = (e) => {
-    const courseId = e.target.value;
-    const course = courses.find((c) => c.id === courseId);
-    setSelectedCourse(course);
-
-    if (course) {
-      const initialScores = course.holes.map(() => ({
-        gross: null,
-        net: null,
-      }));
-      setScores(initialScores);
-    }
-  };
-
-  // --- Create new game ---
-  const createGame = async () => {
-    let newErrors = {};
-
-    if (!selectedCourse) newErrors.selectedCourse = true;
-    if (!gameName.trim()) newErrors.gameName = true;
-    if (!matchFormat) newErrors.matchFormat = true;
-    if (!holeCount) newErrors.holeCount = true;
-    if (holeCount === 9 && !nineType) newErrors.nineType = true;
-
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) return; // stop if there are errors
-
-    // Proceed to create game...
-    const initialScores = selectedCourse.holes.map(() => ({
-      gross: null,
-      net: null,
-    }));
-
-    try {
-      const gameData = {
-        name: gameName,
-        courseId: selectedCourse.id,
-        course: selectedCourse,
-        status: "inProgress",
-        matchFormat,
-        holeCount,
-        nineType,
-        tournamentId: currentTournament,
-        players: [
-          {
-            userId,
-            name: user?.displayName || "Unknown Player",
-            handicap: user?.handicap || 0,
-            scores: initialScores,
-          },
-        ],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-
-      const docRef = await addDoc(collection(db, "games"), gameData);
-      setGameId(docRef.id);
-      setScores(initialScores);
-    } catch (error) {
-      console.error("Error creating game:", error);
-    }
-  };
-
   // --- Join existing game ---
   const joinGame = async (game) => {
     const initialScores = game.course.holes.map(() => ({
@@ -189,7 +172,7 @@ export default function EnterScore({ userId, user, courses }) {
 
         setHoleCount(gameData.holeCount || 18);
         setNineType(gameData.nineType || "front");
-        setMatchFormat(gameData.matchFormat || "");
+        setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
 
         if (existingPlayer) {
           setGameId(game.id);
@@ -213,14 +196,18 @@ export default function EnterScore({ userId, user, courses }) {
             },
           ];
 
+          // When a new player joins, ensure game is inProgress (new player has no scores yet)
           await updateDoc(gameRef, {
             players: updatedPlayers,
+            status: "inProgress",
             updatedAt: serverTimestamp(),
           });
           setGameId(game.id);
           setSelectedCourse(game.course);
           setGameName(game.name || "");
           setScores(initialScores);
+          setPoints(0);
+          setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
         }
       }
     } catch (error) {
@@ -287,7 +274,6 @@ export default function EnterScore({ userId, user, courses }) {
         setNineType("");
         setScores([]);
         setPoints(0);
-        setErrors({});
         setResumedGame(false);
         
         showSuccess("Left game successfully!", "Success");
@@ -311,8 +297,18 @@ export default function EnterScore({ userId, user, courses }) {
         p.userId === userId ? { ...p, scores } : p
       );
 
+      // Create updated game object to check completion
+      const updatedGame = {
+        ...gameData,
+        players: updatedPlayers,
+      };
+
+      // Check if all players have completed all their scores
+      const gameIsComplete = isGameComplete(updatedGame);
+
       await updateDoc(gameRef, {
         players: updatedPlayers,
+        status: gameIsComplete ? "complete" : "inProgress",
         updatedAt: serverTimestamp(),
       });
 
@@ -356,10 +352,32 @@ export default function EnterScore({ userId, user, courses }) {
             Enter Scores
           </h1>
 
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-3 sm:gap-4 mb-6">
+            <button
+              onClick={() => navigate("/create-game")}
+              className="w-full sm:w-auto px-6 py-3 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
+              Create New Game
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowFormatHelp(true)}
+              className="w-full sm:w-auto px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            >
+              Match Format Guide
+            </button>
+          </div>
+
           {isLoadingGames && (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
               <p className="mt-2 text-gray-600 dark:text-gray-300">Loading games...</p>
+            </div>
+          )}
+
+          {!isLoadingGames && !currentTournament && (
+            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm sm:text-base text-red-700 dark:text-red-300">
+              You must select a tournament before entering scores. Visit the dashboard to choose one.
             </div>
           )}
 
@@ -380,195 +398,55 @@ export default function EnterScore({ userId, user, courses }) {
             </div>
           )}
 
-          {!gameId && !isLoadingGames && (
-            <div className="mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 text-center">
-                Select Course
+          {!isLoadingGames && currentTournament && !gameId && (
+            <div className="space-y-4 sm:space-y-6">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white text-center">
+                Games In Progress
               </h2>
-
-              <select
-                value={selectedCourse?.id || ""}
-                onChange={(e) => {
-                  handleCourseSelect(e);
-                  setErrors((prev) => ({ ...prev, selectedCourse: false })); // remove error on change
-                }}
-                className={`w-full p-3 sm:p-4 rounded-2xl border ${
-                  errors.selectedCourse
-                    ? "border-red-500"
-                    : "border-gray-200 dark:border-gray-600"
-                } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-              >
-                <option value="" disabled>
-                  Select a course
-                </option>
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.name}
-                  </option>
-                ))}
-              </select>
-
-              <input
-                placeholder="Game Name"
-                value={gameName}
-                onChange={(e) => {
-                  setGameName(e.target.value);
-                  setErrors((prev) => ({ ...prev, gameName: false }));
-                }}
-                className={`w-full p-3 sm:p-4 mb-3 sm:mb-4 rounded-2xl border ${
-                  errors.gameName
-                    ? "border-red-500"
-                    : "border-gray-200 dark:border-gray-600"
-                } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-              />
-
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <label className="block text-gray-900 dark:text-white font-medium">
-                    Match Format
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowFormatHelp(true)}
-                    className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                    title="Learn about match formats"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+              {inProgressGames.length === 0 ? (
+                <div className="p-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl text-center text-gray-700 dark:text-gray-300">
+                  No games are currently in progress. Create a new game to get started.
                 </div>
-                <select
-                  value={matchFormat || ""}
-                  onChange={(e) => {
-                    setMatchFormat(e.target.value);
-                    setErrors((prev) => ({ ...prev, matchFormat: false }));
-                  }}
-                  className={`w-full p-3 sm:p-4 rounded-2xl border ${
-                    errors.matchFormat
-                      ? "border-red-500"
-                      : "border-gray-200 dark:border-gray-600"
-                  } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-                >
-                  <option value="" disabled>
-                    Select Match Format
-                  </option>
-                  <option value="stableford">Stableford Points</option>
-                  <option value="matchplay">Match Play (1v1 using handicaps)</option>
-                  <option value="matchplay gross">Match Play (1v1 no handicaps)</option>
-                  <option value="2v2 matchplay">2v2 Match Play (Team vs Team)</option>
-                  <option value="2v2 matchplay gross">2v2 Match Play (No handicaps)</option>
-                  <option value="american">American Scoring (3 or 4 players)</option>
-                  <option value="american net">American Scoring Net (3 or 4 players, uses handicaps)</option>
-                  <option value="strokeplay">Stroke Play (1v1 no handicaps)</option>
-                  <option value="scorecard">Scorecard (Just track scores, no competition)</option>
-                </select>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-gray-900 dark:text-white font-medium mb-2">
-                  Number of Holes
-                </label>
-                <select
-                  value={holeCount || ""}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    setHoleCount(val);
-                    if (val === 18) setNineType("front");
-                    setErrors((prev) => ({ ...prev, holeCount: false }));
-                  }}
-                  className={`w-full p-3 sm:p-4 rounded-2xl border ${
-                    errors.holeCount
-                      ? "border-red-500"
-                      : "border-gray-200 dark:border-gray-600"
-                  } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-                >
-                  <option value="" disabled>
-                    Select Number of Holes
-                  </option>
-                  <option value={18}>18 Holes</option>
-                  <option value={9}>9 Holes</option>
-                </select>
-              </div>
-
-              {holeCount === 9 && (
-                <div className="mb-4">
-                  <label className="block text-gray-900 dark:text-white font-medium mb-2">
-                    Select 9 Holes
-                  </label>
-                  <select
-                    value={nineType || ""}
-                    onChange={(e) => {
-                      setNineType(e.target.value);
-                      setErrors((prev) => ({ ...prev, nineType: false }));
-                    }}
-                    className={`w-full p-3 sm:p-4 rounded-2xl border ${
-                      errors.nineType
-                        ? "border-red-500"
-                        : "border-gray-200 dark:border-gray-600"
-                    } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-                  >
-                    <option value="" disabled>
-                      Select 9 Holes
-                    </option>
-                    <option value="front">Out (Front 9)</option>
-                    <option value="back">In (Back 9)</option>
-                  </select>
+              ) : (
+                <div className="max-h-64 sm:max-h-72 overflow-y-auto space-y-2">
+                  {inProgressGames.map((game) => {
+                    const incompleteForUser = isGameIncompleteForUser(game);
+                    return (
+                      <div
+                        key={game.id}
+                        className="flex flex-col sm:flex-row justify-between items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600"
+                      >
+                        <div className="flex flex-col text-center sm:text-left">
+                          <span className="text-gray-900 dark:text-white font-medium">
+                            {game.name || "Untitled Game"}
+                          </span>
+                          {game.course?.name && (
+                            <span className="text-sm text-gray-600 dark:text-gray-300">
+                              Course: {game.course.name}
+                            </span>
+                          )}
+                          {game.matchFormat && (
+                            <span className="text-sm text-gray-600 dark:text-gray-300">
+                              Format: {getMatchFormatLabel(game.matchFormat)}
+                            </span>
+                          )}
+                          {incompleteForUser && (
+                            <span className="mt-1 text-xs font-semibold text-yellow-700 dark:text-yellow-300">
+                              Incomplete for you
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => joinGame(game)}
+                          className="w-full sm:w-auto px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                        >
+                          {incompleteForUser ? "Resume" : "Join"}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-
-              <button
-                onClick={createGame}
-                className="w-full px-6 py-3 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-              >
-                Create Game
-              </button>
-
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mt-6 mb-3 sm:mb-4 text-center">
-                Or Join Existing Game
-              </h3>
-              <div className="max-h-60 sm:max-h-64 overflow-y-auto space-y-2">
-                {inProgressGames.map((game) => (
-                  <div
-                    key={game.id}
-                    className="flex flex-col sm:flex-row justify-between items-center p-3 bg-gray-50 dark:bg-gray-700 rounded-xl"
-                  >
-                    <div className="flex flex-col mb-2 sm:mb-0">
-                      <span className="text-gray-900 dark:text-white font-medium">
-                        {game.name}
-                      </span>
-                      {game.matchFormat && (
-                        <span className="text-sm text-gray-600 dark:text-gray-300">
-                          Format:{" "}
-                          {game.matchFormat === "stableford"
-                            ? "Stableford"
-                            : game.matchFormat === "matchplay"
-                            ? "Match Play"
-                            : game.matchFormat === "matchplay gross"
-                            ? "Match Play (Gross)"
-                            : game.matchFormat === "2v2 matchplay"
-                            ? "2v2 Match Play"
-                            : game.matchFormat === "2v2 matchplay gross"
-                            ? "2v2 Match Play (Gross)"
-                            : game.matchFormat === "american"
-                            ? "American Scoring"
-                            : game.matchFormat === "american net"
-                            ? "American Scoring (Net)"
-                            : game.matchFormat === "scorecard"
-                            ? "Scorecard"
-                            : "Stroke Play"}
-                        </span>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => joinGame(game)}
-                      className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 w-full sm:w-auto"
-                    >
-                      Join
-                    </button>
-                  </div>
-                ))}
-              </div>
             </div>
           )}
 
@@ -594,23 +472,7 @@ export default function EnterScore({ userId, user, courses }) {
                     {" "}
                     • Format:{" "}
                     <span className="font-semibold">
-                      {matchFormat === "stableford"
-                        ? "Stableford"
-                        : matchFormat === "matchplay"
-                        ? "Match Play"
-                        : matchFormat === "matchplay gross"
-                        ? "Match Play (Gross)"
-                        : matchFormat === "2v2 matchplay"
-                        ? "2v2 Match Play"
-                        : matchFormat === "2v2 matchplay gross"
-                        ? "2v2 Match Play (Gross)"
-                        : matchFormat === "american"
-                        ? "American Scoring"
-                        : matchFormat === "american net"
-                        ? "American Scoring (Net)"
-                        : matchFormat === "scorecard"
-                        ? "Scorecard"
-                        : "Stroke Play"}
+                      {getMatchFormatLabel(matchFormat)}
                     </span>
                   </>
                 )}
@@ -684,7 +546,7 @@ export default function EnterScore({ userId, user, courses }) {
                     </div>
 
                     <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 text-center leading-tight">
-                      <div>Net: {displayedScores[idx].netScore ?? "-"}</div>
+                      <div>With Handicaps: {displayedScores[idx].netScore ?? "-"}</div>
                       <div>Points: {displayedScores[idx].net ?? "-"}</div>
                     </div>
                   </div>
@@ -741,29 +603,29 @@ export default function EnterScore({ userId, user, courses }) {
                   Stableford Points
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300">
-                  Players compete based on points earned per hole using their net score (gross score minus handicap strokes). Points are awarded as follows:
+                  Players compete based on points earned per hole using their With handicaps score (with handicaps score minus handicap strokes). Points are awarded as follows:
                 </p>
                 <ul className="list-disc list-inside mt-2 space-y-1 text-gray-600 dark:text-gray-300">
-                  <li>Net Albatross or better: 5 points</li>
-                  <li>Net Eagle (-2): 4 points</li>
-                  <li>Net Birdie (-1): 3 points</li>
-                  <li>Net Par: 2 points</li>
-                  <li>Net Bogey (+1): 1 point</li>
-                  <li>Net Double Bogey or worse: 0 points</li>
+                  <li>With Handicaps Albatross or better: 5 points</li>
+                  <li>With Handicaps Eagle (-2): 4 points</li>
+                  <li>With Handicaps Birdie (-1): 3 points</li>
+                  <li>With Handicaps Par: 2 points</li>
+                  <li>With Handicaps Bogey (+1): 1 point</li>
+                  <li>With Handicaps Double Bogey or worse: 0 points</li>
                 </ul>
               </div>
 
               {/* Match Play */}
               <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                  Match Play (1v1)
+                  1v1 Match Play
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300 mb-2">
-                  Two players compete hole-by-hole. Each hole is won by the player with the lower net score (gross minus handicap strokes). The match is won by the player who wins more holes. Uses handicaps to level the playing field.
+                  Two players compete hole-by-hole. Each hole is won by the player with the lower With handicaps score (with handicaps minus handicap strokes). The match is won by the player who wins more holes. Uses handicaps to level the playing field.
                 </p>
                 <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    <span className="font-semibold">No Handicaps Version:</span> Also available as "Match Play (1v1 no handicaps)" which uses gross scores instead of net scores.
+                    <span className="font-semibold">No Handicaps Version:</span> Also available as "1v1 Match Play (No Handicaps)" which uses with handicaps scores instead of With handicaps scores.
                   </p>
                 </div>
               </div>
@@ -774,11 +636,11 @@ export default function EnterScore({ userId, user, courses }) {
                   2v2 Match Play
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300 mb-2">
-                  Two teams of two players compete against each other. Each team uses their best ball (best net score) on each hole. The team with the better ball wins the hole. Teams compete head-to-head to win the most holes.
+                  Two teams of two players compete against each other. Each team uses their best ball (best With handicaps score) on each hole. The team with the better ball wins the hole. Teams compete head-to-head to win the most holes.
                 </p>
                 <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    <span className="font-semibold">No Handicaps Version:</span> Also available as "2v2 Match Play (No handicaps)" which uses gross scores instead of net scores.
+                    <span className="font-semibold">No Handicaps Version:</span> Also available as "2v2 Match Play (No handicaps)" which uses with handicaps scores instead of With handicaps scores.
                   </p>
                 </div>
               </div>
@@ -789,7 +651,7 @@ export default function EnterScore({ userId, user, courses }) {
                   American Scoring
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300 mb-3">
-                  For 3 or 4 players competing against each other using <span className="font-semibold">gross scores</span> (no handicaps). Points are awarded based on finishing position on each hole. Lower gross score wins the hole. All tied players receive equal points.
+                  For 3 or 4 players competing against each other using <span className="font-semibold">with handicaps scores</span> (no handicaps). Points are awarded based on finishing position on each hole. Lower with handicaps score wins the hole. All tied players receive equal points.
                 </p>
                 
                 <div className="mt-3 text-gray-600 dark:text-gray-300">
@@ -817,7 +679,7 @@ export default function EnterScore({ userId, user, courses }) {
                 
                 <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
                   <p className="text-sm text-gray-700 dark:text-gray-300">
-                    <span className="font-semibold">Important:</span> This format uses <span className="font-semibold">gross scores</span> (actual strokes, no handicap adjustments). All tied players receive equal points. The scoring system automatically handles all tie scenarios to ensure fair point distribution.
+                    <span className="font-semibold">Important:</span> This format uses <span className="font-semibold">with handicaps scores</span> (actual strokes, no handicap adjustments). All tied players receive equal points. The scoring system automatically handles all tie scenarios to ensure fair point distribution.
                   </p>
                 </div>
               </div>
@@ -828,7 +690,7 @@ export default function EnterScore({ userId, user, courses }) {
                   Stroke Play
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300">
-                  Two players compete with lowest total gross strokes (no handicaps). Simple stroke scoring where the player with the lowest total strokes wins.
+                  Two players compete with lowest total with handicaps strokes (no handicaps). Simple stroke scoring where the player with the lowest total strokes wins.
                 </p>
               </div>
 

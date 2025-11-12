@@ -28,9 +28,10 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
 
       // Calculate match status based on best ball scores from each team (using GROSS)
-      const calculateMatchStatus = (team1Players, team2Players) => {
+      const calculateMatchStatus = (team1Players, team2Players, holeCount, team1Name, team2Name) => {
         let status = 0;
         let holesPlayed = 0;
+        let lockedWinStatus = null; // Track if match was won at any point
         
         for (let i = 0; i < 18; i++) {
           // Get best ball (lowest gross score) from team 1
@@ -51,12 +52,33 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
           
           if (team1Best < team2Best) status++;
           else if (team2Best < team1Best) status--;
+          
+          // Check if match is won at this point
+          const holesRemaining = holeCount - holesPlayed;
+          const absStatus = Math.abs(status);
+          
+          if (absStatus > holesRemaining && !lockedWinStatus) {
+            // Match is won - lock this status
+            if (status > 0) {
+              lockedWinStatus = `${team1Name} won ${absStatus}-${holesRemaining}`;
+            } else {
+              lockedWinStatus = `${team2Name} won ${absStatus}-${holesRemaining}`;
+            }
+          }
         }
         
         if (holesPlayed === 0) return "Waiting for opponent";
+        
+        // If match was won at any point, return the locked status
+        if (lockedWinStatus) return lockedWinStatus;
+        
+        // Otherwise calculate current status
+        const holesRemaining = holeCount - holesPlayed;
+        const absStatus = Math.abs(status);
+        
         if (status === 0) return "All Square";
         if (status > 0) return `${status} Up`;
-        return `${Math.abs(status)} Down`;
+        return `${absStatus} Down`;
       };
 
       const leaderboardData = [];
@@ -92,6 +114,8 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
         }
 
         // Find opposing team
+        const opponentPlayers = [];
+        let opponentDisplayName = "";
         const opponentTeam = teams.find(
           (t) => t.id !== team.id && t.player1?.uid && t.player2?.uid
         );
@@ -106,10 +130,17 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
             (u) => u.id === opponentTeam.player2?.uid && gamePlayersMap[u.id]
           );
 
+          if (opponent1) opponentPlayers.push(opponent1);
+          if (opponent2) opponentPlayers.push(opponent2);
+          opponentDisplayName = opponentTeam.name;
+
           if (opponent1 && opponent2) {
             matchStatus = calculateMatchStatus(
               [player1, player2],
-              [opponent1, opponent2]
+              [opponent1, opponent2],
+              game.holeCount || 18,
+              team.name,
+              opponentTeam.name
             );
           }
         }
@@ -123,6 +154,14 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
           matchStatus,
           totalStrokes,
           isRoundComplete,
+          opponentPlayers,
+          opponentDisplayName:
+            opponentDisplayName ||
+            (opponentPlayers.length > 0
+              ? opponentPlayers
+                  .map((p) => p.displayName || p.name || "Opponent")
+                  .join(" & ")
+              : ""),
         });
       });
 
@@ -131,7 +170,11 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
         let aVal = 0;
         let bVal = 0;
         
-        if (a.matchStatus.includes("Up")) {
+        if (a.matchStatus.includes("won")) {
+          // Extract the number before the dash (e.g., "Team has won 4-3" -> 4)
+          const match = a.matchStatus.match(/(\d+)-/);
+          aVal = match ? parseInt(match[1]) : 0;
+        } else if (a.matchStatus.includes("Up")) {
           aVal = parseInt(a.matchStatus);
         } else if (a.matchStatus.includes("Down")) {
           aVal = -parseInt(a.matchStatus);
@@ -139,7 +182,11 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
           aVal = 0;
         }
         
-        if (b.matchStatus.includes("Up")) {
+        if (b.matchStatus.includes("won")) {
+          // Extract the number before the dash (e.g., "Team has won 4-3" -> 4)
+          const match = b.matchStatus.match(/(\d+)-/);
+          bVal = match ? parseInt(match[1]) : 0;
+        } else if (b.matchStatus.includes("Up")) {
           bVal = parseInt(b.matchStatus);
         } else if (b.matchStatus.includes("Down")) {
           bVal = -parseInt(b.matchStatus);
@@ -169,7 +216,7 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
-        2v2 Matchplay Leaderboard (Gross)
+        2v2 Matchplay Leaderboard (Without Handicaps)
       </h1>
       {leaderboard.length === 0 ? (
         <p className="text-center text-gray-600 dark:text-gray-300">

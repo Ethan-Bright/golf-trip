@@ -8,26 +8,45 @@ export default function StrokeplayLeaderboard({ game }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
 
-  // Calculate match status based on gross scores
-  const calculateMatchStatus = (player1Scores, player2Scores) => {
-    let status = 0;
+  // Calculate match status using cumulative stroke differential (best score per hole)
+  const calculateMatchStatus = (
+    leftName,
+    leftBestScores,
+    rightName,
+    rightBestScores
+  ) => {
+    let diff = 0;
     let holesPlayed = 0;
-    
-    for (let i = 0; i < Math.min(player1Scores.length, player2Scores.length); i++) {
-      const p1Gross = player1Scores[i]?.gross;
-      const p2Gross = player2Scores[i]?.gross;
-      
-      if (p1Gross == null || p2Gross == null) continue;
-      
+    const maxHoles = Math.max(leftBestScores.length, rightBestScores.length);
+
+    for (let i = 0; i < maxHoles; i++) {
+      const leftGross = leftBestScores[i];
+      const rightGross = rightBestScores[i];
+      if (leftGross == null || rightGross == null) continue;
+
       holesPlayed++;
-      if (p1Gross < p2Gross) status++;
-      else if (p2Gross < p1Gross) status--;
+      diff += rightGross - leftGross;
     }
-    
-    if (holesPlayed === 0) return "Waiting for opponent";
-    if (status === 0) return "All Square";
-    if (status > 0) return `${status} Up`;
-    return `${Math.abs(status)} Down`;
+
+    if (holesPlayed === 0) {
+      return { diff: 0, label: "Waiting for opponent" };
+    }
+
+    const formatDiff = (value) => {
+      if (value > 0) return `+${value}`;
+      if (value < 0) return `${value}`;
+      return "0";
+    };
+
+    if (diff === 0) {
+      return { diff: 0, label: "Even" };
+    }
+
+    if (diff > 0) {
+      return { diff, label: `${leftName} +${diff}` };
+    }
+
+    return { diff, label: `${rightName} +${Math.abs(diff)}` };
   };
 
   useEffect(() => {
@@ -50,6 +69,16 @@ export default function StrokeplayLeaderboard({ game }) {
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
 
       const leaderboardData = [];
+      const totalHoles = game.course?.holes?.length || 18;
+
+      const getBestHoleScores = (playerList) =>
+        Array.from({ length: totalHoles }, (_, idx) => {
+          const grossValues = playerList
+            .map((player) => gamePlayersMap[player?.id]?.scores?.[idx]?.gross)
+            .filter((val) => typeof val === "number");
+          if (grossValues.length === 0) return null;
+          return Math.min(...grossValues);
+        });
 
       teams.forEach((team) => {
         const player1 = users.find(
@@ -60,33 +89,69 @@ export default function StrokeplayLeaderboard({ game }) {
         );
         if (!player1 && !player2) return;
 
-        let totalPoints = 0;
         let holesThru = 0;
         let totalStrokes = 0;
         let isRoundComplete = true;
         let matchStatus = "Waiting for opponent";
+        let matchDiff = 0;
 
         const p1Scores = gamePlayersMap[player1?.id]?.scores ?? [];
         const p2Scores = gamePlayersMap[player2?.id]?.scores ?? [];
 
+        let opponentDisplayName = "";
+        const opponentPlayers = [];
+
         // Calculate match status for teams
         if (player1 && player2) {
-          matchStatus = calculateMatchStatus(p1Scores, p2Scores);
+          const opponentTeam = teams.find(
+            (t) =>
+              t.id !== team.id &&
+              ((t.player1?.uid && gamePlayersMap[t.player1.uid]) ||
+                (t.player2?.uid && gamePlayersMap[t.player2.uid]))
+          );
+
+          if (opponentTeam) {
+            const opponent1 = users.find(
+              (u) => u.id === opponentTeam.player1?.uid && gamePlayersMap[u.id]
+            );
+            const opponent2 = users.find(
+              (u) => u.id === opponentTeam.player2?.uid && gamePlayersMap[u.id]
+            );
+
+            if (opponent1) opponentPlayers.push(opponent1);
+            if (opponent2) opponentPlayers.push(opponent2);
+            opponentDisplayName = opponentTeam.name;
+
+            if (opponentPlayers.length > 0) {
+              const teamBestScores = getBestHoleScores(
+                [player1, player2].filter(Boolean)
+              );
+              const opponentBestScores = getBestHoleScores(opponentPlayers);
+              const statusInfo = calculateMatchStatus(
+                team.name,
+                teamBestScores,
+                opponentDisplayName || "Opponents",
+                opponentBestScores
+              );
+              matchDiff = statusInfo.diff;
+              if (statusInfo.diff === 0) {
+                matchStatus = "Even";
+              } else if (statusInfo.diff > 0) {
+                matchStatus = `${team.name} +${statusInfo.diff}`;
+              } else {
+                matchStatus = `${team.name} ${statusInfo.diff}`;
+              }
+            }
+          }
         }
 
         for (let i = 0; i < 18; i++) {
-          const p1Net = p1Scores[i]?.net;
-          const p2Net = p2Scores[i]?.net;
-          if (p1Net != null || p2Net != null) holesThru++;
-          totalPoints += (p1Net ?? 0) + (p2Net ?? 0);
-          
-          // Calculate strokes using gross scores
-          const p1Gross = p1Scores[i]?.gross ?? 0;
-          const p2Gross = p2Scores[i]?.gross ?? 0;
-          totalStrokes += p1Gross + p2Gross;
-          
-          // Check if round is complete
-          if (p1Gross === 0 && p2Gross === 0) {
+          const p1Gross = p1Scores[i]?.gross;
+          const p2Gross = p2Scores[i]?.gross;
+          if (p1Gross != null || p2Gross != null) holesThru++;
+          totalStrokes += (p1Gross ?? 0) + (p2Gross ?? 0);
+
+          if (p1Gross == null && p2Gross == null) {
             isRoundComplete = false;
           }
         }
@@ -95,12 +160,20 @@ export default function StrokeplayLeaderboard({ game }) {
           id: team.id,
           name: team.name,
           players: [player1, player2].filter(Boolean),
-          totalPoints,
           thru: holesThru,
           isSolo: false,
           totalStrokes,
           isRoundComplete,
           matchStatus,
+          opponentPlayers,
+          matchDiff,
+          opponentDisplayName:
+            opponentDisplayName ||
+            (opponentPlayers.length > 0
+              ? opponentPlayers
+                  .map((p) => p.displayName || "Opponent")
+                  .join(" & ")
+              : ""),
         });
       });
 
@@ -109,72 +182,71 @@ export default function StrokeplayLeaderboard({ game }) {
       );
       soloPlayers.forEach((player) => {
         const scores = gamePlayersMap[player.id]?.scores ?? [];
-        let totalPoints = 0;
         let holesThru = 0;
         let totalStrokes = 0;
         let isRoundComplete = true;
         let matchStatus = "Waiting for opponent";
+        let matchDiff = 0;
+        let opponentDisplayName = "";
+        const opponentPlayers = [];
         
         // Find opponent for solo player
         const otherSoloPlayers = soloPlayers.filter(p => p.id !== player.id);
         if (otherSoloPlayers.length > 0) {
           const opponent = otherSoloPlayers[0];
-          const opponentScores = gamePlayersMap[opponent.id]?.scores ?? [];
-          matchStatus = calculateMatchStatus(scores, opponentScores);
+          const playerBestScores = getBestHoleScores([player]);
+          const opponentBestScores = getBestHoleScores([opponent]);
+          const statusInfo = calculateMatchStatus(
+            player.displayName || "Player",
+            playerBestScores,
+            opponent.displayName || "Opponent",
+            opponentBestScores
+          );
+          matchDiff = statusInfo.diff;
+          if (statusInfo.diff === 0) {
+            matchStatus = "Even";
+          } else if (statusInfo.diff > 0) {
+            matchStatus = `${player.displayName || "Player"} +${
+              statusInfo.diff
+            }`;
+          } else {
+            matchStatus = `${player.displayName || "Player"} ${
+              statusInfo.diff
+            }`;
+          }
+          opponentPlayers.push(opponent);
+          opponentDisplayName =
+            opponent.displayName || opponent.name || "Opponent";
         }
         
         for (let i = 0; i < 18; i++) {
-          const net = scores[i]?.net;
-          if (net != null) holesThru++;
-          totalPoints += net ?? 0;
-          
-          // Calculate strokes using gross scores
-          const gross = scores[i]?.gross ?? 0;
-          totalStrokes += gross;
-          
-          // Check if round is complete
-          if (gross === 0) {
+          const gross = scores[i]?.gross;
+          if (gross != null) holesThru++;
+          totalStrokes += gross ?? 0;
+
+          if (gross == null) {
             isRoundComplete = false;
           }
         }
         leaderboardData.push({
           players: [player],
           displayName: `${player.displayName ?? "Unknown"} (Solo)`,
-          totalPoints,
           thru: holesThru,
           isSolo: true,
           totalStrokes,
           isRoundComplete,
           matchStatus,
+          matchDiff,
+          opponentPlayers,
+          opponentDisplayName,
         });
       });
 
       leaderboardData.sort((a, b) => {
-        // Parse match status values - positive for "Up", negative for "Down"
-        let aVal = 0;
-        let bVal = 0;
-        
-        if (a.matchStatus.includes("Up")) {
-          aVal = parseInt(a.matchStatus);
-        } else if (a.matchStatus.includes("Down")) {
-          aVal = -parseInt(a.matchStatus);
-        } else if (a.matchStatus === "All Square") {
-          aVal = 0;
+        if (a.totalStrokes !== b.totalStrokes) {
+          return a.totalStrokes - b.totalStrokes;
         }
-        
-        if (b.matchStatus.includes("Up")) {
-          bVal = parseInt(b.matchStatus);
-        } else if (b.matchStatus.includes("Down")) {
-          bVal = -parseInt(b.matchStatus);
-        } else if (b.matchStatus === "All Square") {
-          bVal = 0;
-        }
-        
-        // First sort by match status (descending), then by total points
-        if (bVal !== aVal) {
-          return bVal - aVal;
-        }
-        return b.totalPoints - a.totalPoints;
+        return (b.matchDiff ?? 0) - (a.matchDiff ?? 0);
       });
       setLeaderboard(leaderboardData);
     };
@@ -260,18 +332,12 @@ export default function StrokeplayLeaderboard({ game }) {
                       </div>
                     )}
                     <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1">
-                      {team.isRoundComplete ? 'Total strokes' : 'Current strokes'}: {team.totalStrokes}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                       {team.isRoundComplete ? "Completed Match" : `Thru ${team.thru}`}
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
-                  <span className="text-gray-800 dark:text-gray-200 font-bold text-base sm:text-lg">
-                    {team.totalPoints} pts
-                  </span>
                   <span className="text-green-600 dark:text-green-400 font-bold text-lg sm:text-xl">
                     {team.matchStatus}
                   </span>

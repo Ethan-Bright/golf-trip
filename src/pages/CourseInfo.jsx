@@ -5,8 +5,10 @@ import { courses } from "../data/courses";
 export default function CourseInfo() {
   const navigate = useNavigate();
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [flyover, setFlyover] = useState(null);
 
   const selectedCourseData = courses.find((c) => c.id === selectedCourse);
+  const showFlyover = selectedCourseData?.id === "pezula";
 
   // Calculate total par for header display
   const totalPar = selectedCourseData
@@ -101,6 +103,11 @@ export default function CourseInfo() {
                     <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
                       Information
                     </th>
+                    {showFlyover && (
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                        Flyover
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -125,6 +132,28 @@ export default function CourseInfo() {
                       <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
                         {hole.info}
                       </td>
+                      {showFlyover && (
+                        <td className="px-4 py-3">
+                          {hole.video ? (
+                            <button
+                              onClick={() =>
+                                setFlyover({
+                                  url: hole.video,
+                                  holeNumber: hole.holeNumber,
+                                  course: selectedCourseData.name,
+                                })
+                              }
+                              className="inline-flex items-center rounded-full bg-green-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800"
+                            >
+                              View Hole Flyover
+                            </button>
+                          ) : (
+                            <span className="text-sm text-gray-400 dark:text-gray-500">
+                              Not available
+                            </span>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -153,6 +182,49 @@ export default function CourseInfo() {
               Please select a course from the dropdown above to view its
               information
             </p>
+          </div>
+        )}
+        {flyover && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+            <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-gray-900">
+              <div className="flex items-start justify-between border-b border-gray-200 p-6 dark:border-gray-700">
+                <div>
+                  <h4 className="text-xl font-semibold text-gray-900 dark:text-white">
+                    {flyover.course} • Hole {flyover.holeNumber}
+                  </h4>
+                  <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                    Flyover video
+                  </p>
+                </div>
+                <button
+                  onClick={() => setFlyover(null)}
+                  className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-white dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 dark:focus:ring-offset-gray-900"
+                >
+                  <span className="sr-only">Close</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <div className="aspect-video bg-black">
+                <iframe
+                  src={flyover.url}
+                  title={`Hole ${flyover.holeNumber} flyover`}
+                  className="h-full w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
+            </div>
           </div>
         )}
       </div>
