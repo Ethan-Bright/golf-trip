@@ -123,21 +123,76 @@ export function AuthProvider({ children }) {
   // Auth state persistence
   // -------------------
   useEffect(() => {
-    const storedUser =
-      JSON.parse(localStorage.getItem("golfTripUser")) ||
-      JSON.parse(sessionStorage.getItem("golfTripUser"));
-    if (storedUser) setUser(storedUser);
-    setLoading(false); // <-- done loading once user restored
+    try {
+      // Try to get user from localStorage first (remember me)
+      const localUser = localStorage.getItem("golfTripUser");
+      if (localUser) {
+        try {
+          const parsedUser = JSON.parse(localUser);
+          if (parsedUser) {
+            setUser(parsedUser);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Error parsing localStorage user:", e);
+          // Clear corrupted data
+          localStorage.removeItem("golfTripUser");
+        }
+      }
+      
+      // Fallback to sessionStorage
+      const sessionUser = sessionStorage.getItem("golfTripUser");
+      if (sessionUser) {
+        try {
+          const parsedUser = JSON.parse(sessionUser);
+          if (parsedUser) {
+            setUser(parsedUser);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          console.error("Error parsing sessionStorage user:", e);
+          // Clear corrupted data
+          sessionStorage.removeItem("golfTripUser");
+        }
+      }
+    } catch (e) {
+      console.error("Error accessing storage:", e);
+    }
+    setLoading(false);
   }, []);
 
   const setUserAndPersist = (userData, remember = true) => {
     setUser(userData);
     if (userData) {
-      const storage = remember ? localStorage : sessionStorage;
-      storage.setItem("golfTripUser", JSON.stringify(userData));
+      try {
+        // Clear the other storage type to avoid conflicts
+        if (remember) {
+          sessionStorage.removeItem("golfTripUser");
+          localStorage.setItem("golfTripUser", JSON.stringify(userData));
+        } else {
+          localStorage.removeItem("golfTripUser");
+          sessionStorage.setItem("golfTripUser", JSON.stringify(userData));
+        }
+      } catch (e) {
+        console.error("Error saving user to storage:", e);
+        // If localStorage fails (quota exceeded, etc.), try sessionStorage as fallback
+        if (remember) {
+          try {
+            sessionStorage.setItem("golfTripUser", JSON.stringify(userData));
+          } catch (e2) {
+            console.error("Error saving to sessionStorage:", e2);
+          }
+        }
+      }
     } else {
-      localStorage.removeItem("golfTripUser");
-      sessionStorage.removeItem("golfTripUser");
+      try {
+        localStorage.removeItem("golfTripUser");
+        sessionStorage.removeItem("golfTripUser");
+      } catch (e) {
+        console.error("Error clearing storage:", e);
+      }
     }
   };
 
