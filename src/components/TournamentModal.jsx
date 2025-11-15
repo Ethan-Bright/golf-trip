@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTournament } from "../context/TournamentContext";
 import { useNavigate } from "react-router-dom";
 import bcrypt from "bcryptjs";
+import SearchableTournamentDropdown from "./SearchableTournamentDropdown";
 
 export default function TournamentModal({ isOpen, onClose }) {
   const { user } = useAuth();
@@ -12,6 +13,7 @@ export default function TournamentModal({ isOpen, onClose }) {
   const { currentTournament, setTournament } = useTournament();
   const [tournaments, setTournaments] = useState([]);
   const [allTournaments, setAllTournaments] = useState([]);
+  const [userTournamentIds, setUserTournamentIds] = useState([]); // Store user's tournament IDs from Firestore
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
@@ -37,6 +39,9 @@ export default function TournamentModal({ isOpen, onClose }) {
       const userData = userSnapshot.data();
       const userTournaments = userData?.tournaments || [];
       
+      // Store user's tournament IDs for filtering
+      setUserTournamentIds(userTournaments);
+      
       if (!userTournaments || userTournaments.length === 0) {
         setTournaments([]);
         setLoading(false);
@@ -49,6 +54,7 @@ export default function TournamentModal({ isOpen, onClose }) {
           tournaments: [...userTournaments, currentTournament]
         }, { merge: true });
         userTournaments.push(currentTournament);
+        setUserTournamentIds(userTournaments);
       }
 
       const tournamentData = await Promise.all(
@@ -167,7 +173,19 @@ export default function TournamentModal({ isOpen, onClose }) {
     }
   };
 
-  const handleJoinTournament = () => {
+  const handleJoinTournament = async () => {
+    // Refresh user's tournament IDs to ensure we have latest data
+    if (user?.uid) {
+      try {
+        const userRef = doc(db, "users", user.uid);
+        const userSnapshot = await getDoc(userRef);
+        const userData = userSnapshot.data();
+        const userTournaments = userData?.tournaments || [];
+        setUserTournamentIds(userTournaments);
+      } catch (err) {
+        console.error("Error refreshing user tournaments:", err);
+      }
+    }
     setMode("join");
   };
 
@@ -219,13 +237,16 @@ export default function TournamentModal({ isOpen, onClose }) {
       const currentTournaments = userSnapshot.data()?.tournaments || [];
       
       if (!currentTournaments.includes(tournamentId)) {
+        const updatedTournaments = [...currentTournaments, tournamentId];
         await setDoc(
           userRef,
           {
-            tournaments: [...currentTournaments, tournamentId],
+            tournaments: updatedTournaments,
           },
           { merge: true }
         );
+        // Update local state with fresh tournament IDs
+        setUserTournamentIds(updatedTournaments);
       }
 
       // Set as current tournament
@@ -266,17 +287,18 @@ export default function TournamentModal({ isOpen, onClose }) {
       const userRef = doc(db, "users", user.uid);
       const userSnapshot = await getDoc(userRef);
       const currentTournaments = userSnapshot.data()?.tournaments || [];
+      const remaining = currentTournaments.filter(t => t !== tournamentId);
       
       await setDoc(
         userRef,
         {
-          tournaments: currentTournaments.filter(t => t !== tournamentId),
+          tournaments: remaining,
         },
         { merge: true }
       );
 
-      // Get remaining tournaments after leaving this one
-      const remaining = currentTournaments.filter(t => t !== tournamentId);
+      // Update local state with fresh tournament IDs
+      setUserTournamentIds(remaining);
       
       // If leaving current tournament, switch to another or redirect
       if (tournamentId === currentTournament) {
@@ -432,7 +454,7 @@ export default function TournamentModal({ isOpen, onClose }) {
           {mode === "join" && (
             <JoinTournamentForm
               tournaments={allTournaments.filter(
-                (t) => !user?.tournaments?.includes(t.id)
+                (t) => !userTournamentIds.includes(t.id)
               )}
               onSubmit={handleJoinWithPassword}
               onBack={() => setMode("menu")}
@@ -568,22 +590,15 @@ function JoinTournamentForm({ tournaments, onSubmit, onBack, error }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          Select Tournament:
-        </label>
-        <select
-          value={selectedTournamentId}
-          onChange={(e) => setSelectedTournamentId(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          required
-        >
-          <option value="">Choose a tournament...</option>
-          {tournaments.map((tournament) => (
-            <option key={tournament.id} value={tournament.id}>
-              {tournament.name} ({tournament.memberCount || 0} members)
-            </option>
-          ))}
-        </select>
+        <SearchableTournamentDropdown
+          tournaments={tournaments}
+          selectedTournamentId={selectedTournamentId}
+          onTournamentSelect={setSelectedTournamentId}
+          placeholder="Choose a tournament..."
+          label="Select Tournament:"
+          error={false}
+          showMemberCount={true}
+        />
       </div>
       <div>
         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">

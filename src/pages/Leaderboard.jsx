@@ -4,6 +4,7 @@ import { db } from "../firebase";
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from "firebase/firestore";
 import LeaderboardComponent from "../components/Leaderboard";
 import AchievementsModal from "../components/AchievementsModal";
+import RoundStatsModal from "../components/RoundStatsModal";
 import { useTournament } from "../context/TournamentContext";
 import {
   getMatchFormatLabel,
@@ -24,6 +25,7 @@ export default function Leaderboard({ tournamentId }) {
   const [isPlayerFilterDropdownOpen, setIsPlayerFilterDropdownOpen] = useState(false);
   const [isFormatFilterDropdownOpen, setIsFormatFilterDropdownOpen] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
+  const [showRoundStats, setShowRoundStats] = useState(false);
   const dropdownRef = useRef(null);
   const userDropdownRef = useRef(null);
   const playerFilterDropdownRef = useRef(null);
@@ -540,12 +542,22 @@ export default function Leaderboard({ tournamentId }) {
               {new Date(game.createdAt.seconds * 1000).toLocaleDateString()}
             </p>
           )}
-          <button
-            onClick={() => setShowAchievements(true)}
-            className="mt-4 px-6 py-3 bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white font-semibold rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-all duration-200 flex items-center gap-2 mx-auto"
-          >
-            🏆 View Achievements
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
+            <button
+              onClick={() => setShowAchievements(true)}
+              className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white font-semibold rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-all duration-200 flex items-center gap-2"
+            >
+              🏆 View Achievements
+            </button>
+            {game.trackStats && (
+              <button
+                onClick={() => setShowRoundStats(true)}
+                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 flex items-center gap-2"
+              >
+                📊 View Round Stats
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Leaderboard Section */}
@@ -558,6 +570,14 @@ export default function Leaderboard({ tournamentId }) {
           <AchievementsModal
             game={game}
             onClose={() => setShowAchievements(false)}
+          />
+        )}
+
+        {/* Round Stats Modal */}
+        {showRoundStats && (
+          <RoundStatsModal
+            game={game}
+            onClose={() => setShowRoundStats(false)}
           />
         )}
 

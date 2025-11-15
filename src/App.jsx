@@ -21,6 +21,7 @@ import CreateGameWrapper from "./pages/CreateGameWrapper";
 import ViewTeams from "./pages/ViewTeams";
 import ViewMembers from "./pages/ViewMembers";
 import CourseInfo from "./pages/CourseInfo";
+import MyStats from "./pages/MyStats";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -94,6 +95,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <CourseInfo />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/my-stats"
+              element={
+                <PrivateRoute>
+                  <MyStats />
                 </PrivateRoute>
               }
             />

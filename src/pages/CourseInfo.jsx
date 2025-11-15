@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { courses } from "../data/courses";
+import SearchableCourseDropdown from "../components/SearchableCourseDropdown";
 
 export default function CourseInfo() {
   const navigate = useNavigate();
@@ -60,20 +61,15 @@ export default function CourseInfo() {
 
         {/* Course Dropdown */}
         <div className="mb-6">
-          <select
-            onChange={(e) => setSelectedCourse(e.target.value)}
-            value={selectedCourse || ""}
-            className="w-full p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 text-lg font-medium"
-          >
-            <option value="" disabled>
-              Select a Course
-            </option>
-            {courses.map((course) => (
-              <option key={course.id} value={course.id}>
-                {course.name}
-              </option>
-            ))}
-          </select>
+          <SearchableCourseDropdown
+            courses={courses}
+            selectedCourseId={selectedCourse}
+            onCourseSelect={setSelectedCourse}
+            placeholder="Select a Course"
+            label=""
+            error={false}
+            className="text-lg font-medium"
+          />
         </div>
 
         {/* Course Info Table */}

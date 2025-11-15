@@ -34,6 +34,7 @@ export default function EnterScore({ userId, user }) {
   const [isLoadingGames, setIsLoadingGames] = useState(true);
   const [resumedGame, setResumedGame] = useState(false);
   const [showFormatHelp, setShowFormatHelp] = useState(false);
+  const [trackStats, setTrackStats] = useState(false);
 
   const isGameIncompleteForUser = useCallback(
     (game) => {
@@ -135,14 +136,22 @@ export default function EnterScore({ userId, user }) {
         const gameData = gameSnap.data();
         const player = gameData.players.find((p) => p.userId === userId);
         if (player) {
-          setScores(player.scores);
+          // Normalize scores to ensure they have stats fields
+          const normalizedScores = (player.scores || []).map((score) => ({
+            ...score,
+            fir: score.fir ?? null,
+            gir: score.gir ?? null,
+            putts: score.putts ?? null,
+          }));
+          setScores(normalizedScores);
           // Determine if front/back 9 based on holeCount stored in game or default
           const totalHoles = gameData.holeCount || 18;
           setHoleCount(totalHoles);
           setNineType(
             totalHoles === 9 && gameData.nineType ? gameData.nineType : "front"
           );
-          const totalPoints = player.scores.reduce(
+          setTrackStats(gameData.trackStats || false);
+          const totalPoints = normalizedScores.reduce(
             (sum, s) => sum + (s.net ?? 0),
             0
           );
@@ -158,6 +167,9 @@ export default function EnterScore({ userId, user }) {
     const initialScores = game.course.holes.map(() => ({
       gross: null,
       net: null,
+      fir: null,
+      gir: null,
+      putts: null,
     }));
 
     try {
@@ -173,12 +185,19 @@ export default function EnterScore({ userId, user }) {
         setHoleCount(gameData.holeCount || 18);
         setNineType(gameData.nineType || "front");
         setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
+        setTrackStats(gameData.trackStats || false);
 
         if (existingPlayer) {
           setGameId(game.id);
           setSelectedCourse(game.course);
           setGameName(game.name || "");
-          const playerScores = existingPlayer.scores || initialScores;
+          // Normalize scores to ensure they have stats fields
+          const playerScores = (existingPlayer.scores || initialScores).map((score) => ({
+            ...score,
+            fir: score.fir ?? null,
+            gir: score.gir ?? null,
+            putts: score.putts ?? null,
+          }));
           setScores(playerScores);
           const totalPoints = playerScores.reduce(
             (sum, s) => sum + (s.net ?? 0),
@@ -208,6 +227,7 @@ export default function EnterScore({ userId, user }) {
           setScores(initialScores);
           setPoints(0);
           setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
+          setTrackStats(gameData.trackStats || false);
         }
       }
     } catch (error) {
@@ -247,6 +267,17 @@ export default function EnterScore({ userId, user }) {
   };
 
   const handleInputChange = (e, idx) => handleChange(idx, e.target.value);
+
+  // --- Handle stats changes ---
+  const handleStatsChange = (holeIndex, statType, value) => {
+    const updated = [...scores];
+    if (statType === 'fir' || statType === 'gir') {
+      updated[holeIndex][statType] = value;
+    } else if (statType === 'putts') {
+      updated[holeIndex].putts = value === "" ? null : Number(value);
+    }
+    setScores(updated);
+  };
 
   // --- Leave current game ---
   const leaveGame = async () => {
@@ -482,7 +513,7 @@ export default function EnterScore({ userId, user }) {
                 {holeInputs.map((v, idx) => (
                   <div
                     key={idx}
-                    className="flex flex-col items-center bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-600 p-3 sm:p-4 min-h-[160px] w-full"
+                    className={`flex flex-col items-center bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-600 p-3 sm:p-4 w-full ${trackStats ? 'min-h-[280px]' : 'min-h-[160px]'}`}
                   >
                     <div className="text-center mb-2 sm:mb-3">
                       <div className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
@@ -546,15 +577,78 @@ export default function EnterScore({ userId, user }) {
                     </div>
 
                     <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 text-center leading-tight">
-                      <div>With Handicaps: {displayedScores[idx].netScore ?? "-"}</div>
+                      <div>With Handicap: {displayedScores[idx].netScore ?? "-"}</div>
                       <div>Points: {displayedScores[idx].net ?? "-"}</div>
                     </div>
+
+                    {trackStats && (
+                      <div className="mt-3 space-y-3 w-full">
+                        {displayedHoles[idx].par !== 3 && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 dark:text-gray-400 font-medium">FIR:</span>
+                            <input
+                              type="checkbox"
+                              checked={displayedScores[idx].fir === true}
+                              onChange={(e) => handleStatsChange(idx + startIndex, 'fir', e.target.checked)}
+                              className="w-7 h-7 text-green-600 dark:text-green-500 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-green-500 cursor-pointer"
+                            />
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400 font-medium">GIR:</span>
+                          <input
+                            type="checkbox"
+                            checked={displayedScores[idx].gir === true}
+                            onChange={(e) => handleStatsChange(idx + startIndex, 'gir', e.target.checked)}
+                            className="w-7 h-7 text-green-600 dark:text-green-500 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-green-500 cursor-pointer"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600 dark:text-gray-400 font-medium">Putts:</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentPutts = displayedScores[idx].putts || 0;
+                                if (currentPutts > 0) {
+                                  handleStatsChange(idx + startIndex, 'putts', (currentPutts - 1).toString());
+                                }
+                              }}
+                              className="w-10 h-10 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-base font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
+                            >
+                              −
+                            </button>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={displayedScores[idx].putts ?? ""}
+                              onChange={(e) => handleStatsChange(idx + startIndex, 'putts', e.target.value)}
+                              className="w-16 h-10 text-center border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-base font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              placeholder="0"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentPutts = displayedScores[idx].putts || 0;
+                                if (currentPutts < 10) {
+                                  handleStatsChange(idx + startIndex, 'putts', (currentPutts + 1).toString());
+                                }
+                              }}
+                              className="w-10 h-10 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-base font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
 
               <div className="mt-4 sm:mt-6 text-center font-semibold text-lg sm:text-xl text-green-700 dark:text-green-400">
-                Total Points: {points}
+                Current Strokes: {displayedScores.reduce((sum, s) => sum + (s.gross ?? 0), 0)}
               </div>
 
               <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-4 sm:mt-6">

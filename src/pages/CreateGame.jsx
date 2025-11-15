@@ -12,6 +12,7 @@ import { Modal, useModal } from "../components/Modal";
 import { useTournament } from "../context/TournamentContext";
 import { db } from "../firebase";
 import { MATCH_FORMAT_SELECT_OPTIONS } from "../lib/matchFormats";
+import SearchableCourseDropdown from "../components/SearchableCourseDropdown";
 
 function useIncompleteGameChecker(userId, currentTournament) {
   const [isChecking, setIsChecking] = useState(true);
@@ -84,8 +85,10 @@ export default function CreateGame({ userId, user, courses = [] }) {
   const [matchFormat, setMatchFormat] = useState("");
   const [holeCount, setHoleCount] = useState("");
   const [nineType, setNineType] = useState("");
+  const [trackStats, setTrackStats] = useState(false);
   const [errors, setErrors] = useState({});
   const [showFormatHelp, setShowFormatHelp] = useState(false);
+  const [showStatsHelp, setShowStatsHelp] = useState(false);
   const { incompleteGame, isChecking } = useIncompleteGameChecker(
     userId,
     currentTournament
@@ -96,11 +99,13 @@ export default function CreateGame({ userId, user, courses = [] }) {
     return selectedCourse.holes.map(() => ({
       gross: null,
       net: null,
+      fir: null,
+      gir: null,
+      putts: null,
     }));
   }, [selectedCourse]);
 
-  const handleCourseSelect = (e) => {
-    const courseId = e.target.value;
+  const handleCourseSelect = (courseId) => {
     const course = courses.find((c) => c.id === courseId) || null;
     setSelectedCourse(course);
     setErrors((prev) => ({ ...prev, selectedCourse: false }));
@@ -141,6 +146,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
         matchFormat,
         holeCount,
         nineType,
+        trackStats,
         tournamentId: currentTournament,
         players: [
           {
@@ -218,29 +224,16 @@ export default function CreateGame({ userId, user, courses = [] }) {
           {renderIncompleteBanner()}
 
           <div className="mb-4 sm:mb-6">
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-3 sm:mb-4 text-center">
-              Select Course
-            </h2>
-
-            <select
-              value={selectedCourse?.id || ""}
-              onChange={handleCourseSelect}
-              className={`w-full p-3 sm:p-4 rounded-2xl border ${
-                errors.selectedCourse
-                  ? "border-red-500"
-                  : "border-gray-200 dark:border-gray-600"
-              } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
+            <SearchableCourseDropdown
+              courses={courses}
+              selectedCourseId={selectedCourse?.id || null}
+              onCourseSelect={handleCourseSelect}
+              placeholder="Select a course"
+              label=""
               disabled={!!incompleteGame}
-            >
-              <option value="" disabled>
-                Select a course
-              </option>
-              {courses.map((course) => (
-                <option key={course.id} value={course.id}>
-                  {course.name}
-                </option>
-              ))}
-            </select>
+              error={errors.selectedCourse}
+              className="mb-3 sm:mb-4"
+            />
 
             <input
               placeholder="Game Name"
@@ -356,6 +349,35 @@ export default function CreateGame({ userId, user, courses = [] }) {
                 </select>
               </div>
             )}
+
+            <div className="mb-4">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={trackStats}
+                  onChange={(e) => setTrackStats(e.target.checked)}
+                  className="w-5 h-5 text-green-600 dark:text-green-500 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                  disabled={!!incompleteGame}
+                />
+                <span className="text-gray-900 dark:text-white font-medium">
+                  Track stats for round
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowStatsHelp(true)}
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 rounded-full"
+                  title="Learn about stats tracking"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path
+                      fillRule="evenodd"
+                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </label>
+            </div>
           </div>
 
           <button
@@ -379,6 +401,75 @@ export default function CreateGame({ userId, user, courses = [] }) {
       </div>
 
       <Modal {...modal} onClose={hideModal} />
+
+      {/* Stats Help Modal */}
+      {showStatsHelp && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                Track Stats for Round
+              </h2>
+              <button
+                onClick={() => setShowStatsHelp(false)}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-3xl leading-none focus:outline-none focus:ring-2 focus:ring-green-500 rounded-lg p-1"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-gray-600 dark:text-gray-300">
+                When enabled, players will be required to enter additional statistics for each hole during score entry:
+              </p>
+
+              <div className="space-y-3">
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+                    FIR (Fairway In Regulation)
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Check this box if the player's tee shot lands on the fairway. For par 3 holes, this is typically not applicable.
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+                    GIR (Green In Regulation)
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Check this box if the player reaches the green in the regulation number of strokes (par minus 2). For example, on a par 4, the player must reach the green in 2 strokes or fewer.
+                  </p>
+                </div>
+
+                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+                    Putts
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Enter the number of putts taken on each hole. This includes all strokes made on the putting surface.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <span className="font-semibold">Note:</span> These statistics will be available for viewing in the Round Stats modal on the Leaderboard page, and you can track your personal statistics over time in the My Stats page.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={() => setShowStatsHelp(false)}
+                className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Format Help Modal */}
       {showFormatHelp && (

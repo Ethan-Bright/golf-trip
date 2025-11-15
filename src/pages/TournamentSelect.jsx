@@ -14,6 +14,7 @@ import { useTournament } from "../context/TournamentContext";
 import { useNavigate } from "react-router-dom";
 import { Modal, useModal } from "../components/Modal";
 import bcrypt from "bcryptjs";
+import SearchableTournamentDropdown from "../components/SearchableTournamentDropdown";
 
 export default function TournamentSelect() {
   const { user } = useAuth();
@@ -304,20 +305,15 @@ export default function TournamentSelect() {
             </h3>
             
             <div className="mb-6">
-              <label className="block text-gray-700 dark:text-gray-300 text-sm font-semibold mb-2">
-                Choose a tournament:
-              </label>
-              <select
-                value={selectedTournamentId}
-                onChange={(e) => setSelectedTournamentId(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {tournaments.map((tournament) => (
-                  <option key={tournament.id} value={tournament.id}>
-                    {tournament.name} ({tournament.memberCount || 0} members)
-                  </option>
-                ))}
-              </select>
+              <SearchableTournamentDropdown
+                tournaments={tournaments}
+                selectedTournamentId={selectedTournamentId}
+                onTournamentSelect={setSelectedTournamentId}
+                placeholder="Choose a tournament..."
+                label="Choose a tournament:"
+                error={false}
+                showMemberCount={true}
+              />
             </div>
 
             <div className="flex gap-3">

@@ -163,22 +163,36 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  const setUserAndPersist = (userData, remember = true) => {
+  const setUserAndPersist = (userData, remember = null) => {
     setUser(userData);
     if (userData) {
       try {
-        // Clear the other storage type to avoid conflicts
-        if (remember) {
-          sessionStorage.removeItem("golfTripUser");
+        // If remember is not specified, check which storage currently has the user
+        // This preserves the user's original "remember me" preference
+        let shouldRemember = remember;
+        if (remember === null) {
+          const hasLocalStorage = localStorage.getItem("golfTripUser") !== null;
+          const hasSessionStorage = sessionStorage.getItem("golfTripUser") !== null;
+          // If localStorage has the user, they used "remember me"
+          // If only sessionStorage has it, they didn't use "remember me"
+          // If neither has it (new login), default to true
+          shouldRemember = hasLocalStorage || (!hasLocalStorage && !hasSessionStorage);
+        }
+        
+        // Always clear both storages first to avoid conflicts
+        localStorage.removeItem("golfTripUser");
+        sessionStorage.removeItem("golfTripUser");
+        
+        // Then save to the appropriate storage based on remember preference
+        if (shouldRemember) {
           localStorage.setItem("golfTripUser", JSON.stringify(userData));
         } else {
-          localStorage.removeItem("golfTripUser");
           sessionStorage.setItem("golfTripUser", JSON.stringify(userData));
         }
       } catch (e) {
         console.error("Error saving user to storage:", e);
         // If localStorage fails (quota exceeded, etc.), try sessionStorage as fallback
-        if (remember) {
+        if (remember !== false) {
           try {
             sessionStorage.setItem("golfTripUser", JSON.stringify(userData));
           } catch (e2) {

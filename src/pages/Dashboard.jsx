@@ -556,6 +556,32 @@ export default function Dashboard() {
             </div>
           </button>
 
+          {/* View Stats */}
+          <button
+            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            onClick={() => navigate("/my-stats")}
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  View My Stats
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  View your personal statistics
+                </p>
+              </div>
+            </div>
+          </button>
+
           {/* Course Information */}
           <button
             className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"

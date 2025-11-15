@@ -1,0 +1,13 @@
+{
+    "firebase-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@gannonh/firebase-mcp"
+      ],
+      "env": {
+        "SERVICE_ACCOUNT_KEY_PATH": "C:\\Users\\brigh\\golf-trip\\serviceAccountKey.json",
+        "FIREBASE_STORAGE_BUCKET": "golf-leaderboard-6e8df.firebasestorage.app"
+      }
+    }
+  }

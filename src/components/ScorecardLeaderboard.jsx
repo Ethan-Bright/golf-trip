@@ -29,14 +29,17 @@ export default function ScorecardLeaderboard({ game }) {
 
       // Calculate stats for each player
       const holeCount = game?.holeCount || 18;
+      const nineType = game?.nineType || "front";
+      const startIndex = nineType === "back" ? 9 : 0;
+      const endIndex = startIndex + holeCount;
       
       const playersWithStats = playersData.map((player) => {
         let totalGross = 0;
         let holesPlayed = 0;
         let isRoundComplete = true;
 
-        // Only process the first holeCount scores
-        const relevantScores = player.scores.slice(0, holeCount);
+        // Process the relevant scores based on nineType and holeCount
+        const relevantScores = player.scores.slice(startIndex, endIndex);
         relevantScores.forEach((score) => {
           if (score?.gross != null) {
             holesPlayed++;
@@ -44,7 +47,7 @@ export default function ScorecardLeaderboard({ game }) {
           }
         });
 
-        // Check if round is complete - only check the first holeCount scores
+        // Check if round is complete - only check the relevant scores
         isRoundComplete = relevantScores.every((score) => score?.gross != null);
 
         return {
@@ -137,7 +140,7 @@ export default function ScorecardLeaderboard({ game }) {
               {/* Hole Details Grid */}
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 mb-3 sm:mb-4 max-h-96 overflow-y-auto px-1">
                 {relevantHoles.map((hole, localHoleIndex) => {
-                  const score = player.scores[localHoleIndex];
+                  const score = player.scores[startIndex + localHoleIndex];
                   const hasScore = score?.gross != null;
                   const actualHoleNumber = startIndex + localHoleIndex + 1;
 
