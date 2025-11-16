@@ -547,10 +547,10 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white">
-                  View Tournament Members
+                  View Members
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  See all tournament participants
+                  See tournament or all users
                 </p>
               </div>
             </div>
