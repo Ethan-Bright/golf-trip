@@ -26,6 +26,7 @@ export default function EnterScore({ userId, user }) {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [gameName, setGameName] = useState("");
   const [gameId, setGameId] = useState(null);
+  const [gamePlayers, setGamePlayers] = useState([]);
   const [scores, setScores] = useState([]);
   const [inProgressGames, setInProgressGames] = useState([]);
   const [points, setPoints] = useState(0);
@@ -35,6 +36,9 @@ export default function EnterScore({ userId, user }) {
   const [resumedGame, setResumedGame] = useState(false);
   const [showFormatHelp, setShowFormatHelp] = useState(false);
   const [trackStats, setTrackStats] = useState(false);
+  const [wolfOrder, setWolfOrder] = useState(null); // array of userIds length 3
+  const [wolfDecisions, setWolfDecisions] = useState([]); // per-hole: 'lone' | partnerUserId | null
+  const [wolfHoles, setWolfHoles] = useState(null); // per-hole: { wolfId, decision } | null
 
   const isGameIncompleteForUser = useCallback(
     (game) => {
@@ -134,6 +138,7 @@ export default function EnterScore({ userId, user }) {
       const gameSnap = await getDoc(gameRef);
       if (gameSnap.exists()) {
         const gameData = gameSnap.data();
+        setGamePlayers(gameData.players || []);
         const player = gameData.players.find((p) => p.userId === userId);
         if (player) {
           // Normalize scores to ensure they have stats fields
@@ -151,11 +156,46 @@ export default function EnterScore({ userId, user }) {
             totalHoles === 9 && gameData.nineType ? gameData.nineType : "front"
           );
           setTrackStats(gameData.trackStats || false);
+          setWolfOrder(gameData.wolfOrder || null);
+          setWolfHoles(
+            gameData.wolfHoles && Array.isArray(gameData.wolfHoles)
+              ? gameData.wolfHoles
+              : null
+          );
+          setWolfDecisions(
+            sanitizeWolfDecisions(
+              gameData.wolfDecisions && Array.isArray(gameData.wolfDecisions)
+                ? gameData.wolfDecisions
+                : Array(totalHoles).fill(null),
+              totalHoles
+            )
+          );
           const totalPoints = normalizedScores.reduce(
             (sum, s) => sum + (s.net ?? 0),
             0
           );
           setPoints(totalPoints);
+
+          // Ensure wolf order exists for wolf format with exactly 3 players
+          const normalizedGameFormat = normalizeMatchFormat(gameData.matchFormat || "");
+          if (
+            (normalizedGameFormat === "wolf" || normalizedGameFormat === "wolf-handicap") &&
+            (!gameData.wolfOrder || gameData.wolfOrder.length !== 3) &&
+            (gameData.players || []).length === 3
+          ) {
+            const ids = gameData.players.map((p) => p.userId);
+            // randomize order once
+            const randomized = [...ids].sort(() => Math.random() - 0.5);
+            try {
+              await updateDoc(gameRef, {
+                wolfOrder: randomized,
+                updatedAt: serverTimestamp(),
+              });
+              setWolfOrder(randomized);
+            } catch (e) {
+              console.error("Failed to set wolfOrder:", e);
+            }
+          }
         }
       }
     };
@@ -186,6 +226,21 @@ export default function EnterScore({ userId, user }) {
         setNineType(gameData.nineType || "front");
         setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
         setTrackStats(gameData.trackStats || false);
+        setGamePlayers(gameData.players || []);
+        setWolfOrder(gameData.wolfOrder || null);
+        setWolfHoles(
+          gameData.wolfHoles && Array.isArray(gameData.wolfHoles)
+            ? gameData.wolfHoles
+            : null
+        );
+        setWolfDecisions(
+          sanitizeWolfDecisions(
+            gameData.wolfDecisions && Array.isArray(gameData.wolfDecisions)
+              ? gameData.wolfDecisions
+              : Array((game.course?.holes || []).length || 18).fill(null),
+            (game.course?.holes || []).length || 18
+          )
+        );
 
         if (existingPlayer) {
           setGameId(game.id);
@@ -229,6 +284,26 @@ export default function EnterScore({ userId, user }) {
           setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
           setTrackStats(gameData.trackStats || false);
         }
+
+        // If wolf format and exactly 3 players but no wolfOrder, set it
+        const normalizedGameFormat = normalizeMatchFormat(gameData.matchFormat || "");
+        if (
+          (normalizedGameFormat === "wolf" || normalizedGameFormat === "wolf-handicap") &&
+          (!gameData.wolfOrder || gameData.wolfOrder.length !== 3) &&
+          (gameData.players || []).length === 3
+        ) {
+          const ids = (gameData.players || []).map((p) => p.userId);
+          const randomized = [...ids].sort(() => Math.random() - 0.5);
+          try {
+            await updateDoc(gameRef, {
+              wolfOrder: randomized,
+              updatedAt: serverTimestamp(),
+            });
+            setWolfOrder(randomized);
+          } catch (e) {
+            console.error("Failed to set wolfOrder on join:", e);
+          }
+        }
       }
     } catch (error) {
       console.error("Error joining game:", error);
@@ -236,13 +311,220 @@ export default function EnterScore({ userId, user }) {
     }
   };
 
+  // --- Wolf helpers ---
+  const normalizedFormat = normalizeMatchFormat(matchFormat);
+  const isWolfFormat = normalizedFormat === "wolf" || normalizedFormat === "wolf-handicap";
+  const isWolfHandicapFormat = normalizedFormat === "wolf-handicap";
+  const totalHolesInGame = holeCount || selectedCourse?.holes?.length || 18;
+  const getWolfForHole = (absHoleIndex) => {
+    if (!isWolfFormat || !wolfOrder || wolfOrder.length !== 3) return null;
+    return wolfOrder[absHoleIndex % 3] || null;
+  };
+  const getPlayerById = (id) => (gamePlayers || []).find((p) => p.userId === id) || null;
+  const getNonWolfPlayers = (wolfId) =>
+    (gamePlayers || []).filter((p) => p.userId !== wolfId);
+  const getGrossFor = (player, absHoleIndex) =>
+    (player?.scores?.[absHoleIndex]?.gross ?? null);
+  
+  // Get net score for a player on a hole (for handicap formats)
+  const getNetFor = (player, absHoleIndex) => {
+    if (!player || !selectedCourse?.holes?.[absHoleIndex] || !player.handicap) return null;
+    const gross = getGrossFor(player, absHoleIndex);
+    if (gross == null) return null;
+    const handicap = player.handicap || 0;
+    const baseStroke = Math.floor(handicap / 18);
+    const extraStrokes = handicap % 18;
+    const hole = selectedCourse.holes[absHoleIndex];
+    const holeStroke = baseStroke + (hole.strokeIndex <= extraStrokes ? 1 : 0);
+    return Math.max(0, gross - holeStroke);
+  };
+  
+  // Get score (gross or net depending on format)
+  const getScoreFor = (player, absHoleIndex) => {
+    if (isWolfHandicapFormat) {
+      return getNetFor(player, absHoleIndex);
+    }
+    return getGrossFor(player, absHoleIndex);
+  };
+
+  // Ensure wolfDecisions array is full length and contains only allowed values (no undefined)
+  const sanitizeWolfDecisions = useCallback(
+    (decisions, length) => {
+      const allowedUserIds = new Set((gamePlayers || []).map((p) => p.userId));
+      const out = Array.from({ length }, () => null);
+      if (Array.isArray(decisions)) {
+        for (let i = 0; i < Math.min(decisions.length, length); i++) {
+          const v = decisions[i];
+          if (v === "lone" || v === "blind") {
+            out[i] = v;
+          } else if (typeof v === "string" && allowedUserIds.has(v)) {
+            out[i] = v;
+          } else {
+            out[i] = null;
+          }
+        }
+      }
+      return out;
+    },
+    [gamePlayers]
+  );
+
+  const handleWolfDecisionChange = async (absHoleIndex, decision) => {
+    // decision: 'lone', 'blind', or partnerUserId
+    const lengthHint = Math.max((totalHolesInGame || 18), absHoleIndex + 1);
+    // Normalize the incoming decision
+    let normalizedDecision = null;
+    if (decision === "lone" || decision === "blind") {
+      normalizedDecision = decision;
+    } else if (
+      typeof decision === "string" &&
+      (gamePlayers || []).some((p) => p.userId === decision)
+    ) {
+      normalizedDecision = decision;
+    } else {
+      normalizedDecision = null;
+    }
+    if (!gameId) return;
+    try {
+      const gameRef = doc(db, "games", gameId);
+      // Read latest from Firestore and MERGE to avoid truncating other holes
+      const snap = await getDoc(gameRef);
+      const data = snap.exists() ? snap.data() : {};
+      const courseLen =
+        (data?.course?.holes && Array.isArray(data.course.holes)
+          ? data.course.holes.length
+          : selectedCourse?.holes?.length) || 18;
+      const finalLen = Math.max(courseLen, lengthHint);
+
+      // Merge wolfDecisions
+      const existingDecisions = Array.isArray(data?.wolfDecisions)
+        ? [...data.wolfDecisions]
+        : [];
+      // Ensure dense array with nulls
+      const mergedDecisions = Array.from({ length: finalLen }, (_, i) => {
+        const val = existingDecisions[i];
+        return val === undefined ? null : val;
+      });
+      mergedDecisions[absHoleIndex] = normalizedDecision;
+
+      // Merge wolfHoles (explicit objects)
+      const existingWolfHoles = Array.isArray(data?.wolfHoles)
+        ? [...data.wolfHoles]
+        : [];
+      const mergedWolfHoles = Array.from({ length: finalLen }, (_, i) => {
+        const current = existingWolfHoles[i];
+        if (i === absHoleIndex) {
+          const wid = getWolfForHole(i);
+          return wid ? { wolfId: wid, decision: normalizedDecision } : null;
+        }
+        if (current && typeof current === "object") {
+          // Preserve existing entry
+          return {
+            wolfId: current.wolfId ?? getWolfForHole(i),
+            decision:
+              current.decision === undefined
+                ? (mergedDecisions[i] ?? null)
+                : current.decision,
+          };
+        }
+        const wid = getWolfForHole(i);
+        return wid ? { wolfId: wid, decision: mergedDecisions[i] ?? null } : null;
+      });
+
+      // Update local state and persist
+      setWolfDecisions(mergedDecisions);
+      setWolfHoles(mergedWolfHoles);
+      await updateDoc(gameRef, {
+        wolfDecisions: mergedDecisions,
+        wolfHoles: mergedWolfHoles,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (e) {
+      console.error("Failed to save wolf decision:", e);
+      showError("Failed to save wolf decision", "Error");
+    }
+  };
+
+  // Compute Wolf points for current user based on available scores/decisions
+  const computeWolfTotalForUser = useCallback(
+    (uid) => {
+      if (!isWolfFormat || !Array.isArray(gamePlayers) || gamePlayers.length !== 3) return 0;
+      let total = 0;
+      for (let i = 0; i < totalHolesInGame; i++) {
+        // Check wolfHoles first (preferred), then fallback to wolfDecisions
+        const holeInfo = wolfHoles?.[i];
+        const wolfId = holeInfo?.wolfId ?? getWolfForHole(i);
+        if (!wolfId) continue;
+        const decision = holeInfo && "decision" in holeInfo
+          ? holeInfo.decision
+          : wolfDecisions?.[i] ?? null;
+        if (!decision) continue;
+        const wolfPlayer = getPlayerById(wolfId);
+        const others = getNonWolfPlayers(wolfId);
+        if (others.length !== 2) continue;
+        const [pA, pB] = others;
+        const wolfScore = getScoreFor(wolfPlayer, i);
+        const aScore = getScoreFor(pA, i);
+        const bScore = getScoreFor(pB, i);
+        if (
+          wolfScore == null ||
+          aScore == null ||
+          bScore == null
+        ) {
+          continue; // need all three scores to evaluate
+        }
+
+        if (decision === "blind") {
+          // Blind Lone Wolf: 6 points if win, 1 point if tie, each opponent gets 2 if lose
+          const teamBest = Math.min(aScore, bScore);
+          if (wolfScore < teamBest) {
+            if (uid === wolfId) total += 6;
+          } else if (wolfScore > teamBest) {
+            // each opponent gets 2 points (higher penalty for Blind Lone Wolf loss)
+            if (uid === pA.userId || uid === pB.userId) total += 2;
+          } else {
+            // Tie: Wolf gets 1 point (same as regular Lone Wolf)
+            if (uid === wolfId) total += 1;
+          }
+        } else if (decision === "lone") {
+          const teamBest = Math.min(aScore, bScore);
+          if (wolfScore < teamBest) {
+            if (uid === wolfId) total += 3;
+          } else if (wolfScore > teamBest) {
+            // each opponent gets 1
+            if (uid === pA.userId || uid === pB.userId) total += 1;
+          } else {
+            // Tie: Wolf gets 1 point
+            if (uid === wolfId) total += 1;
+          }
+        } else {
+          // partner scenario
+          const partnerId = decision;
+          const partner =
+            partnerId === pA.userId ? pA : partnerId === pB.userId ? pB : null;
+          const solo = partner && partner.userId === pA.userId ? pB : pA;
+          if (!partner || !solo) continue;
+          const teamBest = Math.min(wolfScore, getScoreFor(partner, i) ?? Infinity);
+          const soloScore = getScoreFor(solo, i);
+          if (teamBest < soloScore) {
+            if (uid === wolfId || uid === partner.userId) total += 1;
+          } else if (teamBest > soloScore) {
+            if (uid === solo.userId) total += 1;
+          } // ties => 0
+        }
+      }
+      return total;
+    },
+    [isWolfFormat, gamePlayers, wolfHoles, wolfDecisions, totalHolesInGame, wolfOrder, isWolfHandicapFormat, selectedCourse]
+  );
+
   // --- Handle score changes ---
   const handleChange = (holeIndex, value) => {
     const updated = [...scores];
     const gross = value === "" ? null : Number(value);
     updated[holeIndex].gross = gross;
 
-    if (selectedCourse && user?.handicap != null && gross != null) {
+    if (!isWolfFormat && selectedCourse && user?.handicap != null && gross != null) {
       const handicap = user.handicap;
       const baseStroke = Math.floor(handicap / 18);
       const extraStrokes = handicap % 18;
@@ -411,6 +693,11 @@ export default function EnterScore({ userId, user }) {
               You must select a tournament before entering scores. Visit the dashboard to choose one.
             </div>
           )}
+          {gameId && isWolfFormat && (gamePlayers || []).length !== 3 && (
+            <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl text-sm sm:text-base text-yellow-800 dark:text-yellow-200">
+              Wolf format requires exactly 3 players. Waiting for others to join.
+            </div>
+          )}
 
           {resumedGame && gameId && (
             <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
@@ -524,6 +811,11 @@ export default function EnterScore({ userId, user }) {
                         Par {displayedHoles[idx].par} • S.I.{" "}
                         {displayedHoles[idx].strokeIndex}
                       </div>
+                      {isWolfFormat && wolfOrder && wolfOrder.length === 3 && (
+                        <div className="mt-1 text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-medium">
+                          Wolf: {getPlayerById(getWolfForHole(startIndex + idx))?.name || "-"}
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2 mb-2 sm:mb-3">
@@ -576,10 +868,132 @@ export default function EnterScore({ userId, user }) {
                       </button>
                     </div>
 
-                    <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 text-center leading-tight">
-                      <div>With Handicap: {displayedScores[idx].netScore ?? "-"}</div>
-                      <div>Points: {displayedScores[idx].net ?? "-"}</div>
-                    </div>
+                    {!isWolfFormat && (
+                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 text-center leading-tight">
+                        <div>With Handicap: {displayedScores[idx].netScore ?? "-"}</div>
+                        <div>Points: {displayedScores[idx].net ?? "-"}</div>
+                      </div>
+                    )}
+
+                    {/* Wolf decision controls */}
+                    {isWolfFormat && wolfOrder && wolfOrder.length === 3 && (gamePlayers || []).length === 3 && (
+                      <div className="mt-2 w-full">
+                        {getWolfForHole(startIndex + idx) === userId ? (
+                          <div className="space-y-2">
+                            {(() => {
+                              const others = getNonWolfPlayers(userId);
+                              const absIndex = startIndex + idx;
+                              // Check wolfHoles first (preferred), then fallback to wolfDecisions
+                              const holeInfo = wolfHoles?.[absIndex];
+                              const current = holeInfo && "decision" in holeInfo
+                                ? holeInfo.decision
+                                : wolfDecisions?.[absIndex] ?? null;
+                              // Check if all 3 players have scores for this hole
+                              const wolfPlayer = getPlayerById(userId);
+                              const wolfGross = wolfPlayer?.scores?.[absIndex]?.gross ?? null;
+                              const aGross = getGrossFor(others[0], absIndex);
+                              const bGross = getGrossFor(others[1], absIndex);
+                              const allScoresEntered = wolfGross != null && aGross != null && bGross != null;
+                              const isLocked = allScoresEntered;
+                              // Blind Lone Wolf can only be chosen when NO scores are entered (truly blind)
+                              const anyScoreEntered = wolfGross != null || aGross != null || bGross != null;
+                              const canChooseBlind = !anyScoreEntered;
+                              return (
+                                <>
+                                  <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1 text-center">
+                                    Choose before you tee off
+                                  </div>
+                                  <label className={`flex items-center gap-2 text-sm ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                                    <input
+                                      type="radio"
+                                      name={`wolf-${absIndex}`}
+                                      checked={current === (others[0]?.userId || "")}
+                                      onChange={() => !isLocked && handleWolfDecisionChange(absIndex, others[0]?.userId || null)}
+                                      disabled={isLocked}
+                                      className="w-4 h-4 text-purple-600"
+                                      title={isLocked ? "Decision locked - all scores entered" : "Team with " + (others[0]?.name || "Player A")}
+                                    />
+                                    <span className="text-gray-700 dark:text-gray-200">
+                                      Team with {others[0]?.name || "Player A"} (2v1)
+                                    </span>
+                                  </label>
+                                  <label className={`flex items-center gap-2 text-sm ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                                    <input
+                                      type="radio"
+                                      name={`wolf-${absIndex}`}
+                                      checked={current === (others[1]?.userId || "")}
+                                      onChange={() => !isLocked && handleWolfDecisionChange(absIndex, others[1]?.userId || null)}
+                                      disabled={isLocked}
+                                      className="w-4 h-4 text-purple-600"
+                                      title={isLocked ? "Decision locked - all scores entered" : "Team with " + (others[1]?.name || "Player B")}
+                                    />
+                                    <span className="text-gray-700 dark:text-gray-200">
+                                      Team with {others[1]?.name || "Player B"} (2v1)
+                                    </span>
+                                  </label>
+                                  <label className={`flex items-center gap-2 text-sm ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                                    <input
+                                      type="radio"
+                                      name={`wolf-${absIndex}`}
+                                      checked={current === "lone"}
+                                      onChange={() => !isLocked && handleWolfDecisionChange(absIndex, "lone")}
+                                      disabled={isLocked}
+                                      className="w-4 h-4 text-purple-600"
+                                      title={isLocked ? "Decision locked - all scores entered" : "Lone Wolf"}
+                                    />
+                                    <span className="text-gray-700 dark:text-gray-200">Lone Wolf (1v2)</span>
+                                  </label>
+                                  <label className={`flex items-center gap-2 text-sm ${!canChooseBlind || isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                                    <input
+                                      type="radio"
+                                      name={`wolf-${absIndex}`}
+                                      checked={current === "blind"}
+                                      onChange={() => canChooseBlind && !isLocked && handleWolfDecisionChange(absIndex, "blind")}
+                                      disabled={!canChooseBlind || isLocked}
+                                      className="w-4 h-4 text-purple-600"
+                                      title={!canChooseBlind ? "Blind Lone Wolf must be chosen before any scores are entered" : isLocked ? "Decision locked - all scores entered" : "Blind Lone Wolf (higher risk, higher reward)"}
+                                    />
+                                    <span className="text-gray-700 dark:text-gray-200 font-bold">
+                                      Blind Lone Wolf (1v2) +6pts
+                                    </span>
+                                  </label>
+                                  {isLocked && current && (
+                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 text-center mt-1">
+                                      Decision locked
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          (() => {
+                            const absIndex = startIndex + idx;
+                            // Check wolfHoles first (preferred), then fallback to wolfDecisions
+                            const holeInfo = wolfHoles?.[absIndex];
+                            const choice = holeInfo && "decision" in holeInfo
+                              ? holeInfo.decision
+                              : wolfDecisions?.[absIndex] ?? null;
+                            const wolfId = holeInfo?.wolfId ?? getWolfForHole(absIndex);
+                            const wolfName = getPlayerById(wolfId)?.name || "-";
+                            let choiceText = "No choice yet";
+                            if (choice === "blind") {
+                              choiceText = "Blind Lone Wolf (+6pts)";
+                            } else if (choice === "lone") {
+                              choiceText = "Lone Wolf";
+                            } else if (typeof choice === "string" && choice) {
+                              const partnerName = getPlayerById(choice)?.name || "Partner";
+                              choiceText = `Partner: ${partnerName}`;
+                            }
+                            return (
+                              <div className="text-xs sm:text-sm text-purple-700 dark:text-purple-300 text-center">
+                                {wolfName} choice: {choiceText}
+                              </div>
+                            );
+                          })()
+                        )}
+                      </div>
+                    )}
 
                     {trackStats && (
                       <div className="mt-3 space-y-3 w-full">
@@ -778,13 +1192,85 @@ export default function EnterScore({ userId, user }) {
                 </div>
               </div>
 
+              {/* Wolf */}
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Wolf (3 Players)
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                  Exactly 3 players. A rotating <span className="font-semibold">Wolf</span> is assigned each hole in a fixed order (randomized at game start). The Wolf must decide to <span className="font-semibold">team up</span> with one player or go <span className="font-semibold">Lone Wolf</span> <span className="italic">(decision must be made before the wolf tees off)</span>. Uses <span className="font-semibold">gross scores</span> (no handicaps).
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-300">
+                  <li>
+                    <span className="font-semibold">Partnered (2v1)</span>: Wolf + partner play best ball (lowest of the two gross scores) against the solo player’s gross score.
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Team best &lt; Solo: Wolf + partner each <span className="font-semibold">+1</span></li>
+                      <li>Solo &lt; Team best: Solo <span className="font-semibold">+3</span></li>
+                      <li>Tie: Solo <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                  <li className="mt-1">
+                    <span className="font-semibold">Lone Wolf (1v2)</span>: Wolf's gross vs opponents' best ball.
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Wolf &lt; Opponents' best: Wolf <span className="font-semibold">+3</span></li>
+                      <li>Opponents' best &lt; Wolf: Each opponent <span className="font-semibold">+1</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                  <li className="mt-1">
+                    <span className="font-semibold">Blind Lone Wolf (1v2)</span>: High-risk, high-reward option. Wolf must choose <span className="font-semibold">before any player tees off</span>.
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Wolf &lt; Opponents' best: Wolf <span className="font-semibold">+6</span></li>
+                      <li>Opponents' best &lt; Wolf: Each opponent <span className="font-semibold">+2</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Wolf (With Handicaps) */}
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Wolf (3 Players, With Handicaps)
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                  Same as Wolf (3 Players) but uses <span className="font-semibold">net scores</span> (with handicaps). All scoring rules are identical, but comparisons are made using net scores instead of gross scores. Perfect for groups with varying skill levels.
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-300">
+                  <li>
+                    <span className="font-semibold">Partnered (2v1)</span>: Wolf + partner best ball (lowest net) vs solo player's net.
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Team best &lt; Solo: Wolf + partner each <span className="font-semibold">+1</span></li>
+                      <li>Solo &lt; Team best: Solo <span className="font-semibold">+3</span></li>
+                      <li>Tie: Solo <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                  <li className="mt-1">
+                    <span className="font-semibold">Lone Wolf (1v2)</span>: Wolf's net vs opponents' best ball (net).
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Wolf &lt; Opponents' best: Wolf <span className="font-semibold">+3</span></li>
+                      <li>Opponents' best &lt; Wolf: Each opponent <span className="font-semibold">+1</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                  <li className="mt-1">
+                    <span className="font-semibold">Blind Lone Wolf (1v2)</span>: High-risk, high-reward option. Wolf must choose <span className="font-semibold">before any player tees off</span>.
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Wolf &lt; Opponents' best: Wolf <span className="font-semibold">+6</span></li>
+                      <li>Opponents' best &lt; Wolf: Each opponent <span className="font-semibold">+2</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                </ul>
+              </div>
+
               {/* Stroke Play */}
               <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                   Stroke Play
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300">
-                  Two players compete with lowest total with handicaps strokes (no handicaps). Simple stroke scoring where the player with the lowest total strokes wins.
+                Two players compete in a 1v1 format to get the lowest gross score (no handicaps). Simple stroke scoring where the player with the lowest total strokes wins.
                 </p>
               </div>
 

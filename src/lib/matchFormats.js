@@ -6,6 +6,8 @@ const MATCH_FORMAT_LABELS = {
   "2v2matchplaynohandicap": "2v2 Match Play (No Handicaps)",
   american: "American Scoring",
   "american net": "American Scoring (With Handicaps)",
+  wolf: "Wolf (3 Players)",
+  "wolf-handicap": "Wolf (3 Players, With Handicaps)",
   strokeplay: "Stroke Play",
   scorecard: "Scorecard",
 };
@@ -49,6 +51,19 @@ const MATCH_FORMAT_ALIASES = {
   "american scoring net": "american net",
   "american net scoring": "american net",
 
+  // Wolf (3 Players)
+  wolf: "wolf",
+  "wolf format": "wolf",
+  "wolf game": "wolf",
+  "the wolf": "wolf",
+  "wolf gross": "wolf",
+
+  // Wolf (3 Players, With Handicaps)
+  "wolf-handicap": "wolf-handicap",
+  "wolf net": "wolf-handicap",
+  "wolf with handicaps": "wolf-handicap",
+  "wolf handicaps": "wolf-handicap",
+
   // Stroke Play
   strokeplay: "strokeplay",
   "stroke play": "strokeplay",
@@ -79,6 +94,8 @@ export const MATCH_FORMAT_SELECT_OPTIONS = [
   },
   { id: "american", label: MATCH_FORMAT_LABELS.american },
   { id: "american net", label: MATCH_FORMAT_LABELS["american net"] },
+  { id: "wolf", label: MATCH_FORMAT_LABELS.wolf },
+  { id: "wolf-handicap", label: MATCH_FORMAT_LABELS["wolf-handicap"] },
   { id: "strokeplay", label: MATCH_FORMAT_LABELS.strokeplay },
   { id: "scorecard", label: MATCH_FORMAT_LABELS.scorecard },
 ];

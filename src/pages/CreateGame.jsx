@@ -573,10 +573,81 @@ export default function CreateGame({ userId, user, courses = [] }) {
 
               <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Wolf (3 Players)
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                  Exactly 3 players. A rotating <span className="font-semibold">Wolf</span> is assigned each hole in a fixed order (randomized at game start). The Wolf must choose to <span className="font-semibold">team up</span> or go <span className="font-semibold">Lone Wolf</span> <span className="italic">(before the wolf tees off)</span>. Uses <span className="font-semibold">gross scores</span> (no handicaps).
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-300">
+                  <li>
+                    <span className="font-semibold">Partnered (2v1)</span>: Wolf + partner best ball vs solo player’s gross.
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Team best &lt; Solo: Wolf + partner <span className="font-semibold">+1</span> each</li>
+                      <li>Solo &lt; Team best: Solo <span className="font-semibold">+3</span></li>
+                      <li>Tie: Solo <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                  <li className="mt-1">
+                    <span className="font-semibold">Lone Wolf (1v2)</span>: Wolf vs opponents' best ball.
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Wolf wins: Wolf <span className="font-semibold">+3</span></li>
+                      <li>Opponents win: Each opponent <span className="font-semibold">+1</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                  <li className="mt-1">
+                    <span className="font-semibold">Blind Lone Wolf (1v2)</span>: High-risk, high-reward option. Must choose <span className="font-semibold">before any player tees off</span>.
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Wolf wins: Wolf <span className="font-semibold">+6</span></li>
+                      <li>Opponents win: Each opponent <span className="font-semibold">+2</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Wolf (With Handicaps) */}
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Wolf (3 Players, With Handicaps)
+                </h3>
+                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                  Same as Wolf (3 Players) but uses <span className="font-semibold">net scores</span> (with handicaps). All scoring rules are identical, but comparisons are made using net scores instead of gross scores. Perfect for groups with varying skill levels.
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-300">
+                  <li>
+                    <span className="font-semibold">Partnered (2v1)</span>: Wolf + partner best ball (lowest net) vs solo player's net.
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Team best &lt; Solo: Wolf + partner each <span className="font-semibold">+1</span></li>
+                      <li>Solo &lt; Team best: Solo <span className="font-semibold">+3</span></li>
+                      <li>Tie: Solo <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                  <li className="mt-1">
+                    <span className="font-semibold">Lone Wolf (1v2)</span>: Wolf's net vs opponents' best ball (net).
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Wolf wins: Wolf <span className="font-semibold">+3</span></li>
+                      <li>Opponents win: Each opponent <span className="font-semibold">+1</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                  <li className="mt-1">
+                    <span className="font-semibold">Blind Lone Wolf (1v2)</span>: High-risk, high-reward option. Must choose <span className="font-semibold">before any player tees off</span>.
+                    <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
+                      <li>Wolf wins: Wolf <span className="font-semibold">+6</span></li>
+                      <li>Opponents win: Each opponent <span className="font-semibold">+2</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                    </ul>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
                   Stroke Play
                 </h3>
                 <p className="text-gray-600 dark:text-gray-300">
-                  Two players compete with lowest total with handicaps strokes (no handicaps). Simple stroke scoring where the player with the lowest total strokes wins.
+                  Two players compete in a 1v1 format to get the lowest gross score (no handicaps). Simple stroke scoring where the player with the lowest total strokes wins.
                 </p>
               </div>
 

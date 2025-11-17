@@ -1,11 +1,14 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { courses } from "../data/courses";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { buildColumnBorderClasses } from "../utils/scorecardUtils";
+import { shareScorecardAsImage } from "../utils/shareScorecard";
 
 export default function AmericanScorecardModal({ game, selectedPlayer, onClose }) {
   const [soloPlayers, setSoloPlayers] = useState([]);
+  const [isSharing, setIsSharing] = useState(false);
+  const scorecardRef = useRef(null);
 
   useEffect(() => {
     const fetchSoloPlayers = async () => {
@@ -110,6 +113,19 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
     return { grossTotal, pointsTotal };
   };
 
+  const handleShare = async () => {
+    if (!game || soloPlayers.length === 0 || !scorecardRef.current) return;
+    setIsSharing(true);
+    try {
+      const filename = `${game.name} - American Scoring`;
+      await shareScorecardAsImage(scorecardRef.current, filename);
+    } catch (error) {
+      console.error("Error sharing scorecard:", error);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
       <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-blue-500 dark:border-blue-400 max-w-6xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
@@ -117,16 +133,29 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
           <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white pr-3">
             {game.name}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl sm:text-3xl leading-none flex-shrink-0"
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleShare}
+              disabled={isSharing}
+              className="px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              title="Share scorecard"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+              </svg>
+              {isSharing ? "Sharing..." : "Share"}
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl sm:text-3xl leading-none flex-shrink-0"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {/* Responsive Table */}
-        <div className="overflow-x-auto -mx-3 sm:mx-0">
+        <div className="overflow-x-auto -mx-3 sm:mx-0" ref={scorecardRef}>
           <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
             <thead>
               <tr>

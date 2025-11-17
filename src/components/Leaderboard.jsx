@@ -10,6 +10,8 @@ import StablefordLeaderboard from "./StablefordLeaderboard";
 import StrokeplayLeaderboard from "./StrokeplayLeaderboard";
 import ScorecardLeaderboard from "./ScorecardLeaderboard";
 import MatchplayScorecardModal from "./MatchplayScorecardModal";
+import WolfLeaderboard from "./WolfLeaderboard";
+import WolfNetLeaderboard from "./WolfNetLeaderboard";
 import {
   getMatchFormatLabel,
   normalizeMatchFormat,
@@ -59,6 +61,10 @@ export default function Leaderboard({ game }) {
         return <AmericanNetLeaderboard game={game} />;
       case "stableford":
         return <StablefordLeaderboard game={game} />;
+      case "wolf":
+        return <WolfLeaderboard game={game} />;
+      case "wolf-handicap":
+        return <WolfNetLeaderboard game={game} />;
       case "strokeplay":
         return <StrokeplayLeaderboard game={game} />;
       case "scorecard":
@@ -68,7 +74,7 @@ export default function Leaderboard({ game }) {
           <div className="text-center text-gray-600 dark:text-gray-300 mt-4">
             <p>Unknown game format: "{game.matchFormat || "empty"}"</p>
             <p className="text-sm mt-2">
-              Available formats: 1v1 Match Play (With Handicaps), 1v1 Match Play (No Handicaps), 2v2 Match Play (With Handicaps), 2v2 Match Play (No Handicaps), American, American With Handicaps, Stableford, Stroke Play, Scorecard
+              Available formats: 1v1 Match Play (With Handicaps), 1v1 Match Play (No Handicaps), 2v2 Match Play (With Handicaps), 2v2 Match Play (No Handicaps), American, American With Handicaps, Stableford, Wolf (3 Players), Stroke Play, Scorecard
             </p>
           </div>
         );
