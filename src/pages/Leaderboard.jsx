@@ -1,15 +1,18 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../firebase";
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc, startAfter } from "firebase/firestore";
 import LeaderboardComponent from "../components/Leaderboard";
 import AchievementsModal from "../components/AchievementsModal";
 import RoundStatsModal from "../components/RoundStatsModal";
+import OverallTournamentStatsModal from "../components/OverallTournamentStatsModal";
 import { useTournament } from "../context/TournamentContext";
 import {
   getMatchFormatLabel,
   normalizeMatchFormat,
 } from "../lib/matchFormats";
+
+const PAGE_SIZE = 25;
 
 export default function Leaderboard({ tournamentId }) {
   const { currentTournament } = useTournament();
@@ -26,62 +29,99 @@ export default function Leaderboard({ tournamentId }) {
   const [isFormatFilterDropdownOpen, setIsFormatFilterDropdownOpen] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showRoundStats, setShowRoundStats] = useState(false);
+  const [isLoadingGames, setIsLoadingGames] = useState(false);
+  const [hasMoreGames, setHasMoreGames] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [showOverallStats, setShowOverallStats] = useState(false);
+  const lastGameDocRef = useRef(null);
   const dropdownRef = useRef(null);
   const userDropdownRef = useRef(null);
   const playerFilterDropdownRef = useRef(null);
   const formatFilterDropdownRef = useRef(null);
   const navigate = useNavigate();
+  const activeTournamentId = currentTournament || game?.tournamentId || null;
+
+  const loadGames = useCallback(
+    async (reset = false) => {
+      if (!currentTournament) return;
+
+      setIsLoadingGames(true);
+      if (reset) {
+        setLoadError(null);
+      }
+      try {
+        const constraints = [
+          where("tournamentId", "==", currentTournament),
+          orderBy("createdAt", "desc"),
+        ];
+
+        if (!reset && lastGameDocRef.current) {
+          constraints.push(startAfter(lastGameDocRef.current));
+        }
+
+        constraints.push(limit(PAGE_SIZE));
+
+        const gamesQuery = query(collection(db, "games"), ...constraints);
+        const snapshot = await getDocs(gamesQuery);
+        const games = snapshot.docs.map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data(),
+        }));
+
+        setAllGames((prev) => (reset ? games : [...prev, ...games]));
+        lastGameDocRef.current = snapshot.docs[snapshot.docs.length - 1] || null;
+        setHasMoreGames(snapshot.size === PAGE_SIZE);
+
+        if (reset) {
+          if (games.length > 0) {
+            const defaultGame = games[0];
+            setSelectedGameId(defaultGame.id);
+            setGame(defaultGame);
+          } else {
+            setSelectedGameId(null);
+            setGame(null);
+          }
+        }
+      } catch (error) {
+        console.error("Error loading games:", error);
+        setLoadError(error);
+      } finally {
+        setIsLoadingGames(false);
+      }
+    },
+    [currentTournament]
+  );
 
   useEffect(() => {
-    async function loadAllGames() {
-      if (!currentTournament) {
-        setAllGames([]);
-        setFilteredGames([]);
-        return;
-      }
-
-      // Load all games and filter by tournament client-side to avoid needing a composite index
-      const q = query(
-        collection(db, "games"),
-        orderBy("createdAt", "desc"),
-        limit(100)
-      );
-      const snapshot = await getDocs(q);
-      const allGamesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      
-      // Filter by current tournament and sort by createdAt
-      const games = allGamesData
-        .filter(game => game.tournamentId === currentTournament)
-        .sort((a, b) => {
-          if (!a.createdAt || !b.createdAt) return 0;
-          return b.createdAt.seconds - a.createdAt.seconds;
-        });
-      
-      setAllGames(games);
-      setFilteredGames(games);
-      
-      // Set default selected game
-      if (games.length > 0) {
-        const defaultGame = games[0]; // Most recent game
-        setSelectedGameId(defaultGame.id);
-        setGame(defaultGame);
-      }
-    }
-    
     if (tournamentId) {
-      // If tournamentId is provided via props, use it
       const loadSpecificGame = async () => {
-        const gdoc = await getDoc(doc(db, "games", tournamentId));
-        if (gdoc.exists()) {
-          setGame({ id: tournamentId, ...gdoc.data() });
-          setSelectedGameId(tournamentId);
+        setIsLoadingGames(true);
+        try {
+          const gdoc = await getDoc(doc(db, "games", tournamentId));
+          if (gdoc.exists()) {
+            setGame({ id: tournamentId, ...gdoc.data() });
+            setSelectedGameId(tournamentId);
+          }
+        } finally {
+          setIsLoadingGames(false);
         }
       };
       loadSpecificGame();
-    } else {
-      loadAllGames();
+      return;
     }
-  }, [tournamentId, currentTournament]);
+
+    setAllGames([]);
+    setFilteredGames([]);
+    setSelectedGameId(null);
+    setGame(null);
+    lastGameDocRef.current = null;
+    setHasMoreGames(false);
+    setLoadError(null);
+
+    if (currentTournament) {
+      loadGames(true);
+    }
+  }, [tournamentId, currentTournament, loadGames]);
 
   // Filter games based on search term, users, and format
   useEffect(() => {
@@ -118,15 +158,22 @@ export default function Leaderboard({ tournamentId }) {
     setFilteredGames(filtered);
   }, [allGames, searchTerm, selectedUsers, selectedFormat, currentTournament]);
 
-  // Update game when selectedGameId changes
+  // Update game when filters change
   useEffect(() => {
-    if (selectedGameId && filteredGames.length > 0) {
-      const selectedGame = filteredGames.find(g => g.id === selectedGameId);
-      if (selectedGame) {
-        setGame(selectedGame);
-      }
+    if (filteredGames.length === 0) {
+      setGame(null);
+      return;
     }
-  }, [selectedGameId, filteredGames]);
+
+    const selectedGame = filteredGames.find((g) => g.id === selectedGameId);
+    if (selectedGame) {
+      setGame(selectedGame);
+    } else {
+      const defaultGame = filteredGames[0];
+      setSelectedGameId(defaultGame.id);
+      setGame(defaultGame);
+    }
+  }, [filteredGames, selectedGameId]);
 
   // Get unique users from all games
   const getUniqueUsers = () => {
@@ -222,7 +269,84 @@ export default function Leaderboard({ tournamentId }) {
     };
   }, []);
 
-  if (!game)
+  if (!tournamentId && !currentTournament) {
+    return (
+      <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="mb-6 sm:mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl text-sm sm:text-base"
+          >
+            ← Back to Dashboard
+          </button>
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 sm:p-8">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              Select a Tournament
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">
+              Choose a tournament from the dashboard to view its games.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!game && isLoadingGames)
+    return (
+      <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-green-200 border-t-green-600"></div>
+          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading games...</p>
+        </div>
+      </div>
+    );
+
+  if (!game) {
+    if (loadError) {
+      const needsIndex =
+        loadError.code === "failed-precondition" &&
+        /query requires an index/i.test(loadError.message || "");
+
+      return (
+        <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6">
+          <div className="max-w-4xl mx-auto">
+            <button
+              onClick={() => navigate("/dashboard")}
+              className="mb-6 sm:mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl text-sm sm:text-base"
+            >
+              ← Back to Dashboard
+            </button>
+            <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 sm:p-8">
+              <h3 className="text-lg sm:text-xl font-semibold text-red-600 dark:text-red-400 mb-2">
+                Unable to load games
+              </h3>
+              <p className="text-gray-700 dark:text-gray-200 text-sm sm:text-base mb-4 break-words">
+                {needsIndex
+                  ? "Firestore needs a composite index for the games query (tournamentId + createdAt). Create it using the link from the console log, then refresh."
+                  : loadError.message}
+              </p>
+              {needsIndex && (
+                <div className="text-xs sm:text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-200 rounded-xl p-4 space-y-2">
+                  <p className="font-semibold">Steps to create the index:</p>
+                  <ol className="list-decimal ml-5 space-y-1">
+                    <li>Open Firebase Console → Firestore Database → Indexes.</li>
+                    <li>
+                      Create a composite index for the `games` collection with:
+                      <span className="block font-mono mt-1">tournamentId (Ascending)</span>
+                      <span className="block font-mono">createdAt (Descending)</span>
+                    </li>
+                    <li>Wait for the index to finish building (takes ~1–2 minutes).</li>
+                    <li>Reload this page; games will appear automatically.</li>
+                  </ol>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6">
         <div className="max-w-4xl mx-auto">
@@ -244,6 +368,7 @@ export default function Leaderboard({ tournamentId }) {
         </div>
       </div>
     );
+  }
 
   return (
     <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6">
@@ -528,6 +653,18 @@ export default function Leaderboard({ tournamentId }) {
           </div>
         )}
 
+        {hasMoreGames && !tournamentId && (
+          <div className="mb-6 text-center">
+            <button
+              onClick={() => loadGames(false)}
+              disabled={isLoadingGames}
+              className="inline-flex items-center justify-center rounded-2xl px-6 py-3 bg-green-600 dark:bg-green-500 text-white font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-900 disabled:opacity-60"
+            >
+              {isLoadingGames ? "Loading..." : "Load More Games"}
+            </button>
+          </div>
+        )}
+
         {/* Game Header */}
         <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-6 text-center">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{game.name}</h2>
@@ -544,12 +681,23 @@ export default function Leaderboard({ tournamentId }) {
           )}
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-4">
             <button
+              onClick={() => setShowOverallStats(true)}
+              disabled={!activeTournamentId}
+              className={`px-6 py-3 rounded-2xl shadow-lg font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 flex items-center gap-2 ${
+                activeTournamentId
+                  ? "bg-purple-500 hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700 text-white"
+                  : "bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400"
+              }`}
+            >
+              🏁 View Overall Leaderboard
+            </button>
+            <button
               onClick={() => setShowAchievements(true)}
               className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white font-semibold rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-all duration-200 flex items-center gap-2"
             >
               🏆 View Achievements
             </button>
-            {game.trackStats && (
+            {game.players?.some((p) => p.trackStats ?? game.trackStats) && (
               <button
                 onClick={() => setShowRoundStats(true)}
                 className="px-6 py-3 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 flex items-center gap-2"
@@ -564,6 +712,15 @@ export default function Leaderboard({ tournamentId }) {
         <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-8">
           <LeaderboardComponent game={game} />
         </div>
+
+        {/* Overall Tournament Stats Modal */}
+        {showOverallStats && (
+          <OverallTournamentStatsModal
+            tournamentId={activeTournamentId}
+            initialGames={allGames}
+            onClose={() => setShowOverallStats(false)}
+          />
+        )}
 
         {/* Achievements Modal */}
         {showAchievements && (

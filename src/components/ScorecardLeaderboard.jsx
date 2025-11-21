@@ -1,23 +1,37 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { courses } from "../data/courses";
+import { shareScorecardAsImage } from "../utils/shareScorecard";
 
 export default function ScorecardLeaderboard({ game }) {
   const [players, setPlayers] = useState([]);
+  const [sharingPlayerId, setSharingPlayerId] = useState(null);
+  const cardRefs = useRef({});
 
   useEffect(() => {
     const fetchPlayers = async () => {
       if (!game?.players || game.players.length === 0) return;
 
-      const usersSnap = await getDocs(collection(db, "users"));
-      const users = usersSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const uniqueIds = Array.from(
+        new Set(
+          game.players
+            .map((player) => player.userId)
+            .filter(Boolean)
+        )
+      );
+
+      const userDocs = await Promise.all(
+        uniqueIds.map((userId) => getDoc(doc(db, "users", userId)))
+      );
+      const users = new Map(
+        userDocs
+          .filter((snap) => snap.exists())
+          .map((snap) => [snap.id, snap.data()])
+      );
 
       const playersData = game.players.map((player) => {
-        const user = users.find((u) => u.id === player.userId);
+        const user = users.get(player.userId);
         return {
           userId: player.userId,
           name: player.name || user?.displayName || "Unknown",
@@ -72,6 +86,20 @@ export default function ScorecardLeaderboard({ game }) {
   const nineType = game?.nineType || "front";
   const startIndex = nineType === "back" ? 9 : 0;
 
+  const handleShareScorecard = async (player) => {
+    const card = cardRefs.current[player.userId];
+    if (!card) return;
+    setSharingPlayerId(player.userId);
+    try {
+      const filename = `${game?.name || "Scorecard"} - ${player.name}`;
+      await shareScorecardAsImage(card, filename);
+    } catch (error) {
+      console.error("Error sharing scorecard:", error);
+    } finally {
+      setSharingPlayerId(null);
+    }
+  };
+
   if (!game || !game.players || game.players.length === 0) {
     return (
       <p className="text-center text-gray-600 dark:text-gray-300">
@@ -93,6 +121,13 @@ export default function ScorecardLeaderboard({ game }) {
           return (
             <div
               key={player.userId}
+              ref={(el) => {
+                if (el) {
+                  cardRefs.current[player.userId] = el;
+                } else {
+                  delete cardRefs.current[player.userId];
+                }
+              }}
               className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
             >
               <div className="flex items-start gap-3 sm:gap-4 mb-3 sm:mb-4">
@@ -119,7 +154,7 @@ export default function ScorecardLeaderboard({ game }) {
                         {player.name}
                       </h3>
                     </div>
-                    <div className="flex items-center gap-3 text-xs sm:text-sm">
+                    <div className="flex items-center gap-3 text-xs sm:text-sm flex-wrap justify-end">
                       <p className="text-gray-600 dark:text-gray-400">
                         {player.isRoundComplete ? "Completed Match" : `Thru ${player.holesPlayed}`}
                       </p>
@@ -132,6 +167,13 @@ export default function ScorecardLeaderboard({ game }) {
                       >
                         {player.isRoundComplete ? "Complete" : "In Progress"}
                       </p>
+                      <button
+                        onClick={() => handleShareScorecard(player)}
+                        disabled={sharingPlayerId === player.userId}
+                        className="px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {sharingPlayerId === player.userId ? "Sharing..." : "Share"}
+                      </button>
                     </div>
                   </div>
                 </div>

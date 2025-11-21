@@ -1,7 +1,15 @@
 import React from "react";
 
 export default function RoundStatsModal({ game, onClose }) {
-  if (!game || !game.trackStats) {
+  if (!game) {
+    return null;
+  }
+
+  const trackedPlayers = (game.players || []).filter(
+    (player) => player.trackStats ?? game.trackStats ?? false
+  );
+
+  if (trackedPlayers.length === 0) {
     return null;
   }
 
@@ -29,9 +37,9 @@ export default function RoundStatsModal({ game, onClose }) {
         </div>
 
         <div className="p-6">
-          {game.players && game.players.length > 0 ? (
+          {trackedPlayers.length > 0 ? (
             <div className="space-y-6">
-              {game.players.map((player) => {
+              {trackedPlayers.map((player) => {
                 const playerScores = (player.scores || []).slice(startIndex, endIndex);
                 
                 // Calculate totals

@@ -1,30 +1,44 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from "react";
 
 const ThemeContext = createContext();
 
+const getInitialScheme = () => {
+  if (typeof window === "undefined") return true;
+  const stored = localStorage.getItem("golfTripTheme");
+  if (stored) {
+    return stored === "dark";
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+};
+
 export function ThemeProvider({ children }) {
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    const saved = localStorage.getItem('golfTripTheme');
-    if (saved) {
-      return saved === 'dark';
-    }
-    return true; // Default to dark mode
-  });
+  const [isDark, setIsDark] = useState(getInitialScheme);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     const root = document.documentElement;
-    if (isDark) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('golfTripTheme', isDark ? 'dark' : 'light');
+    root.classList.toggle("dark", isDark);
+    localStorage.setItem("golfTripTheme", isDark ? "dark" : "light");
   }, [isDark]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = (event) => {
+      const stored = localStorage.getItem("golfTripTheme");
+      if (stored) return;
+      setIsDark(event.matches);
+    };
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
+  }, []);
+
   const toggleTheme = () => {
-    setIsDark(!isDark);
+    setIsDark((prev) => {
+      const next = !prev;
+      localStorage.setItem("golfTripTheme", next ? "dark" : "light");
+      return next;
+    });
   };
 
   return (
@@ -37,7 +51,7 @@ export function ThemeProvider({ children }) {
 export function useTheme() {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;
 }

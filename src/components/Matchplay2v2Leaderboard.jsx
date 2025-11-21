@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 import Matchplay2v2ScorecardModal from "./Matchplay2v2ScorecardModal";
+import { fetchTeamsForTournament } from "../utils/teamService";
 
 export default function Matchplay2v2Leaderboard({ game }) {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -18,11 +19,7 @@ export default function Matchplay2v2Leaderboard({ game }) {
         ...doc.data(),
       }));
 
-      const teamsSnap = await getDocs(collection(db, "teams"));
-      const teams = teamsSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const teams = await fetchTeamsForTournament(game?.tournamentId);
 
       const gamePlayersMap = {};
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
@@ -73,7 +70,6 @@ export default function Matchplay2v2Leaderboard({ game }) {
         if (lockedWinStatus) return lockedWinStatus;
         
         // Otherwise calculate current status
-        const holesRemaining = holeCount - holesPlayed;
         const absStatus = Math.abs(status);
         
         if (status === 0) return "All Square";

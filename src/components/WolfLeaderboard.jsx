@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { normalizeMatchFormat } from "../lib/matchFormats";
 import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import WolfScorecardModal from "./WolfScorecardModal";
 
 export default function WolfLeaderboard({ game }) {
@@ -19,16 +19,31 @@ export default function WolfLeaderboard({ game }) {
 
   useEffect(() => {
     const loadUsers = async () => {
-      const usersSnap = await getDocs(collection(db, "users"));
+      if (!Array.isArray(players) || players.length === 0) {
+        setUsers([]);
+        return;
+      }
+
+      const ids = Array.from(
+        new Set(players.map((player) => player.userId).filter(Boolean))
+      );
+      if (ids.length === 0) {
+        setUsers([]);
+        return;
+      }
+
+      const userDocs = await Promise.all(ids.map((id) => getDoc(doc(db, "users", id))));
       setUsers(
-        usersSnap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
+        userDocs
+          .filter((snap) => snap.exists())
+          .map((snap) => ({
+            id: snap.id,
+            ...snap.data(),
+          }))
       );
     };
     loadUsers();
-  }, []);
+  }, [players]);
 
   const userMap = useMemo(() => {
     const m = new Map();
@@ -90,7 +105,7 @@ export default function WolfLeaderboard({ game }) {
       }
 
       if (decision === "blind") {
-        // Blind Lone Wolf: 6 points if win, 1 point if tie, each opponent gets 2 if lose
+        // Blind Lone Wolf: 6 points if win, 2 points if tie, each opponent gets 2 if lose
         const teamBest = Math.min(aGross, bGross);
         if (wolfGross < teamBest) {
           totals.set(wolfId, (totals.get(wolfId) || 0) + 6);
@@ -98,8 +113,8 @@ export default function WolfLeaderboard({ game }) {
           totals.set(pA.userId, (totals.get(pA.userId) || 0) + 2);
           totals.set(pB.userId, (totals.get(pB.userId) || 0) + 2);
         } else {
-          // Tie: Wolf earns 1 point (same as regular Lone Wolf)
-          totals.set(wolfId, (totals.get(wolfId) || 0) + 1);
+          // Tie: Wolf earns 2 points
+          totals.set(wolfId, (totals.get(wolfId) || 0) + 2);
         }
       } else if (decision === "lone") {
         const teamBest = Math.min(aGross, bGross);

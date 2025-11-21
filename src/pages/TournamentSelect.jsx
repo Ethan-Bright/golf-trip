@@ -12,7 +12,8 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useTournament } from "../context/TournamentContext";
 import { useNavigate } from "react-router-dom";
-import { Modal, useModal } from "../components/Modal";
+import Modal from "../components/Modal";
+import useModal from "../hooks/useModal";
 import bcrypt from "bcryptjs";
 import SearchableTournamentDropdown from "../components/SearchableTournamentDropdown";
 

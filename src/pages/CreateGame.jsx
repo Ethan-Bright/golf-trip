@@ -1,83 +1,91 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   addDoc,
+  arrayUnion,
   collection,
+  deleteDoc,
+  doc,
   getDocs,
   query,
   serverTimestamp,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
-import { Modal, useModal } from "../components/Modal";
+import Modal from "../components/Modal";
+import useModal from "../hooks/useModal";
 import { useTournament } from "../context/TournamentContext";
 import { db } from "../firebase";
-import { MATCH_FORMAT_SELECT_OPTIONS } from "../lib/matchFormats";
+import {
+  MATCH_FORMAT_SELECT_OPTIONS,
+  getMatchFormatLabel,
+} from "../lib/matchFormats";
 import SearchableCourseDropdown from "../components/SearchableCourseDropdown";
 
 function useIncompleteGameChecker(userId, currentTournament) {
   const [isChecking, setIsChecking] = useState(true);
   const [incompleteGame, setIncompleteGame] = useState(null);
 
+  const fetchIncompleteGame = useCallback(async () => {
+    if (!userId || !currentTournament) {
+      setIncompleteGame(null);
+      setIsChecking(false);
+      return;
+    }
+
+    setIsChecking(true);
+
+    try {
+      const q = query(
+        collection(db, "games"),
+        where("status", "==", "inProgress"),
+        where("tournamentId", "==", currentTournament)
+      );
+
+      const snapshot = await getDocs(q);
+
+      const games = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      const findIncompleteGame = (game) => {
+        const player = game.players?.find((p) => p.userId === userId);
+        if (!player) return false;
+
+        const holeCount = game.holeCount || 18;
+        const startIndex = game.nineType === "back" ? 9 : 0;
+        const endIndex =
+          holeCount === 9
+            ? startIndex + 9
+            : game.course?.holes?.length || player.scores?.length || 18;
+
+        const relevantScores = (player.scores || []).slice(startIndex, endIndex);
+
+        return !relevantScores.every((score) => score?.gross !== null);
+      };
+
+      const userIncompleteGame = games.find(findIncompleteGame) || null;
+
+      setIncompleteGame(userIncompleteGame);
+    } catch (error) {
+      console.error("Error checking incomplete games:", error);
+      setIncompleteGame(null);
+    } finally {
+      setIsChecking(false);
+    }
+  }, [currentTournament, userId]);
+
   useEffect(() => {
-    const fetchIncompleteGame = async () => {
-      if (!userId || !currentTournament) {
-        setIncompleteGame(null);
-        setIsChecking(false);
-        return;
-      }
-
-      setIsChecking(true);
-
-      try {
-        const q = query(
-          collection(db, "games"),
-          where("status", "==", "inProgress"),
-          where("tournamentId", "==", currentTournament)
-        );
-
-        const snapshot = await getDocs(q);
-
-        const games = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        const findIncompleteGame = (game) => {
-          const player = game.players?.find((p) => p.userId === userId);
-          if (!player) return false;
-
-          const holeCount = game.holeCount || 18;
-          const startIndex = game.nineType === "back" ? 9 : 0;
-          const endIndex =
-            holeCount === 9
-              ? startIndex + 9
-              : game.course?.holes?.length || player.scores?.length || 18;
-
-          const relevantScores = (player.scores || []).slice(startIndex, endIndex);
-
-          return !relevantScores.every((score) => score?.gross !== null);
-        };
-
-        const userIncompleteGame = games.find(findIncompleteGame) || null;
-
-        setIncompleteGame(userIncompleteGame);
-      } catch (error) {
-        console.error("Error checking incomplete games:", error);
-        setIncompleteGame(null);
-      } finally {
-        setIsChecking(false);
-      }
-    };
-
     fetchIncompleteGame();
-  }, [userId, currentTournament]);
+  }, [fetchIncompleteGame]);
 
-  return { incompleteGame, isChecking };
+  return { incompleteGame, isChecking, refetchIncompleteGame: fetchIncompleteGame };
 }
 
 export default function CreateGame({ userId, user, courses = [] }) {
   const navigate = useNavigate();
-  const { modal, hideModal, showError, showSuccess } = useModal();
+  const { modal, hideModal, showError, showSuccess, showConfirm } = useModal();
   const { currentTournament } = useTournament();
 
   const [selectedCourse, setSelectedCourse] = useState(null);
@@ -85,13 +93,20 @@ export default function CreateGame({ userId, user, courses = [] }) {
   const [matchFormat, setMatchFormat] = useState("");
   const [holeCount, setHoleCount] = useState("");
   const [nineType, setNineType] = useState("");
-  const [trackStats, setTrackStats] = useState(false);
   const [errors, setErrors] = useState({});
   const [showFormatHelp, setShowFormatHelp] = useState(false);
-  const [showStatsHelp, setShowStatsHelp] = useState(false);
-  const { incompleteGame, isChecking } = useIncompleteGameChecker(
+  const [userGames, setUserGames] = useState([]);
+  const [claimableGames, setClaimableGames] = useState([]);
+  const [isLoadingUserGames, setIsLoadingUserGames] = useState(false);
+  const [editingGameId, setEditingGameId] = useState(null);
+  const { incompleteGame, isChecking, refetchIncompleteGame } = useIncompleteGameChecker(
     userId,
     currentTournament
+  );
+  const isFormLocked = !!incompleteGame && !editingGameId;
+  const editingGame = useMemo(
+    () => userGames.find((game) => game.id === editingGameId) || null,
+    [editingGameId, userGames]
   );
 
   const initialScores = useMemo(() => {
@@ -104,6 +119,232 @@ export default function CreateGame({ userId, user, courses = [] }) {
       putts: null,
     }));
   }, [selectedCourse]);
+
+  const collectOwnerIds = useCallback((game) => {
+    const ids = new Set();
+    const add = (value) => {
+      if (typeof value === "string" && value.trim()) {
+        ids.add(value.trim());
+      }
+    };
+
+    if (!game || typeof game !== "object") {
+      return ids;
+    }
+
+    const possibleFields = [
+      "createdBy",
+      "creatorId",
+      "creatorID",
+      "creatorUid",
+      "creatorUID",
+      "ownerId",
+      "ownerID",
+      "ownerUid",
+      "ownerUID",
+      "createdById",
+      "createdByID",
+      "createdByUid",
+      "createdByUID",
+      "createdByUserId",
+      "createdByUserID",
+    ];
+
+    possibleFields.forEach((field) => add(game[field]));
+
+    if (Array.isArray(game.ownerIds)) {
+      game.ownerIds.forEach(add);
+    }
+
+    if (Array.isArray(game.managerIds)) {
+      game.managerIds.forEach(add);
+    }
+
+    if (game.creator && typeof game.creator === "object") {
+      add(game.creator.id || game.creator.userId || game.creator.uid);
+    }
+
+    if (game.owner && typeof game.owner === "object") {
+      add(game.owner.id || game.owner.userId || game.owner.uid);
+    }
+
+    return ids;
+  }, []);
+
+  const fetchUserGames = useCallback(async () => {
+    if (!currentTournament || !userId) {
+      setUserGames([]);
+      setClaimableGames([]);
+      setIsLoadingUserGames(false);
+      return;
+    }
+
+    setIsLoadingUserGames(true);
+
+    try {
+      const gamesQuery = query(
+        collection(db, "games"),
+        where("tournamentId", "==", currentTournament),
+        where("status", "==", "inProgress")
+      );
+      const snapshot = await getDocs(gamesQuery);
+      const fetchedGames = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+      }));
+
+      const ownedGames = [];
+      const legacyGames = [];
+
+      fetchedGames.forEach((game) => {
+        const ownerIds = collectOwnerIds(game);
+        const hasOwner = ownerIds.size > 0;
+
+        if (ownerIds.has(userId)) {
+          ownedGames.push(game);
+        } else if (!hasOwner) {
+          legacyGames.push(game);
+        }
+      });
+
+      const sortByUpdatedAt = (list) =>
+        [...list].sort((a, b) => {
+          const aUpdated = a.updatedAt?.seconds || 0;
+          const bUpdated = b.updatedAt?.seconds || 0;
+          return bUpdated - aUpdated;
+        });
+
+      setUserGames(sortByUpdatedAt(ownedGames));
+      setClaimableGames(sortByUpdatedAt(legacyGames));
+    } catch (error) {
+      console.error("Error fetching user games:", error);
+      showError("Unable to load your games. Please try again.", "Error");
+    } finally {
+      setIsLoadingUserGames(false);
+    }
+  }, [collectOwnerIds, currentTournament, showError, userId]);
+
+  useEffect(() => {
+    fetchUserGames();
+  }, [fetchUserGames]);
+
+  const resetForm = useCallback(() => {
+    setSelectedCourse(null);
+    setGameName("");
+    setMatchFormat("");
+    setHoleCount("");
+    setNineType("");
+    setErrors({});
+    setEditingGameId(null);
+  }, []);
+
+  useEffect(() => {
+    resetForm();
+  }, [currentTournament, resetForm, userId]);
+
+  const handleEditGame = (game) => {
+    if (!game) return;
+    const derivedCourse =
+      game.course ||
+      (game.courseId
+        ? courses.find((course) => course.id === game.courseId) || null
+        : null);
+
+    const updatedHoleCount = game.holeCount || 18;
+
+    setSelectedCourse(derivedCourse);
+    setGameName(game.name || "");
+    setMatchFormat(game.matchFormat || "");
+    setHoleCount(updatedHoleCount);
+    setNineType(
+      updatedHoleCount === 9
+        ? game.nineType || ""
+        : game.nineType || "front"
+    );
+    setErrors({});
+    setEditingGameId(game.id);
+
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    resetForm();
+  };
+
+  const handleDeleteGame = (game) => {
+    if (!game?.id) return;
+    if (game.status === "complete") {
+      showError("Completed games cannot be deleted.", "Action Not Allowed");
+      return;
+    }
+
+    showConfirm(
+      `Delete "${game.name || "Untitled Game"}"? This cannot be undone.`,
+      "Delete Game",
+      async () => {
+        try {
+          hideModal();
+          await deleteDoc(doc(db, "games", game.id));
+          showSuccess("Game deleted successfully.", "Game Deleted");
+          if (editingGameId === game.id) {
+            resetForm();
+          }
+          await fetchUserGames();
+          await refetchIncompleteGame();
+        } catch (error) {
+          console.error("Error deleting game:", error);
+          showError("Failed to delete game. Please try again.", "Error");
+        }
+      },
+      "Delete Game",
+      "Cancel"
+    );
+  };
+
+  const handleClaimLegacyGame = (game) => {
+    if (!game?.id || !userId) return;
+
+    showConfirm(
+      `Claim ownership of "${game.name || "Untitled Game"}"? This will let you edit or delete it.`,
+      "Claim Legacy Game",
+      async () => {
+        try {
+          hideModal();
+          const gameRef = doc(db, "games", game.id);
+          await updateDoc(gameRef, {
+            createdBy: userId,
+            managerIds: arrayUnion(userId),
+            updatedAt: serverTimestamp(),
+          });
+          showSuccess("Game claimed successfully. You can now manage it.", "Claimed");
+          await fetchUserGames();
+          await refetchIncompleteGame();
+        } catch (error) {
+          console.error("Error claiming legacy game:", error);
+          showError("Failed to claim this game. Please try again.", "Error");
+        }
+      },
+      "Claim Game",
+      "Cancel"
+    );
+  };
+
+  const formatUpdatedAt = (timestamp) => {
+    if (!timestamp) return "Not updated yet";
+    try {
+      if (typeof timestamp.toDate === "function") {
+        return timestamp.toDate().toLocaleString();
+      }
+      if (timestamp.seconds) {
+        return new Date(timestamp.seconds * 1000).toLocaleString();
+      }
+    } catch (error) {
+      console.error("Error formatting timestamp:", error);
+    }
+    return "Not updated yet";
+  };
 
   const handleCourseSelect = (courseId) => {
     const course = courses.find((c) => c.id === courseId) || null;
@@ -127,7 +368,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
   };
 
   const createGame = async () => {
-    if (incompleteGame) {
+    if (!editingGameId && incompleteGame) {
       showError(
         "Please finish or leave your in-progress game before creating a new one.",
         "Game In Progress"
@@ -138,6 +379,25 @@ export default function CreateGame({ userId, user, courses = [] }) {
     if (!validateForm()) return;
 
     try {
+      if (editingGameId) {
+        const gameRef = doc(db, "games", editingGameId);
+        await updateDoc(gameRef, {
+          name: gameName.trim(),
+          courseId: selectedCourse?.id,
+          course: selectedCourse,
+          matchFormat,
+          holeCount,
+          nineType,
+          updatedAt: serverTimestamp(),
+        });
+
+        showSuccess("Game details updated.", "Game Updated");
+        resetForm();
+        await fetchUserGames();
+        await refetchIncompleteGame();
+        return;
+      }
+
       const gamePayload = {
         name: gameName.trim(),
         courseId: selectedCourse?.id,
@@ -146,8 +406,10 @@ export default function CreateGame({ userId, user, courses = [] }) {
         matchFormat,
         holeCount,
         nineType,
-        trackStats,
         tournamentId: currentTournament,
+        playerIds: [userId].filter(Boolean),
+        managerIds: [userId].filter(Boolean),
+        createdBy: userId,
         players: [
           {
             userId,
@@ -161,6 +423,8 @@ export default function CreateGame({ userId, user, courses = [] }) {
       };
 
       await addDoc(collection(db, "games"), gamePayload);
+      await fetchUserGames();
+      await refetchIncompleteGame();
 
       showSuccess("Game created! Redirecting you to enter scores.", "Success");
 
@@ -194,7 +458,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
           >
             Enter Scores page
           </button>{" "}
-          before creating a new one.
+          before creating a new one. You can also edit or delete it in the Manage Your Games section below.
         </div>
       </div>
     );
@@ -223,6 +487,26 @@ export default function CreateGame({ userId, user, courses = [] }) {
 
           {renderIncompleteBanner()}
 
+          {editingGame && (
+            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
+              <div className="text-sm sm:text-base text-blue-900 dark:text-blue-100">
+                <strong>Editing:</strong> {editingGame.name || "Untitled Game"}
+              </div>
+              <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-200 mt-1">
+                Update the details below, then save your changes or cancel if you want to start fresh.
+              </p>
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-4 py-2 text-sm font-semibold text-blue-700 dark:text-blue-200 border border-blue-200 dark:border-blue-700 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                >
+                  Cancel Editing
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="mb-4 sm:mb-6">
             <SearchableCourseDropdown
               courses={courses}
@@ -230,7 +514,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
               onCourseSelect={handleCourseSelect}
               placeholder="Select a course"
               label=""
-              disabled={!!incompleteGame}
+              disabled={isFormLocked}
               error={errors.selectedCourse}
               className="mb-3 sm:mb-4"
             />
@@ -247,7 +531,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
                   ? "border-red-500"
                   : "border-gray-200 dark:border-gray-600"
               } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-              disabled={!!incompleteGame}
+              disabled={isFormLocked}
             />
 
             <div className="mb-4">
@@ -281,7 +565,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
                     ? "border-red-500"
                     : "border-gray-200 dark:border-gray-600"
                 } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-                disabled={!!incompleteGame}
+                disabled={isFormLocked}
               >
                 <option value="" disabled>
                   Select Match Format
@@ -313,7 +597,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
                     ? "border-red-500"
                     : "border-gray-200 dark:border-gray-600"
                 } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-                disabled={!!incompleteGame}
+                disabled={isFormLocked}
               >
                 <option value="" disabled>
                   Select Number of Holes
@@ -339,7 +623,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
                       ? "border-red-500"
                       : "border-gray-200 dark:border-gray-600"
                   } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-                  disabled={!!incompleteGame}
+                  disabled={isFormLocked}
                 >
                   <option value="" disabled>
                     Select 9 Holes
@@ -350,42 +634,15 @@ export default function CreateGame({ userId, user, courses = [] }) {
               </div>
             )}
 
-            <div className="mb-4">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={trackStats}
-                  onChange={(e) => setTrackStats(e.target.checked)}
-                  className="w-5 h-5 text-green-600 dark:text-green-500 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-                  disabled={!!incompleteGame}
-                />
-                <span className="text-gray-900 dark:text-white font-medium">
-                  Track stats for round
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowStatsHelp(true)}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 rounded-full"
-                  title="Learn about stats tracking"
-                >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              </label>
-            </div>
           </div>
 
           <button
+            type="button"
             onClick={createGame}
             className="w-full px-6 py-3 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-60"
-            disabled={!!incompleteGame || !userId}
+            disabled={isFormLocked || !userId}
           >
-            Create Game
+            {editingGameId ? "Save Changes" : "Create Game"}
           </button>
 
           <p className="mt-4 text-sm text-gray-600 dark:text-gray-300 text-center">
@@ -400,76 +657,128 @@ export default function CreateGame({ userId, user, courses = [] }) {
         </div>
       </div>
 
-      <Modal {...modal} onClose={hideModal} />
+      <div className="w-full max-w-4xl mx-auto mt-6">
+        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+              Manage Your Games
+            </h2>
+            <button
+              type="button"
+              onClick={() => fetchUserGames()}
+              disabled={!currentTournament || isLoadingUserGames}
+              className="w-full sm:w-auto px-4 py-2 rounded-2xl border border-gray-200 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoadingUserGames ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
 
-      {/* Stats Help Modal */}
-      {showStatsHelp && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Track Stats for Round
+          {!currentTournament ? (
+            <div className="p-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300">
+              Select a tournament to see the games you've created.
+            </div>
+          ) : isLoadingUserGames ? (
+            <div className="text-center py-6 text-gray-600 dark:text-gray-300">
+              Loading your games...
+            </div>
+          ) : userGames.length === 0 ? (
+            <div className="p-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300">
+              No editable games yet. Create a game and you'll be able to edit or delete it here while it's still in progress.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {userGames.map((game) => (
+                <div
+                  key={game.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
+                >
+                  <div className="flex-1">
+                    <p className="text-gray-900 dark:text-white font-semibold">
+                      {game.name || "Untitled Game"}
+                    </p>
+                    {game.course?.name && (
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                        Course: {game.course.name}
+                      </p>
+                    )}
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      Format: {getMatchFormatLabel(game.matchFormat)}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Last updated: {formatUpdatedAt(game.updatedAt)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => handleEditGame(game)}
+                      className={`flex-1 sm:flex-none px-4 py-2 rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                        editingGameId === game.id
+                          ? "bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100 border border-blue-400 dark:border-blue-600 focus:ring-blue-400 dark:focus:ring-blue-300"
+                          : "bg-blue-600 dark:bg-blue-500 text-white focus:ring-blue-500 dark:focus:ring-blue-400"
+                      }`}
+                    >
+                      {editingGameId === game.id ? "Editing" : "Edit"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteGame(game)}
+                      className="flex-1 sm:flex-none px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-red-400"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {claimableGames.length > 0 && (
+        <div className="w-full max-w-4xl mx-auto mt-6">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 sm:p-6 border border-yellow-200 dark:border-yellow-700/60">
+            <div className="mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-yellow-800 dark:text-yellow-200">
+                Legacy Games Without an Owner
               </h2>
-              <button
-                onClick={() => setShowStatsHelp(false)}
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-3xl leading-none focus:outline-none focus:ring-2 focus:ring-green-500 rounded-lg p-1"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <p className="text-gray-600 dark:text-gray-300">
-                When enabled, players will be required to enter additional statistics for each hole during score entry:
+              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                These in-progress games were created before we started tracking creators. Claim the ones you started to
+                enable editing or deletion.
               </p>
-
-              <div className="space-y-3">
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                    FIR (Fairway In Regulation)
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Check this box if the player's tee shot lands on the fairway. For par 3 holes, this is typically not applicable.
-                  </p>
-                </div>
-
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                    GIR (Green In Regulation)
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Check this box if the player reaches the green in the regulation number of strokes (par minus 2). For example, on a par 4, the player must reach the green in 2 strokes or fewer.
-                  </p>
-                </div>
-
-                <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
-                  <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                    Putts
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                    Enter the number of putts taken on each hole. This includes all strokes made on the putting surface.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  <span className="font-semibold">Note:</span> These statistics will be available for viewing in the Round Stats modal on the Leaderboard page, and you can track your personal statistics over time in the My Stats page.
-                </p>
-              </div>
             </div>
 
-            <div className="mt-6 flex justify-center">
-              <button
-                onClick={() => setShowStatsHelp(false)}
-                className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                Got it
-              </button>
+            <div className="space-y-3">
+              {claimableGames.map((game) => (
+                <div
+                  key={game.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-700"
+                >
+                  <div className="flex-1 text-yellow-900 dark:text-yellow-100">
+                    <p className="font-semibold">{game.name || "Untitled Game"}</p>
+                    {game.course?.name && (
+                      <p className="text-sm">Course: {game.course.name}</p>
+                    )}
+                    <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                      Last updated: {formatUpdatedAt(game.updatedAt)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleClaimLegacyGame(game)}
+                    className="w-full sm:w-auto px-4 py-2 bg-yellow-600 dark:bg-yellow-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 dark:focus:ring-yellow-400"
+                  >
+                    Claim
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
+
+      <Modal {...modal} onClose={hideModal} />
+
 
       {/* Format Help Modal */}
       {showFormatHelp && (

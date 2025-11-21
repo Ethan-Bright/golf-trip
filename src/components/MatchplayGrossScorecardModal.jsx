@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   TEAM_BORDER_COLOR,
   OPPONENT_BORDER_COLOR,
@@ -6,6 +6,7 @@ import {
   buildScorecardGroups,
   buildGroupHighlightInfo,
 } from "../utils/scorecardUtils";
+import { shareScorecardAsImage } from "../utils/shareScorecard";
 
 const getScoreMetric = (score) => {
   if (typeof score?.gross === "number") return score.gross;
@@ -23,6 +24,9 @@ export default function MatchplayGrossScorecardModal({
   onClose,
 }) {
   if (!game || !selectedTeam) return null;
+
+  const [isSharing, setIsSharing] = useState(false);
+  const scorecardRef = useRef(null);
 
   const {
     leftGroup,
@@ -185,6 +189,36 @@ export default function MatchplayGrossScorecardModal({
     ];
   }, [holeSummaries, leftName, rightName]);
 
+  const playerTotals = useMemo(() => {
+    return allDisplayPlayers.map((player) => {
+      let grossTotal = 0;
+      let hasGross = false;
+
+      for (let i = startIndex; i < startIndex + holeCount; i++) {
+        const score = player?.scores?.[i];
+        if (typeof score?.gross === "number") {
+          grossTotal += score.gross;
+          hasGross = true;
+        }
+      }
+
+      return hasGross ? grossTotal : null;
+    });
+  }, [allDisplayPlayers, holeCount, startIndex]);
+
+  const handleShare = async () => {
+    if (!scorecardRef.current) return;
+    setIsSharing(true);
+    try {
+      const filename = `${game.name} - Match Play Gross Scorecard`;
+      await shareScorecardAsImage(scorecardRef.current, filename);
+    } catch (error) {
+      console.error("Error sharing scorecard:", error);
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
       <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-blue-500 dark:border-blue-400 max-w-4xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
@@ -192,16 +226,34 @@ export default function MatchplayGrossScorecardModal({
           <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white pr-3">
             {game.name}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl sm:text-3xl leading-none flex-shrink-0"
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleShare}
+              disabled={isSharing}
+              className="px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              title="Share scorecard"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+                />
+              </svg>
+              {isSharing ? "Sharing..." : "Share"}
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl sm:text-3xl leading-none flex-shrink-0"
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         {/* Responsive Table */}
-        <div className="overflow-x-auto -mx-3 sm:mx-0">
+        <div className="overflow-x-auto -mx-3 sm:mx-0" ref={scorecardRef}>
           <table className="w-full border-collapse text-xs sm:text-sm min-w-[500px]">
             <thead>
               <tr>
@@ -412,6 +464,69 @@ export default function MatchplayGrossScorecardModal({
                 );
               })}
             </tbody>
+            <tfoot>
+              <tr className="bg-blue-50 dark:bg-blue-900/10 border-t-2 border-blue-500 dark:border-blue-400">
+                <th
+                  className={`px-2 py-2 text-left font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
+                    "border-blue-500 dark:border-blue-400 border-solid",
+                    0,
+                    1,
+                    { top: true, bottom: true, roundBottomLeft: true }
+                  )}`}
+                >
+                  Total
+                </th>
+                {allDisplayPlayers.map((player, idx) => {
+                  const total = playerTotals[idx];
+                  const inLeftGroup = hasTeamGrouping ? idx < leftGroup.length : false;
+                  const groupIndex = inLeftGroup ? idx : idx - leftGroup.length;
+                  const groupLength = inLeftGroup ? leftGroup.length : rightGroup.length;
+                  const borderClasses = hasTeamGrouping
+                    ? buildColumnBorderClasses(
+                        inLeftGroup ? TEAM_BORDER_COLOR : OPPONENT_BORDER_COLOR,
+                        groupIndex,
+                        groupLength,
+                        {
+                          top: true,
+                          bottom: true,
+                          roundBottomLeft: inLeftGroup && groupIndex === 0,
+                          roundBottomRight:
+                            !inLeftGroup && groupIndex === groupLength - 1,
+                        }
+                      )
+                    : buildColumnBorderClasses(
+                        "border-blue-500 dark:border-blue-400 border-solid",
+                        idx,
+                        allDisplayPlayers.length,
+                        {
+                          top: true,
+                          bottom: true,
+                          roundBottomLeft: idx === 0,
+                          roundBottomRight: idx === allDisplayPlayers.length - 1,
+                        }
+                      );
+
+                  return (
+                    <td
+                      key={`total-${player?.userId ?? idx}`}
+                      className={`px-2 py-2 text-center font-semibold text-blue-800 dark:text-blue-200 ${borderClasses}`}
+                    >
+                      {typeof total === "number" ? total : "—"}
+                    </td>
+                  );
+                })}
+                <td
+                  className={`px-2 py-2 text-center font-semibold text-blue-800 dark:text-blue-200 ${buildColumnBorderClasses(
+                    "border-blue-500 dark:border-blue-400 border-solid",
+                    0,
+                    1,
+                    { top: true, bottom: true, roundBottomRight: true }
+                  )}`}
+                >
+                  {finalMatchStatus?.label || "—"}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
 

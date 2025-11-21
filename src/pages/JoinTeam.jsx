@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { db } from "../firebase";
 import {
   collection,
@@ -8,11 +8,15 @@ import {
   updateDoc,
   getDoc,
   deleteDoc,
+  query,
+  where,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useTournament } from "../context/TournamentContext";
 import { useNavigate } from "react-router-dom";
-import { Modal, useModal } from "../components/Modal";
+import Modal from "../components/Modal";
+import useModal from "../hooks/useModal";
+import { getTournamentTeamRef } from "../utils/teamService";
 
 export default function JoinTeam() {
   const { user } = useAuth();
@@ -24,15 +28,23 @@ export default function JoinTeam() {
   const [message, setMessage] = useState(null);
   const [currentUserData, setCurrentUserData] = useState(null);
 
-  const fetchUsers = async () => {
-    if (!user?.uid || !currentTournament) return;
+  const fetchUsers = useCallback(async () => {
+    if (!user?.uid || !currentTournament) {
+      setUsers([]);
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     
     try {
-      // Fetch all users from the main users collection
+      // Fetch users that belong to the current tournament
       const usersRef = collection(db, "users");
-      const snapshot = await getDocs(usersRef);
+      const usersQuery = query(
+        usersRef,
+        where("tournaments", "array-contains", currentTournament)
+      );
+      const snapshot = await getDocs(usersQuery);
       const allUsers = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -41,19 +53,9 @@ export default function JoinTeam() {
       const currentUser = allUsers.find((u) => u.uid === user.uid);
       setCurrentUserData(currentUser);
 
-      // Fetch tournament members from the tournament's members subcollection
-      const membersRef = collection(
-        db,
-        "tournaments",
-        currentTournament,
-        "members"
-      );
-      const membersSnapshot = await getDocs(membersRef);
-      const tournamentMemberUids = membersSnapshot.docs.map((doc) => doc.id);
-
       // Filter users to only show those in the current tournament who don't have a team
       const usersWithoutTeam = allUsers.filter(
-        (u) => tournamentMemberUids.includes(u.uid) && !u.teamId && u.uid !== user.uid
+        (u) => !u.teamId && u.uid !== user.uid
       );
       
       setUsers(usersWithoutTeam);
@@ -62,25 +64,30 @@ export default function JoinTeam() {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    if (user?.uid && currentTournament) fetchUsers();
   }, [user?.uid, currentTournament]);
 
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
+
   const removeTeam = async (teamId) => {
-    if (!teamId) return;
-    const usersRef = collection(db, "users");
-    const snapshot = await getDocs(usersRef);
-    const allUsers = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-    const teammates = allUsers.filter((u) => u.teamId === teamId);
-    for (const member of teammates) {
-      const memberRef = doc(db, "users", member.id);
-      await updateDoc(memberRef, { teamId: null });
+    if (!teamId || !currentTournament) return;
+    const teammatesQuery = query(
+      collection(db, "users"),
+      where("teamId", "==", teamId)
+    );
+    const snapshot = await getDocs(teammatesQuery);
+    await Promise.all(
+      snapshot.docs.map((memberDoc) =>
+        updateDoc(memberDoc.ref, { teamId: null })
+      )
+    );
+
+    const teamRef = getTournamentTeamRef(currentTournament, teamId);
+    if (teamRef) {
+      await deleteDoc(teamRef).catch(() => {});
     }
-    const teamRef = doc(db, "teams", teamId);
-    const teamSnapshot = await getDoc(teamRef);
-    if (teamSnapshot.exists()) await deleteDoc(teamRef);
+    await deleteDoc(doc(db, "teams", teamId)).catch(() => {});
   };
 
   const joinTeam = async (selectedUser) => {
@@ -111,12 +118,14 @@ export default function JoinTeam() {
         await removeTeam(currentUserData.teamId);
       }
 
-      const teamId = selectedUser.teamId || selectedUser.id;
-      const teamRef = doc(db, "teams", teamId);
-      const teamSnapshot = await getDoc(teamRef);
+      const teamId =
+        selectedUser.teamId ||
+        `team_${currentTournament}_${selectedUser.id}_${Date.now()}`;
+      const teamRef = getTournamentTeamRef(currentTournament, teamId);
+      const teamSnapshot = teamRef ? await getDoc(teamRef) : null;
 
       let teamName = "";
-      if (!teamSnapshot.exists()) {
+      if (!teamSnapshot?.exists()) {
         try {
           teamName = await showInput("Enter Team Name");
         } catch {
@@ -132,9 +141,10 @@ export default function JoinTeam() {
       }
       await updateDoc(currentUserRef, { teamId });
 
-      if (!teamSnapshot.exists()) {
+      if (!teamSnapshot?.exists()) {
         await setDoc(teamRef, {
           name: teamName,
+          tournamentId: currentTournament,
           player1: {
             uid: selectedUser.uid,
             displayName: selectedUser.displayName,

@@ -4,6 +4,7 @@ import { collection, getDocs, doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useTournament } from "../context/TournamentContext";
 import { useAuth } from "../context/AuthContext";
+import LoadingSkeleton from "../components/LoadingSkeleton";
 
 export default function ViewMembers() {
   const navigate = useNavigate();
@@ -31,6 +32,10 @@ export default function ViewMembers() {
   // Round details (hole-by-hole) modal
   const [selectedRound, setSelectedRound] = useState(null);
   const [roundDetailsOpen, setRoundDetailsOpen] = useState(false);
+  const userUid = user?.uid;
+  const userDisplayName = user?.displayName;
+  const userHandicap = user?.handicap;
+  const userProfilePictureUrl = user?.profilePictureUrl;
 
   // Fetch current tournament members
   useEffect(() => {
@@ -67,26 +72,26 @@ export default function ViewMembers() {
         });
 
         // Ensure current user is present in members list
-        if (user?.uid) {
+        if (userUid) {
           const currentUserInMembers = membersData.find(
-            (m) => m.id === user.uid || m.uid === user.uid
+            (m) => m.id === userUid || m.uid === userUid
           );
 
           if (!currentUserInMembers) {
             try {
-              const userRef = doc(db, "users", user.uid);
+              const userRef = doc(db, "users", userUid);
               const userSnap = await getDoc(userRef);
 
               if (userSnap.exists()) {
                 const userData = userSnap.data();
                 const memberData = {
-                  uid: user.uid,
+                  uid: userUid,
                   displayName:
-                    userData.displayName || user.displayName || "Unknown",
-                  handicap: userData.handicap || user.handicap || null,
+                    userData.displayName || userDisplayName || "Unknown",
+                  handicap: userData.handicap || userHandicap || null,
                   profilePictureUrl:
                     userData.profilePictureUrl ||
-                    user.profilePictureUrl ||
+                    userProfilePictureUrl ||
                     null,
                   joinedAt: new Date(),
                 };
@@ -97,14 +102,14 @@ export default function ViewMembers() {
                     "tournaments",
                     currentTournament,
                     "members",
-                    user.uid
+                    userUid
                   ),
                   memberData
                 );
 
                 membersData.push({
-                  id: user.uid,
-                  uid: user.uid,
+                  id: userUid,
+                  uid: userUid,
                   displayName: memberData.displayName,
                   handicap: memberData.handicap,
                   profilePictureUrl: memberData.profilePictureUrl,
@@ -136,7 +141,13 @@ export default function ViewMembers() {
     };
 
     fetchMembers();
-  }, [currentTournament, user?.uid]);
+  }, [
+    currentTournament,
+    userUid,
+    userDisplayName,
+    userHandicap,
+    userProfilePictureUrl,
+  ]);
 
   // Search all users collection by displayName (client-side filter with caching)
   const searchUsers = async (rawQuery) => {
@@ -226,8 +237,9 @@ export default function ViewMembers() {
 
       const userRounds = gamesData
         .filter((game) => {
-          if (!game.trackStats) return false;
-          return game.players?.some((p) => p.userId === member.uid);
+          const player = game.players?.find((p) => p.userId === member.uid);
+          if (!player) return false;
+          return player.trackStats ?? game.trackStats ?? false;
         })
         .map((game) => {
           const player = game.players.find((p) => p.userId === member.uid);
@@ -297,6 +309,12 @@ export default function ViewMembers() {
     } finally {
       setMemberRoundsLoading(false);
     }
+  };
+
+  const handleViewStats = (member) => {
+    const targetUid = member?.uid || member?.id;
+    if (!targetUid) return;
+    navigate(`/my-stats?userId=${encodeURIComponent(targetUid)}`);
   };
 
   return (
@@ -374,12 +392,12 @@ export default function ViewMembers() {
           {mode === "tournament" ? (
             <>
               {loading ? (
-                <div className="flex justify-center items-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
-                  <span className="ml-2 text-gray-600 dark:text-gray-300 text-sm">
-                    Loading members...
-                  </span>
-                </div>
+                <LoadingSkeleton
+                  items={4}
+                  lines={3}
+                  showAvatar
+                  cardClassName="bg-gray-50 dark:bg-gray-700/60"
+                />
               ) : error ? (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-xl text-center text-sm">
                   {error}
@@ -455,12 +473,18 @@ export default function ViewMembers() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex-shrink-0">
+                        <div className="flex-shrink-0 flex flex-col gap-2">
                           <button
                             onClick={() => fetchMemberRounds(member)}
                             className="px-3 py-2 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
                           >
                             View Scores
+                          </button>
+                          <button
+                            onClick={() => handleViewStats(member)}
+                            className="px-3 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          >
+                            View Stats
                           </button>
                         </div>
                       </div>
@@ -528,67 +552,82 @@ export default function ViewMembers() {
                   </div>
                 )}
 
-                <div className="flex flex-col gap-3 max-h-96 overflow-y-auto">
-                  {searchResults.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow duration-200"
-                    >
-                      <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-green-200 dark:border-green-700 flex-shrink-0">
-                        {member.profilePictureUrl ? (
-                          <img
-                            src={member.profilePictureUrl}
-                            alt={member.displayName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-green-400 to-green-600 dark:from-green-500 dark:to-green-700 flex items-center justify-center">
-                            <span className="text-lg text-white font-bold">
-                              {member.displayName?.charAt(0) || "?"}
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                {searchLoading && searchResults.length === 0 ? (
+                  <LoadingSkeleton
+                    items={4}
+                    lines={2}
+                    showAvatar
+                    cardClassName="bg-gray-50 dark:bg-gray-700/60"
+                  />
+                ) : (
+                  <div className="flex flex-col gap-3 max-h-96 overflow-y-auto">
+                    {searchResults.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow duration-200"
+                      >
+                        <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-green-200 dark:border-green-700 flex-shrink-0">
+                          {member.profilePictureUrl ? (
+                            <img
+                              src={member.profilePictureUrl}
+                              alt={member.displayName}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-green-400 to-green-600 dark:from-green-500 dark:to-green-700 flex items-center justify-center">
+                              <span className="text-lg text-white font-bold">
+                                {member.displayName?.charAt(0) || "?"}
+                              </span>
+                            </div>
+                          )}
+                        </div>
 
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 dark:text-white text-sm truncate">
-                          {member.displayName}
-                        </h3>
-                        <div className="space-y-1 mt-1 text-xs text-gray-600 dark:text-gray-300">
-                          <div>
-                            <span className="font-medium">Handicap:</span>{" "}
-                            <span className="text-green-600 dark:text-green-400 font-semibold">
-                              {member.handicap || "—"}
-                            </span>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                            {member.displayName}
+                          </h3>
+                          <div className="space-y-1 mt-1 text-xs text-gray-600 dark:text-gray-300">
+                            <div>
+                              <span className="font-medium">Handicap:</span>{" "}
+                              <span className="text-green-600 dark:text-green-400 font-semibold">
+                                {member.handicap || "—"}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex-shrink-0">
-                        <button
-                          onClick={() => fetchMemberRounds(member)}
-                          className="px-3 py-2 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
-                        >
-                          View Scores
-                        </button>
+                        <div className="flex-shrink-0 flex flex-col gap-2">
+                          <button
+                            onClick={() => fetchMemberRounds(member)}
+                            className="px-3 py-2 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                          >
+                            View Scores
+                          </button>
+                          <button
+                            onClick={() => handleViewStats(member)}
+                            className="px-3 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          >
+                            View Stats
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
 
-                  {!searchLoading &&
-                    searchResults.length === 0 &&
-                    searchQuery.trim().length > 0 && (
+                    {!searchLoading &&
+                      searchResults.length === 0 &&
+                      searchQuery.trim().length > 0 && (
+                        <div className="text-center py-6 text-xs text-gray-500 dark:text-gray-300">
+                          No users found matching "{searchQuery.trim()}".
+                        </div>
+                      )}
+
+                    {!searchLoading && searchQuery.trim().length === 0 && (
                       <div className="text-center py-6 text-xs text-gray-500 dark:text-gray-300">
-                        No users found matching "{searchQuery.trim()}".
+                        Enter a name above to search all users.
                       </div>
                     )}
-
-                  {!searchLoading && searchQuery.trim().length === 0 && (
-                    <div className="text-center py-6 text-xs text-gray-500 dark:text-gray-300">
-                      Enter a name above to search all users.
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </>
           )}

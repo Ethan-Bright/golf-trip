@@ -22,6 +22,8 @@ import ViewTeams from "./pages/ViewTeams";
 import ViewMembers from "./pages/ViewMembers";
 import CourseInfo from "./pages/CourseInfo";
 import MyStats from "./pages/MyStats";
+import NotFound from "./pages/NotFound";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -36,6 +38,7 @@ function App() {
       <AuthProvider>
         <TournamentProvider>
           <Router>
+          <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
@@ -106,7 +109,9 @@ function App() {
                 </PrivateRoute>
               }
             />
+            <Route path="*" element={<NotFound />} />
           </Routes>
+          </ErrorBoundary>
         </Router>
         </TournamentProvider>
       </AuthProvider>

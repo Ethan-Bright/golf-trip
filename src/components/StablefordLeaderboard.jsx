@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 import StablefordScorecardModal from "./StablefordScorecardModal";
+import { fetchTeamsForTournament } from "../utils/teamService";
 
 export default function StablefordLeaderboard({ game }) {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -18,11 +19,7 @@ export default function StablefordLeaderboard({ game }) {
         ...doc.data(),
       }));
 
-      const teamsSnap = await getDocs(collection(db, "teams"));
-      const teams = teamsSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const teams = await fetchTeamsForTournament(game?.tournamentId);
 
       const gamePlayersMap = {};
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));

@@ -3,7 +3,8 @@ import { db, createdAt } from "../firebase";
 import { collection, addDoc } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Modal, useModal } from "./Modal";
+import Modal from "./Modal";
+import useModal from "../hooks/useModal";
 
 export default function ScoreEntry({ tournamentId, course }) {
   const { user } = useAuth();

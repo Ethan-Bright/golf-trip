@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useTournament } from "../context/TournamentContext";
 import { db } from "../firebase";
 import { courses } from "../data/courses";
 import {
@@ -9,16 +8,29 @@ import {
   query,
   where,
   getDocs,
+  orderBy,
+  limit,
+  doc,
+  getDoc,
 } from "firebase/firestore";
 import SearchableCourseDropdown from "../components/SearchableCourseDropdown";
 
+const STATS_PAGE_SIZE = 100;
+
 export default function MyStats() {
   const { user } = useAuth();
-  const { currentTournament } = useTournament();
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const requestedUserId = queryParams.get("userId");
+  const statsUserId = requestedUserId || user?.uid || null;
+  const isViewingSelf = !requestedUserId || requestedUserId === user?.uid;
+  const statsOriginPath = requestedUserId ? "/members" : "/dashboard";
+  const statsOriginLabel = requestedUserId ? "Members" : "Dashboard";
   const [viewType, setViewType] = useState(null); // null, 'all-time', or 'course'
   const [selectedCourseId, setSelectedCourseId] = useState(null);
   const [rounds, setRounds] = useState([]);
+  const [courseRounds, setCourseRounds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [overallStats, setOverallStats] = useState({
     totalRounds: 0,
@@ -26,6 +38,7 @@ export default function MyStats() {
     totalPutts: 0,
     totalFIR: 0,
     totalGIR: 0,
+    totalFirOpportunities: 0,
     avgPuttsPerHole: 0,
     firPercentage: 0,
     girPercentage: 0,
@@ -35,78 +48,187 @@ export default function MyStats() {
   const [selectedHole, setSelectedHole] = useState(null);
   const [holeHistoryModalOpen, setHoleHistoryModalOpen] = useState(false);
   const [holeHistory, setHoleHistory] = useState([]);
+  const [viewedUserProfile, setViewedUserProfile] = useState(null);
+  const statsOwnerNameBase =
+    viewedUserProfile?.displayName ||
+    (isViewingSelf ? user?.displayName : null);
+  const statsOwnerName = String(
+    statsOwnerNameBase || (isViewingSelf ? "You" : "Player")
+  );
+  const statsTitle = isViewingSelf
+    ? "My Stats"
+    : `${statsOwnerName}${statsOwnerName.endsWith("s") ? "'" : "'s"} Stats`;
+  const statsPronoun = isViewingSelf ? "your" : "their";
+  const statsPronounCap = isViewingSelf ? "Your" : "Their";
+  const statsOwnerPossessive = isViewingSelf
+    ? "your"
+    : `${statsOwnerName}${statsOwnerName.endsWith("s") ? "'" : "'s"}`;
+
+  useEffect(() => {
+    if (!statsUserId) {
+      setViewedUserProfile(null);
+      return;
+    }
+
+    if (isViewingSelf && user) {
+      setViewedUserProfile(user);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        const userRef = doc(db, "users", statsUserId);
+        const userSnap = await getDoc(userRef);
+        if (!isMounted) return;
+        if (userSnap.exists()) {
+          setViewedUserProfile({
+            uid: statsUserId,
+            ...userSnap.data(),
+          });
+        } else {
+          setViewedUserProfile(null);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        if (isMounted) {
+          setViewedUserProfile(null);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [statsUserId, isViewingSelf, user]);
 
   useEffect(() => {
     const fetchStats = async () => {
-      if (!user?.uid) {
+      if (!statsUserId) {
         setLoading(false);
         return;
       }
 
       setLoading(true);
       try {
-        // Fetch all completed games with trackStats enabled across all tournaments
-        const q = query(
-          collection(db, "games"),
-          where("status", "==", "complete")
+        let gamesData = [];
+        let shouldUseLegacyFetch = false;
+
+        try {
+          const statsQuery = query(
+            collection(db, "games"),
+            where("status", "==", "complete"),
+            where("playerIds", "array-contains", statsUserId),
+            orderBy("createdAt", "desc"),
+            limit(STATS_PAGE_SIZE)
+          );
+
+          const snapshot = await getDocs(statsQuery);
+          gamesData = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+
+          if (snapshot.empty) {
+            shouldUseLegacyFetch = true;
+          }
+        } catch (err) {
+          console.warn("Player-scoped stats query failed, falling back to legacy fetch:", err);
+          shouldUseLegacyFetch = true;
+        }
+
+        if (shouldUseLegacyFetch) {
+          const legacyQuery = query(
+            collection(db, "games"),
+            where("status", "==", "complete")
+          );
+          const snapshot = await getDocs(legacyQuery);
+          gamesData = snapshot.docs
+            .map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }))
+            .filter((game) =>
+              Array.isArray(game.players)
+                ? game.players.some((p) => p.userId === statsUserId)
+                : false
+            )
+            .sort((a, b) => {
+              const aTime = a.createdAt?.seconds || a.createdAt || 0;
+              const bTime = b.createdAt?.seconds || b.createdAt || 0;
+              return bTime - aTime;
+            })
+            .slice(0, STATS_PAGE_SIZE);
+        }
+
+        gamesData = gamesData.filter((game) =>
+          Array.isArray(game.players)
+            ? game.players.some((p) => p.userId === statsUserId)
+            : false
         );
 
-        const snapshot = await getDocs(q);
-        let gamesData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        // Sort by createdAt in descending order (most recent first)
-        gamesData.sort((a, b) => {
-          const aTime = a.createdAt?.seconds || a.createdAt || 0;
-          const bTime = b.createdAt?.seconds || b.createdAt || 0;
-          return bTime - aTime;
-        });
-
-        // Limit to 100 most recent games
-        gamesData = gamesData.slice(0, 100);
-
-        // Filter games where user participated and trackStats is enabled
-        const userRounds = gamesData
-          .filter((game) => {
-            if (!game.trackStats) return false;
-            return game.players?.some((p) => p.userId === user.uid);
-          })
+        // Collect games where the user participated
+        const allUserRounds = gamesData
           .map((game) => {
-            const player = game.players.find((p) => p.userId === user.uid);
+            const player = game.players?.find((p) => p.userId === statsUserId);
             if (!player) return null;
 
-            const startIndex = game.nineType === "back" ? 9 : 0;
-            const endIndex =
-              game.holeCount === 9
-                ? startIndex + 9
-                : game.course?.holes?.length || 18;
-            const playerScores = (player.scores || []).slice(startIndex, endIndex);
+            const totalHolesInCourse =
+              game.course?.holes?.length ||
+              player.scores?.length ||
+              (game.holeCount === 9 ? 9 : 18);
 
-            // Calculate round stats
-            const holesPlayed = playerScores.filter(
+            const playerScores = Array.from({ length: totalHolesInCourse }, (_, idx) => {
+              const score = player.scores?.[idx] || {};
+              const holePar = game.course?.holes?.[idx]?.par ?? null;
+              return {
+                gross: score?.gross ?? null,
+                fir: score?.fir ?? null,
+                gir: score?.gir ?? null,
+                putts: score?.putts ?? null,
+                par: holePar,
+              };
+            });
+
+            const playedScores = playerScores.filter(
               (score) => score.gross !== null && score.gross !== undefined
-            ).length;
+            );
 
-            if (holesPlayed === 0) return null;
+            if (playedScores.length === 0) return null;
 
-            const totalPutts = playerScores.reduce(
+            const statsTracked = player.trackStats ?? game.trackStats ?? false;
+
+            const totalPuttsRaw = playedScores.reduce(
               (sum, score) => sum + (score.putts || 0),
               0
             );
-            const firCount = playerScores.filter(
-              (score) => score.fir === true
-            ).length;
-            const girCount = playerScores.filter(
+            const firEligibleScores = playerScores.filter(
+              (score) =>
+                score.gross !== null &&
+                score.gross !== undefined &&
+                score.par !== 3
+            );
+            const firEligibleCount = firEligibleScores.length;
+            const firCountRaw = statsTracked
+              ? firEligibleScores.filter((score) => score.fir === true).length
+              : 0;
+            const firOpportunities = statsTracked ? firEligibleCount : 0;
+            const girCountRaw = playedScores.filter(
               (score) => score.gir === true
             ).length;
 
-            const avgPutts = holesPlayed > 0 ? totalPutts / holesPlayed : 0;
-            const firPercentage =
-              holesPlayed > 0 ? (firCount / holesPlayed) * 100 : 0;
-            const girPercentage =
-              holesPlayed > 0 ? (girCount / holesPlayed) * 100 : 0;
+            const avgPutts = playedScores.length
+              ? totalPuttsRaw / playedScores.length
+              : 0;
+            const firPercentage = firOpportunities
+              ? (firCountRaw / firOpportunities) * 100
+              : 0;
+            const girPercentage = playedScores.length
+              ? (girCountRaw / playedScores.length) * 100
+              : 0;
 
             return {
               gameId: game.id,
@@ -117,38 +239,45 @@ export default function MyStats() {
                 ? new Date(game.createdAt.seconds * 1000).toLocaleDateString()
                 : "Unknown",
               dateTimestamp: game.createdAt?.seconds || 0,
-              holesPlayed,
-              totalPutts,
-              avgPutts: avgPutts.toFixed(2),
-              firCount,
-              firPercentage: firPercentage.toFixed(1),
-              girCount,
-              girPercentage: girPercentage.toFixed(1),
+              holesPlayed: playedScores.length,
+              totalPutts: statsTracked ? totalPuttsRaw : 0,
+              avgPutts: statsTracked ? avgPutts.toFixed(2) : "0.00",
+              firCount: statsTracked ? firCountRaw : 0,
+              firOpportunities: statsTracked ? firOpportunities : 0,
+              firPercentage: statsTracked ? firPercentage.toFixed(1) : "0.0",
+              girCount: statsTracked ? girCountRaw : 0,
+              girPercentage: statsTracked ? girPercentage.toFixed(1) : "0.0",
               scores: playerScores,
               course: game.course,
-              startIndex,
-              endIndex,
+              hasStats: statsTracked,
             };
           })
           .filter(Boolean);
 
-        setRounds(userRounds);
+        const trackedRounds = allUserRounds.filter((round) => round.hasStats);
+
+        setCourseRounds(allUserRounds);
+        setRounds(trackedRounds);
 
         // Calculate overall stats
-        const totalRounds = userRounds.length;
-        const totalHoles = userRounds.reduce(
+        const totalRounds = trackedRounds.length;
+        const totalHoles = trackedRounds.reduce(
           (sum, round) => sum + round.holesPlayed,
           0
         );
-        const totalPutts = userRounds.reduce(
+        const totalPutts = trackedRounds.reduce(
           (sum, round) => sum + round.totalPutts,
           0
         );
-        const totalFIR = userRounds.reduce(
+        const totalFIR = trackedRounds.reduce(
           (sum, round) => sum + round.firCount,
           0
         );
-        const totalGIR = userRounds.reduce(
+        const totalFirOpportunities = trackedRounds.reduce(
+          (sum, round) => sum + (round.firOpportunities || 0),
+          0
+        );
+        const totalGIR = trackedRounds.reduce(
           (sum, round) => sum + round.girCount,
           0
         );
@@ -156,7 +285,9 @@ export default function MyStats() {
         const avgPuttsPerHole =
           totalHoles > 0 ? (totalPutts / totalHoles).toFixed(2) : 0;
         const firPercentage =
-          totalHoles > 0 ? ((totalFIR / totalHoles) * 100).toFixed(1) : 0;
+          totalFirOpportunities > 0
+            ? ((totalFIR / totalFirOpportunities) * 100).toFixed(1)
+            : 0;
         const girPercentage =
           totalHoles > 0 ? ((totalGIR / totalHoles) * 100).toFixed(1) : 0;
 
@@ -166,6 +297,7 @@ export default function MyStats() {
           totalPutts,
           totalFIR,
           totalGIR,
+          totalFirOpportunities,
           avgPuttsPerHole,
           firPercentage,
           girPercentage,
@@ -178,52 +310,64 @@ export default function MyStats() {
     };
 
     fetchStats();
-  }, [user?.uid]);
+  }, [statsUserId]);
 
   // Calculate course-specific stats when course is selected
   useEffect(() => {
-    if (viewType === "course" && selectedCourseId && rounds.length > 0) {
-      const courseRounds = rounds.filter(
+    if (viewType === "course" && selectedCourseId && courseRounds.length > 0) {
+      const selectedRounds = courseRounds.filter(
         (round) => round.courseId === selectedCourseId
       );
 
-      if (courseRounds.length === 0) {
+      if (selectedRounds.length === 0) {
         setCourseStats(null);
         setHoleStats([]);
         return;
       }
 
       // Calculate course overall stats
-      const totalRounds = courseRounds.length;
-      const totalHoles = courseRounds.reduce(
+      const totalRounds = selectedRounds.length;
+      const totalHoles = selectedRounds.reduce(
         (sum, round) => sum + round.holesPlayed,
         0
       );
-      const totalPutts = courseRounds.reduce(
+      const statsEnabledRounds = selectedRounds.filter((round) => round.hasStats);
+      const statsHoles = statsEnabledRounds.reduce(
+        (sum, round) => sum + round.holesPlayed,
+        0
+      );
+      const totalPutts = statsEnabledRounds.reduce(
         (sum, round) => sum + round.totalPutts,
         0
       );
-      const totalFIR = courseRounds.reduce(
+      const totalFIR = statsEnabledRounds.reduce(
         (sum, round) => sum + round.firCount,
         0
       );
-      const totalGIR = courseRounds.reduce(
+      const totalFirOpportunities = statsEnabledRounds.reduce(
+        (sum, round) => sum + (round.firOpportunities || 0),
+        0
+      );
+      const totalGIR = statsEnabledRounds.reduce(
         (sum, round) => sum + round.girCount,
         0
       );
 
       const avgPuttsPerHole =
-        totalHoles > 0 ? (totalPutts / totalHoles).toFixed(2) : 0;
+        statsHoles > 0 ? (totalPutts / statsHoles).toFixed(2) : "0.00";
       const firPercentage =
-        totalHoles > 0 ? ((totalFIR / totalHoles) * 100).toFixed(1) : 0;
+        totalFirOpportunities > 0
+          ? ((totalFIR / totalFirOpportunities) * 100).toFixed(1)
+          : "0.0";
       const girPercentage =
-        totalHoles > 0 ? ((totalGIR / totalHoles) * 100).toFixed(1) : 0;
+        statsHoles > 0 ? ((totalGIR / statsHoles) * 100).toFixed(1) : "0.0";
 
       setCourseStats({
         totalRounds,
         totalHoles,
         totalPutts,
         totalFIR,
+        totalFirOpportunities,
         totalGIR,
         avgPuttsPerHole,
         firPercentage,
@@ -243,7 +387,7 @@ export default function MyStats() {
 
         // Collect all scores for this hole across all rounds
         const holeScores = [];
-        courseRounds.forEach((round) => {
+        selectedRounds.forEach((round) => {
           // Check if this hole was played in this round
           if (
             round.scores &&
@@ -257,6 +401,7 @@ export default function MyStats() {
               date: round.date,
               dateTimestamp: round.dateTimestamp,
               score: round.scores[holeIndex],
+              hasStats: round.hasStats,
             });
           }
         });
@@ -280,17 +425,30 @@ export default function MyStats() {
           (sum, h) => sum + (h.score.gross || 0),
           0
         );
-        const totalPutts = holeScores.reduce(
+        const statsScores = holeScores.filter((h) => h.hasStats);
+        const statsCount = statsScores.length;
+        const totalPutts = statsScores.reduce(
           (sum, h) => sum + (h.score.putts || 0),
           0
         );
-        const firCount = holeScores.filter((h) => h.score.fir === true).length;
-        const girCount = holeScores.filter((h) => h.score.gir === true).length;
+        const isPar3 = hole.par === 3;
+        const firEligibleScores = isPar3 ? [] : statsScores;
+        const firAttempts = firEligibleScores.length;
+        const firCount = isPar3
+          ? 0
+          : firEligibleScores.filter((h) => h.score.fir === true).length;
+        const girCount = statsScores.filter((h) => h.score.gir === true).length;
 
         const avgScore = (totalScore / holeScores.length).toFixed(2);
-        const avgPutts = (totalPutts / holeScores.length).toFixed(2);
-        const firPercentage = ((firCount / holeScores.length) * 100).toFixed(1);
-        const girPercentage = ((girCount / holeScores.length) * 100).toFixed(1);
+        const avgPutts =
+          statsCount > 0 ? (totalPutts / statsCount).toFixed(2) : "0.00";
+        const firPercentage = isPar3
+          ? "-"
+          : firAttempts > 0
+          ? ((firCount / firAttempts) * 100).toFixed(1)
+          : "0.0";
+        const girPercentage =
+          statsCount > 0 ? ((girCount / statsCount) * 100).toFixed(1) : "0.0";
 
         // Sort history by date (most recent first)
         const sortedHistory = [...holeScores].sort(
@@ -315,15 +473,15 @@ export default function MyStats() {
       setCourseStats(null);
       setHoleStats([]);
     }
-  }, [viewType, selectedCourseId, rounds]);
+  }, [viewType, selectedCourseId, courseRounds]);
 
   // Get unique courses from rounds
   const availableCourses = Array.from(
-    new Set(rounds.map((round) => round.courseId).filter(Boolean))
+    new Set(courseRounds.map((round) => round.courseId).filter(Boolean))
   )
     .map((courseId) => {
       const course = courses.find((c) => c.id === courseId);
-      const round = rounds.find((r) => r.courseId === courseId);
+      const round = courseRounds.find((r) => r.courseId === courseId);
       return {
         id: courseId,
         name: course?.name || round?.courseName || "Unknown Course",
@@ -356,15 +514,15 @@ export default function MyStats() {
       <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6">
         <div className="max-w-4xl mx-auto">
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate(statsOriginPath)}
             className="mb-6 sm:mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl text-sm sm:text-base"
           >
-            ← Back to Dashboard
+            ← Back to {statsOriginLabel}
           </button>
 
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 sm:p-8">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
-              My Stats
+              {statsTitle}
             </h1>
 
             {overallStats.totalRounds === 0 ? (
@@ -373,7 +531,7 @@ export default function MyStats() {
                   No stats available yet
                 </p>
                 <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  Complete rounds with stats tracking enabled to see your statistics here.
+                  Complete rounds with stats tracking enabled to see {statsPronoun} statistics here.
                 </p>
               </div>
             ) : (
@@ -385,7 +543,7 @@ export default function MyStats() {
                   <div className="text-4xl mb-4">📊</div>
                   <h2 className="text-2xl font-bold mb-2">View All Time Stats</h2>
                   <p className="text-green-100 text-sm">
-                    See your overall statistics across all courses
+                    See {statsPronoun} overall statistics across all courses
                   </p>
                 </button>
 
@@ -421,10 +579,10 @@ export default function MyStats() {
             ← Back to Options
           </button>
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate(statsOriginPath)}
             className="px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl text-sm sm:text-base"
           >
-            Dashboard
+            {statsOriginLabel}
           </button>
         </div>
 
@@ -432,6 +590,9 @@ export default function MyStats() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">
             {viewType === "all-time" ? "All Time Stats" : "Course Stats"}
           </h1>
+          <p className="text-center text-sm text-gray-600 dark:text-gray-300 mb-6">
+            Viewing {statsOwnerPossessive} data
+          </p>
 
           {viewType === "course" && (
             <div className="mb-6">
@@ -454,7 +615,7 @@ export default function MyStats() {
                   No stats available yet
                 </p>
                 <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  Complete rounds with stats tracking enabled to see your statistics here.
+                  Complete rounds with stats tracking enabled to see {statsPronoun} statistics here.
                 </p>
               </div>
             ) : (
@@ -489,7 +650,7 @@ export default function MyStats() {
                         FIR%
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        ({overallStats.totalFIR}/{overallStats.totalHoles})
+                        ({overallStats.totalFIR}/{overallStats.totalFirOpportunities || 0})
                       </div>
                     </div>
                     <div className="text-center">
@@ -540,7 +701,7 @@ export default function MyStats() {
                               {round.firPercentage}%
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-500">
-                              ({round.firCount}/{round.holesPlayed})
+                              ({round.firCount}/{round.firOpportunities || 0})
                             </div>
                           </div>
                           <div>
@@ -614,7 +775,7 @@ export default function MyStats() {
                         FIR%
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        ({courseStats.totalFIR}/{courseStats.totalHoles})
+                        ({courseStats.totalFIR}/{courseStats.totalFirOpportunities || 0})
                       </div>
                     </div>
                     <div className="text-center">
@@ -647,9 +808,6 @@ export default function MyStats() {
                             Par
                           </th>
                           <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Times Played
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
                             Avg Score
                           </th>
                           <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -678,9 +836,6 @@ export default function MyStats() {
                             <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
                               {hole.par}
                             </td>
-                            <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
-                              {hole.timesPlayed}
-                            </td>
                             <td className="py-3 px-4 text-center text-gray-900 dark:text-white font-semibold">
                               {hole.timesPlayed > 0 ? hole.avgScore : "-"}
                             </td>
@@ -688,7 +843,11 @@ export default function MyStats() {
                               {hole.timesPlayed > 0 ? hole.avgPutts : "-"}
                             </td>
                             <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
-                              {hole.timesPlayed > 0 ? `${hole.firPercentage}%` : "-"}
+                              {hole.par === 3
+                                ? "-"
+                                : hole.timesPlayed > 0
+                                ? `${hole.firPercentage}%`
+                                : "-"}
                             </td>
                             <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
                               {hole.timesPlayed > 0 ? `${hole.girPercentage}%` : "-"}
@@ -746,7 +905,7 @@ export default function MyStats() {
                 </button>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Par {selectedHole.par} • {selectedHole.timesPlayed} rounds played
+                Par {selectedHole.par} • {selectedHole.history?.length || 0} entries
               </p>
             </div>
             <div className="flex-1 overflow-y-auto p-6">

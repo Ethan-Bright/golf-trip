@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 import StrokeplayScorecardModal from "./StrokeplayScorecardModal";
+import { fetchTeamsForTournament } from "../utils/teamService";
 
 export default function StrokeplayLeaderboard({ game }) {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -32,12 +33,6 @@ export default function StrokeplayLeaderboard({ game }) {
       return { diff: 0, label: "Waiting for opponent" };
     }
 
-    const formatDiff = (value) => {
-      if (value > 0) return `+${value}`;
-      if (value < 0) return `${value}`;
-      return "0";
-    };
-
     if (diff === 0) {
       return { diff: 0, label: "Even" };
     }
@@ -59,11 +54,7 @@ export default function StrokeplayLeaderboard({ game }) {
         ...doc.data(),
       }));
 
-      const teamsSnap = await getDocs(collection(db, "teams"));
-      const teams = teamsSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const teams = await fetchTeamsForTournament(game?.tournamentId);
 
       const gamePlayersMap = {};
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));

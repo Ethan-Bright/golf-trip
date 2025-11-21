@@ -1,17 +1,19 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  collection,
-  getDocs,
   doc,
   updateDoc,
-  query,
-  where,
   serverTimestamp,
   getDoc,
+  arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
-import { Modal, useModal } from "../components/Modal";
+import Modal from "../components/Modal";
+import useModal from "../hooks/useModal";
+import useInProgressGames from "../hooks/useInProgressGames";
+import InProgressGamesList from "../components/scoreEntry/InProgressGamesList";
+import ScorecardGrid from "../components/scoreEntry/ScorecardGrid";
 import { useTournament } from "../context/TournamentContext";
 import {
   getMatchFormatLabel,
@@ -20,7 +22,7 @@ import {
 
 export default function EnterScore({ userId, user }) {
   const navigate = useNavigate();
-  const { modal, showModal, hideModal, showSuccess, showError } = useModal();
+  const { modal, hideModal, showSuccess, showError, showChoice } = useModal();
   const { currentTournament } = useTournament();
   const [matchFormat, setMatchFormat] = useState(""); // start with placeholder
   const [selectedCourse, setSelectedCourse] = useState(null);
@@ -28,17 +30,51 @@ export default function EnterScore({ userId, user }) {
   const [gameId, setGameId] = useState(null);
   const [gamePlayers, setGamePlayers] = useState([]);
   const [scores, setScores] = useState([]);
-  const [inProgressGames, setInProgressGames] = useState([]);
   const [points, setPoints] = useState(0);
   const [holeCount, setHoleCount] = useState(""); // start empty for "Select Number of Holes"
   const [nineType, setNineType] = useState(""); // start empty for "Select 9 Holes"
-  const [isLoadingGames, setIsLoadingGames] = useState(true);
-  const [resumedGame, setResumedGame] = useState(false);
   const [showFormatHelp, setShowFormatHelp] = useState(false);
   const [trackStats, setTrackStats] = useState(false);
+  const [trackStatsLocked, setTrackStatsLocked] = useState(false);
   const [wolfOrder, setWolfOrder] = useState(null); // array of userIds length 3
   const [wolfDecisions, setWolfDecisions] = useState([]); // per-hole: 'lone' | partnerUserId | null
   const [wolfHoles, setWolfHoles] = useState(null); // per-hole: { wolfId, decision } | null
+
+  const sanitizeWolfDecisions = useCallback(
+    (decisions, length) => {
+      const allowedUserIds = new Set((gamePlayers || []).map((p) => p.userId));
+      const out = Array.from({ length }, () => null);
+      if (Array.isArray(decisions)) {
+        for (let i = 0; i < Math.min(decisions.length, length); i++) {
+          const v = decisions[i];
+          if (v === "lone" || v === "blind") {
+            out[i] = v;
+          } else if (typeof v === "string" && allowedUserIds.has(v)) {
+            out[i] = v;
+          } else {
+            out[i] = null;
+          }
+        }
+      }
+      return out;
+    },
+    [gamePlayers]
+  );
+
+  const deriveTrackStatsPreference = useCallback(
+    (player, gameData) => player?.trackStats ?? gameData?.trackStats ?? false,
+    []
+  );
+
+  const deriveTrackStatsLockState = useCallback(
+    (player, gameData) =>
+      player?.trackStatsLocked ??
+      player?.trackStats ??
+      gameData?.trackStatsLocked ??
+      gameData?.trackStats ??
+      false,
+    []
+  );
 
   const isGameIncompleteForUser = useCallback(
     (game) => {
@@ -86,50 +122,6 @@ export default function EnterScore({ userId, user }) {
   }, []);
 
   // --- Check for incomplete games and fetch games in progress ---
-  useEffect(() => {
-    const fetchGames = async () => {
-      setIsLoadingGames(true);
-      if (!currentTournament) {
-        setIsLoadingGames(false);
-        return;
-      }
-      
-      const q = query(
-        collection(db, "games"),
-        where("status", "==", "inProgress"),
-        where("tournamentId", "==", currentTournament)
-      );
-      const snapshot = await getDocs(q);
-      const games = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-
-      const sortedGames = [...games].sort((a, b) => {
-        const aIncomplete = isGameIncompleteForUser(a);
-        const bIncomplete = isGameIncompleteForUser(b);
-
-        if (aIncomplete !== bIncomplete) {
-          return aIncomplete ? -1 : 1;
-        }
-
-        const aUpdated = a.updatedAt?.seconds || 0;
-        const bUpdated = b.updatedAt?.seconds || 0;
-        return bUpdated - aUpdated;
-      });
-
-      setInProgressGames(sortedGames);
-      
-      // Check if user has any incomplete games
-      const userIncompleteGame = sortedGames.find(isGameIncompleteForUser);
-      
-      // If user has incomplete game, automatically load it
-      if (userIncompleteGame && !gameId) {
-        setResumedGame(true);
-        await joinGame(userIncompleteGame);
-      }
-      setIsLoadingGames(false);
-    };
-    fetchGames();
-  }, [gameId, userId, currentTournament, isGameIncompleteForUser]);
-
   // --- Fetch scores for current game ---
   useEffect(() => {
     const fetchScores = async () => {
@@ -155,7 +147,8 @@ export default function EnterScore({ userId, user }) {
           setNineType(
             totalHoles === 9 && gameData.nineType ? gameData.nineType : "front"
           );
-          setTrackStats(gameData.trackStats || false);
+          setTrackStats(deriveTrackStatsPreference(player, gameData));
+          setTrackStatsLocked(deriveTrackStatsLockState(player, gameData));
           setWolfOrder(gameData.wolfOrder || null);
           setWolfHoles(
             gameData.wolfHoles && Array.isArray(gameData.wolfHoles)
@@ -200,10 +193,10 @@ export default function EnterScore({ userId, user }) {
       }
     };
     fetchScores();
-  }, [gameId, userId]);
+  }, [gameId, userId, deriveTrackStatsPreference, deriveTrackStatsLockState]);
 
   // --- Join existing game ---
-  const joinGame = async (game) => {
+  const joinGame = useCallback(async (game) => {
     const initialScores = game.course.holes.map(() => ({
       gross: null,
       net: null,
@@ -225,7 +218,6 @@ export default function EnterScore({ userId, user }) {
         setHoleCount(gameData.holeCount || 18);
         setNineType(gameData.nineType || "front");
         setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
-        setTrackStats(gameData.trackStats || false);
         setGamePlayers(gameData.players || []);
         setWolfOrder(gameData.wolfOrder || null);
         setWolfHoles(
@@ -259,15 +251,20 @@ export default function EnterScore({ userId, user }) {
             0
           );
           setPoints(totalPoints);
+          setTrackStats(deriveTrackStatsPreference(existingPlayer, gameData));
+          setTrackStatsLocked(deriveTrackStatsLockState(existingPlayer, gameData));
         } else {
+          const newPlayer = {
+            userId,
+            name: user?.displayName || "Unknown Player",
+            handicap: user?.handicap || 0,
+            scores: initialScores,
+            trackStats: false,
+            trackStatsLocked: false,
+          };
           const updatedPlayers = [
             ...gameData.players,
-            {
-              userId,
-              name: user?.displayName || "Unknown Player",
-              handicap: user?.handicap || 0,
-              scores: initialScores,
-            },
+            newPlayer,
           ];
 
           // When a new player joins, ensure game is inProgress (new player has no scores yet)
@@ -275,6 +272,7 @@ export default function EnterScore({ userId, user }) {
             players: updatedPlayers,
             status: "inProgress",
             updatedAt: serverTimestamp(),
+            playerIds: arrayUnion(userId),
           });
           setGameId(game.id);
           setSelectedCourse(game.course);
@@ -282,7 +280,9 @@ export default function EnterScore({ userId, user }) {
           setScores(initialScores);
           setPoints(0);
           setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
-          setTrackStats(gameData.trackStats || false);
+          setGamePlayers(updatedPlayers);
+          setTrackStats(false);
+          setTrackStatsLocked(false);
         }
 
         // If wolf format and exactly 3 players but no wolfOrder, set it
@@ -309,7 +309,27 @@ export default function EnterScore({ userId, user }) {
       console.error("Error joining game:", error);
       showError("Failed to join game", "Error");
     }
-  };
+  }, [
+    deriveTrackStatsPreference,
+    deriveTrackStatsLockState,
+    sanitizeWolfDecisions,
+    showError,
+    user?.displayName,
+    user?.handicap,
+    userId,
+  ]);
+
+  const {
+    inProgressGames,
+    isLoadingGames,
+    resumedGame,
+  } = useInProgressGames({
+    userId,
+    currentTournament,
+    gameId,
+    isGameIncompleteForUser,
+    onAutoResume: joinGame,
+  });
 
   // --- Wolf helpers ---
   const normalizedFormat = normalizeMatchFormat(matchFormat);
@@ -346,28 +366,6 @@ export default function EnterScore({ userId, user }) {
     }
     return getGrossFor(player, absHoleIndex);
   };
-
-  // Ensure wolfDecisions array is full length and contains only allowed values (no undefined)
-  const sanitizeWolfDecisions = useCallback(
-    (decisions, length) => {
-      const allowedUserIds = new Set((gamePlayers || []).map((p) => p.userId));
-      const out = Array.from({ length }, () => null);
-      if (Array.isArray(decisions)) {
-        for (let i = 0; i < Math.min(decisions.length, length); i++) {
-          const v = decisions[i];
-          if (v === "lone" || v === "blind") {
-            out[i] = v;
-          } else if (typeof v === "string" && allowedUserIds.has(v)) {
-            out[i] = v;
-          } else {
-            out[i] = null;
-          }
-        }
-      }
-      return out;
-    },
-    [gamePlayers]
-  );
 
   const handleWolfDecisionChange = async (absHoleIndex, decision) => {
     // decision: 'lone', 'blind', or partnerUserId
@@ -475,7 +473,7 @@ export default function EnterScore({ userId, user }) {
         }
 
         if (decision === "blind") {
-          // Blind Lone Wolf: 6 points if win, 1 point if tie, each opponent gets 2 if lose
+          // Blind Lone Wolf: 6 points if win, 2 points if tie, each opponent gets 2 if lose
           const teamBest = Math.min(aScore, bScore);
           if (wolfScore < teamBest) {
             if (uid === wolfId) total += 6;
@@ -483,8 +481,8 @@ export default function EnterScore({ userId, user }) {
             // each opponent gets 2 points (higher penalty for Blind Lone Wolf loss)
             if (uid === pA.userId || uid === pB.userId) total += 2;
           } else {
-            // Tie: Wolf gets 1 point (same as regular Lone Wolf)
-            if (uid === wolfId) total += 1;
+            // Tie: Wolf gets 2 points
+            if (uid === wolfId) total += 2;
           }
         } else if (decision === "lone") {
           const teamBest = Math.min(aScore, bScore);
@@ -519,12 +517,20 @@ export default function EnterScore({ userId, user }) {
   );
 
   // --- Handle score changes ---
-  const handleChange = (holeIndex, value) => {
+  const handleScoreChange = (holeIndex, value) => {
     const updated = [...scores];
-    const gross = value === "" ? null : Number(value);
-    updated[holeIndex].gross = gross;
+    const numericValue =
+      value === "" || value === null || Number.isNaN(Number(value))
+        ? null
+        : Number(value);
+    updated[holeIndex].gross = numericValue;
 
-    if (!isWolfFormat && selectedCourse && user?.handicap != null && gross != null) {
+    if (
+      !isWolfFormat &&
+      selectedCourse &&
+      user?.handicap != null &&
+      numericValue != null
+    ) {
       const handicap = user.handicap;
       const baseStroke = Math.floor(handicap / 18);
       const extraStrokes = handicap % 18;
@@ -533,7 +539,7 @@ export default function EnterScore({ userId, user }) {
       const holeStroke =
         baseStroke + (hole.strokeIndex <= extraStrokes ? 1 : 0);
 
-      const netScore = Math.max(0, gross - holeStroke);
+      const netScore = Math.max(0, numericValue - holeStroke);
       const points = Math.max(0, hole.par + 2 - netScore);
 
       updated[holeIndex].netScore = netScore;
@@ -548,17 +554,70 @@ export default function EnterScore({ userId, user }) {
     setScores(updated);
   };
 
-  const handleInputChange = (e, idx) => handleChange(idx, e.target.value);
-
   // --- Handle stats changes ---
   const handleStatsChange = (holeIndex, statType, value) => {
     const updated = [...scores];
-    if (statType === 'fir' || statType === 'gir') {
-      updated[holeIndex][statType] = value;
-    } else if (statType === 'putts') {
-      updated[holeIndex].putts = value === "" ? null : Number(value);
+    if (statType === "fir" || statType === "gir") {
+      updated[holeIndex][statType] = Boolean(value);
+    } else if (statType === "putts") {
+      if (value === "" || value === null || Number.isNaN(Number(value))) {
+        updated[holeIndex].putts = null;
+      } else {
+        updated[holeIndex].putts = Number(value);
+      }
     }
     setScores(updated);
+  };
+
+  const handleTrackStatsToggle = async (value) => {
+    if (value === trackStats) return;
+
+    if (value) {
+      if (trackStatsLocked) return;
+      const confirmed = await showChoice(
+        "Once you enable Track My Stats for this game you won't be able to disable it for the rest of the round. Enable and lock it now?",
+        "Lock Track My Stats?",
+        "Enable & Lock",
+        "Cancel"
+      );
+      if (!confirmed) {
+        return;
+      }
+    } else if (trackStatsLocked) {
+      return;
+    }
+
+    const nextLocked = trackStatsLocked || value;
+    const previousState = { trackStats, trackStatsLocked };
+
+    setTrackStats(value);
+    setTrackStatsLocked(nextLocked);
+
+    if (!gameId || !userId) return;
+
+    try {
+      const gameRef = doc(db, "games", gameId);
+      const gameSnap = await getDoc(gameRef);
+      if (!gameSnap.exists()) {
+        throw new Error("Game not found");
+      }
+      const gameData = gameSnap.data();
+      const updatedPlayers = (gameData.players || []).map((p) =>
+        p.userId === userId
+          ? { ...p, trackStats: value, trackStatsLocked: nextLocked }
+          : p
+      );
+      await updateDoc(gameRef, {
+        players: updatedPlayers,
+        updatedAt: serverTimestamp(),
+      });
+      setGamePlayers(updatedPlayers);
+    } catch (error) {
+      console.error("Failed to update track stats preference:", error);
+      setTrackStats(previousState.trackStats);
+      setTrackStatsLocked(previousState.trackStatsLocked);
+      showError("Failed to update track stats preference", "Error");
+    }
   };
 
   // --- Leave current game ---
@@ -576,6 +635,7 @@ export default function EnterScore({ userId, user }) {
         await updateDoc(gameRef, {
           players: updatedPlayers,
           updatedAt: serverTimestamp(),
+          playerIds: arrayRemove(userId),
         });
         
         // Reset all state
@@ -587,7 +647,8 @@ export default function EnterScore({ userId, user }) {
         setNineType("");
         setScores([]);
         setPoints(0);
-        setResumedGame(false);
+        setTrackStats(false);
+        setTrackStatsLocked(false);
         
         showSuccess("Left game successfully!", "Success");
       }
@@ -648,7 +709,6 @@ export default function EnterScore({ userId, user }) {
   const displayedHoles =
     selectedCourse?.holes.slice(startIndex, endIndex) || [];
   const displayedScores = scores.slice(startIndex, endIndex);
-  const holeInputs = displayedScores.map((s) => s.gross ?? "");
 
   return (
     <div className="min-h-screen bg-gray-900 p-4 sm:p-6">
@@ -721,50 +781,11 @@ export default function EnterScore({ userId, user }) {
               <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white text-center">
                 Games In Progress
               </h2>
-              {inProgressGames.length === 0 ? (
-                <div className="p-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl text-center text-gray-700 dark:text-gray-300">
-                  No games are currently in progress. Create a new game to get started.
-                </div>
-              ) : (
-                <div className="max-h-64 sm:max-h-72 overflow-y-auto space-y-2">
-                  {inProgressGames.map((game) => {
-                    const incompleteForUser = isGameIncompleteForUser(game);
-                    return (
-                      <div
-                        key={game.id}
-                        className="flex flex-col sm:flex-row justify-between items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600"
-                      >
-                        <div className="flex flex-col text-center sm:text-left">
-                          <span className="text-gray-900 dark:text-white font-medium">
-                            {game.name || "Untitled Game"}
-                          </span>
-                          {game.course?.name && (
-                            <span className="text-sm text-gray-600 dark:text-gray-300">
-                              Course: {game.course.name}
-                            </span>
-                          )}
-                          {game.matchFormat && (
-                            <span className="text-sm text-gray-600 dark:text-gray-300">
-                              Format: {getMatchFormatLabel(game.matchFormat)}
-                            </span>
-                          )}
-                          {incompleteForUser && (
-                            <span className="mt-1 text-xs font-semibold text-yellow-700 dark:text-yellow-300">
-                              Incomplete for you
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => joinGame(game)}
-                          className="w-full sm:w-auto px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                        >
-                          {incompleteForUser ? "Resume" : "Join"}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <InProgressGamesList
+                games={inProgressGames}
+                onJoinGame={joinGame}
+                isGameIncompleteForUser={isGameIncompleteForUser}
+              />
             </div>
           )}
 
@@ -773,6 +794,38 @@ export default function EnterScore({ userId, user }) {
               <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 text-center">
                 Enter Scores
               </h3>
+              <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={trackStats}
+                    onChange={(e) => handleTrackStatsToggle(e.target.checked)}
+                    disabled={trackStatsLocked}
+                    className="w-5 h-5 text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 border-blue-400 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+                  <span className="text-gray-900 dark:text-white font-semibold">
+                    Track my stats this round
+                  </span>
+                  {trackStatsLocked && (
+                    <span className="text-xs font-semibold text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                      Locked
+                    </span>
+                  )}
+                </label>
+                <p className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                  <span className="block">
+                    When enabled, you'll enter FIR, GIR, and putts just for your scorecard.
+                  </span>
+                  <span className="block text-gray-900 dark:text-white font-medium">
+                    Once you turn this on for a game it stays on for the round.
+                  </span>
+                  {trackStatsLocked && (
+                    <span className="block text-green-700 dark:text-green-400 font-semibold">
+                      Tracking locked for this round.
+                    </span>
+                  )}
+                </p>
+              </div>
               <div className="text-center text-green-600 mb-4 sm:mb-6">
                 Game:{" "}
                 <span className="font-semibold">
@@ -796,270 +849,25 @@ export default function EnterScore({ userId, user }) {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {holeInputs.map((v, idx) => (
-                  <div
-                    key={idx}
-                    className={`flex flex-col items-center bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-600 p-3 sm:p-4 w-full ${trackStats ? 'min-h-[280px]' : 'min-h-[160px]'}`}
-                  >
-                    <div className="text-center mb-2 sm:mb-3">
-                      <div className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
-                        Hole {startIndex + idx + 1}
-                      </div>
-
-                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-                        Par {displayedHoles[idx].par} • S.I.{" "}
-                        {displayedHoles[idx].strokeIndex}
-                      </div>
-                      {isWolfFormat && wolfOrder && wolfOrder.length === 3 && (
-                        <div className="mt-1 text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-medium">
-                          Wolf: {getPlayerById(getWolfForHole(startIndex + idx))?.name || "-"}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const currentValue = parseInt(v) || 0;
-                          if (currentValue > 1)
-                            handleInputChange(
-                              {
-                                target: {
-                                  value: (currentValue - 1).toString(),
-                                },
-                              },
-                              idx + startIndex
-                            );
-                        }}
-                        className="w-10 h-10 sm:w-8 sm:h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-xl sm:text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                      >
-                        −
-                      </button>
-
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        value={v}
-                        onChange={(e) => handleInputChange(e, idx + startIndex)}
-                        className="w-20 h-10 sm:w-16 sm:h-8 text-center border-2 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 font-bold text-lg sm:text-base rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        placeholder="-"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const currentValue = parseInt(v) || 0;
-                          if (currentValue < 15)
-                            handleInputChange(
-                              {
-                                target: {
-                                  value: (currentValue + 1).toString(),
-                                },
-                              },
-                              idx + startIndex
-                            );
-                        }}
-                        className="w-10 h-10 sm:w-8 sm:h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-xl sm:text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                      >
-                        +
-                      </button>
-                    </div>
-
-                    {!isWolfFormat && (
-                      <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 text-center leading-tight">
-                        <div>With Handicap: {displayedScores[idx].netScore ?? "-"}</div>
-                        <div>Points: {displayedScores[idx].net ?? "-"}</div>
-                      </div>
-                    )}
-
-                    {/* Wolf decision controls */}
-                    {isWolfFormat && wolfOrder && wolfOrder.length === 3 && (gamePlayers || []).length === 3 && (
-                      <div className="mt-2 w-full">
-                        {getWolfForHole(startIndex + idx) === userId ? (
-                          <div className="space-y-2">
-                            {(() => {
-                              const others = getNonWolfPlayers(userId);
-                              const absIndex = startIndex + idx;
-                              // Check wolfHoles first (preferred), then fallback to wolfDecisions
-                              const holeInfo = wolfHoles?.[absIndex];
-                              const current = holeInfo && "decision" in holeInfo
-                                ? holeInfo.decision
-                                : wolfDecisions?.[absIndex] ?? null;
-                              // Check if all 3 players have scores for this hole
-                              const wolfPlayer = getPlayerById(userId);
-                              const wolfGross = wolfPlayer?.scores?.[absIndex]?.gross ?? null;
-                              const aGross = getGrossFor(others[0], absIndex);
-                              const bGross = getGrossFor(others[1], absIndex);
-                              const allScoresEntered = wolfGross != null && aGross != null && bGross != null;
-                              const isLocked = allScoresEntered;
-                              // Blind Lone Wolf can only be chosen when NO scores are entered (truly blind)
-                              const anyScoreEntered = wolfGross != null || aGross != null || bGross != null;
-                              const canChooseBlind = !anyScoreEntered;
-                              return (
-                                <>
-                                  <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1 text-center">
-                                    Choose before you tee off
-                                  </div>
-                                  <label className={`flex items-center gap-2 text-sm ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
-                                    <input
-                                      type="radio"
-                                      name={`wolf-${absIndex}`}
-                                      checked={current === (others[0]?.userId || "")}
-                                      onChange={() => !isLocked && handleWolfDecisionChange(absIndex, others[0]?.userId || null)}
-                                      disabled={isLocked}
-                                      className="w-4 h-4 text-purple-600"
-                                      title={isLocked ? "Decision locked - all scores entered" : "Team with " + (others[0]?.name || "Player A")}
-                                    />
-                                    <span className="text-gray-700 dark:text-gray-200">
-                                      Team with {others[0]?.name || "Player A"} (2v1)
-                                    </span>
-                                  </label>
-                                  <label className={`flex items-center gap-2 text-sm ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
-                                    <input
-                                      type="radio"
-                                      name={`wolf-${absIndex}`}
-                                      checked={current === (others[1]?.userId || "")}
-                                      onChange={() => !isLocked && handleWolfDecisionChange(absIndex, others[1]?.userId || null)}
-                                      disabled={isLocked}
-                                      className="w-4 h-4 text-purple-600"
-                                      title={isLocked ? "Decision locked - all scores entered" : "Team with " + (others[1]?.name || "Player B")}
-                                    />
-                                    <span className="text-gray-700 dark:text-gray-200">
-                                      Team with {others[1]?.name || "Player B"} (2v1)
-                                    </span>
-                                  </label>
-                                  <label className={`flex items-center gap-2 text-sm ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
-                                    <input
-                                      type="radio"
-                                      name={`wolf-${absIndex}`}
-                                      checked={current === "lone"}
-                                      onChange={() => !isLocked && handleWolfDecisionChange(absIndex, "lone")}
-                                      disabled={isLocked}
-                                      className="w-4 h-4 text-purple-600"
-                                      title={isLocked ? "Decision locked - all scores entered" : "Lone Wolf"}
-                                    />
-                                    <span className="text-gray-700 dark:text-gray-200">Lone Wolf (1v2)</span>
-                                  </label>
-                                  <label className={`flex items-center gap-2 text-sm ${!canChooseBlind || isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
-                                    <input
-                                      type="radio"
-                                      name={`wolf-${absIndex}`}
-                                      checked={current === "blind"}
-                                      onChange={() => canChooseBlind && !isLocked && handleWolfDecisionChange(absIndex, "blind")}
-                                      disabled={!canChooseBlind || isLocked}
-                                      className="w-4 h-4 text-purple-600"
-                                      title={!canChooseBlind ? "Blind Lone Wolf must be chosen before any scores are entered" : isLocked ? "Decision locked - all scores entered" : "Blind Lone Wolf (higher risk, higher reward)"}
-                                    />
-                                    <span className="text-gray-700 dark:text-gray-200 font-bold">
-                                      Blind Lone Wolf (1v2) +6pts
-                                    </span>
-                                  </label>
-                                  {isLocked && current && (
-                                    <div className="text-[10px] text-gray-500 dark:text-gray-400 text-center mt-1">
-                                      Decision locked
-                                    </div>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        ) : (
-                          (() => {
-                            const absIndex = startIndex + idx;
-                            // Check wolfHoles first (preferred), then fallback to wolfDecisions
-                            const holeInfo = wolfHoles?.[absIndex];
-                            const choice = holeInfo && "decision" in holeInfo
-                              ? holeInfo.decision
-                              : wolfDecisions?.[absIndex] ?? null;
-                            const wolfId = holeInfo?.wolfId ?? getWolfForHole(absIndex);
-                            const wolfName = getPlayerById(wolfId)?.name || "-";
-                            let choiceText = "No choice yet";
-                            if (choice === "blind") {
-                              choiceText = "Blind Lone Wolf (+6pts)";
-                            } else if (choice === "lone") {
-                              choiceText = "Lone Wolf";
-                            } else if (typeof choice === "string" && choice) {
-                              const partnerName = getPlayerById(choice)?.name || "Partner";
-                              choiceText = `Partner: ${partnerName}`;
-                            }
-                            return (
-                              <div className="text-xs sm:text-sm text-purple-700 dark:text-purple-300 text-center">
-                                {wolfName} choice: {choiceText}
-                              </div>
-                            );
-                          })()
-                        )}
-                      </div>
-                    )}
-
-                    {trackStats && (
-                      <div className="mt-3 space-y-3 w-full">
-                        {displayedHoles[idx].par !== 3 && (
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-gray-600 dark:text-gray-400 font-medium">FIR:</span>
-                            <input
-                              type="checkbox"
-                              checked={displayedScores[idx].fir === true}
-                              onChange={(e) => handleStatsChange(idx + startIndex, 'fir', e.target.checked)}
-                              className="w-7 h-7 text-green-600 dark:text-green-500 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-green-500 cursor-pointer"
-                            />
-                          </div>
-                        )}
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400 font-medium">GIR:</span>
-                          <input
-                            type="checkbox"
-                            checked={displayedScores[idx].gir === true}
-                            onChange={(e) => handleStatsChange(idx + startIndex, 'gir', e.target.checked)}
-                            className="w-7 h-7 text-green-600 dark:text-green-500 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-green-500 cursor-pointer"
-                          />
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600 dark:text-gray-400 font-medium">Putts:</span>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const currentPutts = displayedScores[idx].putts || 0;
-                                if (currentPutts > 0) {
-                                  handleStatsChange(idx + startIndex, 'putts', (currentPutts - 1).toString());
-                                }
-                              }}
-                              className="w-10 h-10 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-base font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
-                            >
-                              −
-                            </button>
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              value={displayedScores[idx].putts ?? ""}
-                              onChange={(e) => handleStatsChange(idx + startIndex, 'putts', e.target.value)}
-                              className="w-16 h-10 text-center border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-base font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              placeholder="0"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const currentPutts = displayedScores[idx].putts || 0;
-                                if (currentPutts < 10) {
-                                  handleStatsChange(idx + startIndex, 'putts', (currentPutts + 1).toString());
-                                }
-                              }}
-                              className="w-10 h-10 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-base font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center"
-                            >
-                              +
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <ScorecardGrid
+                holes={displayedHoles}
+                scores={displayedScores}
+                startIndex={startIndex}
+                trackStats={trackStats}
+                userId={userId}
+                isWolfFormat={isWolfFormat}
+                wolfOrder={wolfOrder}
+                gamePlayers={gamePlayers}
+                wolfHoles={wolfHoles}
+                wolfDecisions={wolfDecisions}
+                getWolfForHole={getWolfForHole}
+                getPlayerById={getPlayerById}
+                getNonWolfPlayers={getNonWolfPlayers}
+                getGrossFor={getGrossFor}
+                onScoreChange={handleScoreChange}
+                onStatsChange={handleStatsChange}
+                onWolfDecisionChange={handleWolfDecisionChange}
+              />
 
               <div className="mt-4 sm:mt-6 text-center font-semibold text-lg sm:text-xl text-green-700 dark:text-green-400">
                 Current Strokes: {displayedScores.reduce((sum, s) => sum + (s.gross ?? 0), 0)}

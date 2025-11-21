@@ -1,3 +1,6 @@
+/* eslint-env node */
+/* global process */
+
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFile } from "node:fs/promises";
@@ -21,7 +24,7 @@ async function loadServiceAccount() {
       return JSON.parse(directJson);
     } catch (error) {
       throw new Error(
-        "FIREBASE_SERVICE_ACCOUNT_JSON could not be parsed. Ensure it contains valid JSON."
+        `FIREBASE_SERVICE_ACCOUNT_JSON could not be parsed: ${error.message}`
       );
     }
   }
@@ -36,8 +39,7 @@ async function loadServiceAccount() {
     return JSON.parse(contents);
   } catch (error) {
     throw new Error(
-      `Failed to read service account key from ${keyPath}. ` +
-        "Set FIREBASE_SERVICE_ACCOUNT_PATH or FIREBASE_SERVICE_ACCOUNT_JSON."
+      `Failed to read service account key from ${keyPath}. Set FIREBASE_SERVICE_ACCOUNT_PATH or FIREBASE_SERVICE_ACCOUNT_JSON. (${error.message})`
     );
   }
 }
@@ -595,7 +597,6 @@ async function main() {
   const collectionsToReset = [
     { name: "games", ids: sampleGames.map((game) => game.id) },
     { name: "users", ids: sampleUsers.map((user) => user.id) },
-    { name: "teams", ids: sampleTeams.map((team) => team.id) },
     { name: "tournaments", ids: [tournamentId] },
   ];
 
@@ -605,6 +606,16 @@ async function main() {
       for (const id of ids) {
         await db.collection(name).doc(id).delete().catch(() => {});
       }
+    }
+    for (const team of sampleTeams) {
+      await db
+        .collection("tournaments")
+        .doc(tournamentId)
+        .collection("teams")
+        .doc(team.id)
+        .delete()
+        .catch(() => {});
+      await db.collection("teams").doc(team.id).delete().catch(() => {});
     }
     // Also delete members subcollection
     const membersRef = db.collection("tournaments").doc(tournamentId).collection("members");
@@ -646,18 +657,35 @@ async function main() {
   );
 
   await Promise.all(
-    sampleTeams.map((team) =>
-      db.collection("teams").doc(team.id).set(team, { merge: true })
-    )
+    sampleTeams.map((team) => {
+      const teamData = {
+        ...team,
+        tournamentId,
+        updatedAt: now,
+      };
+      const teamRef = db
+        .collection("tournaments")
+        .doc(tournamentId)
+        .collection("teams")
+        .doc(team.id);
+
+      return Promise.all([
+        teamRef.set(teamData, { merge: true }),
+        db.collection("teams").doc(team.id).set(teamData, { merge: true }),
+      ]);
+    })
   );
 
   await Promise.all(
-    sampleGames.map((game) =>
-      db
+    sampleGames.map((game) => {
+      const playerIds = Array.from(
+        new Set((game.players || []).map((player) => player.userId).filter(Boolean))
+      );
+      return db
         .collection("games")
         .doc(game.id)
-        .set({ ...baseGameFields, ...game }, { merge: true })
-    )
+        .set({ ...baseGameFields, ...game, playerIds }, { merge: true });
+    })
   );
 
   // Update tournament member count

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTournament } from "../context/TournamentContext";
+import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import { db } from "../firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
@@ -252,6 +253,7 @@ function ProfileModal({ user, onClose }) {
 export default function Dashboard() {
   const { user, logout } = useAuth();
   const { currentTournament, setTournament } = useTournament();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [tournaments, setTournaments] = useState([]);
@@ -346,6 +348,35 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <div className="relative z-10 max-w-md mx-auto p-6 pb-24">
+        {/* <div className="flex justify-end mb-6">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-pressed={isDark}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-2xl bg-white/80 dark:bg-gray-800/80 text-gray-800 dark:text-gray-100 shadow-sm border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors"
+          >
+            {isDark ? (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M12 3v1m0 16v1m8.66-11.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m3.34-5.66l-.71-.71m13.02 13.02l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"
+                />
+              </svg>
+            )}
+            <span>{isDark ? "Light Mode" : "Dark Mode"}</span>
+          </button>
+        </div> */}
         {/* Header */}
         <header className="text-center mb-8">
           <button
@@ -446,7 +477,7 @@ export default function Dashboard() {
                   Create Match
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Set up a new match for your group
+                  Create or edit a match for your group
                 </p>
               </div>
             </div>

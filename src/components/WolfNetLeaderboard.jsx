@@ -103,7 +103,7 @@ export default function WolfNetLeaderboard({ game }) {
       }
 
       if (decision === "blind") {
-        // Blind Lone Wolf: 6 points if win, 1 point if tie, each opponent gets 2 if lose
+        // Blind Lone Wolf: 6 points if win, 2 points if tie, each opponent gets 2 if lose
         const teamBest = Math.min(aScore, bScore);
         if (wolfScore < teamBest) {
           totals.set(wolfId, (totals.get(wolfId) || 0) + 6);
@@ -111,8 +111,8 @@ export default function WolfNetLeaderboard({ game }) {
           totals.set(pA.userId, (totals.get(pA.userId) || 0) + 2);
           totals.set(pB.userId, (totals.get(pB.userId) || 0) + 2);
         } else {
-          // Tie: Wolf earns 1 point (same as regular Lone Wolf)
-          totals.set(wolfId, (totals.get(wolfId) || 0) + 1);
+          // Tie: Wolf earns 2 points
+          totals.set(wolfId, (totals.get(wolfId) || 0) + 2);
         }
       } else if (decision === "lone") {
         const teamBest = Math.min(aScore, bScore);

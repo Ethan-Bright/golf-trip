@@ -273,7 +273,7 @@ export default function WolfScorecardModal({ game, onClose }) {
                   const bGross = getGross(pB.userId, i);
                   if (wolfGross == null || aGross == null || bGross == null) return [];
                   if (decision === "blind") {
-                    // Blind Lone Wolf: 6 points if win, 1 point if tie, each opponent gets 2 if lose
+                    // Blind Lone Wolf: 6 points if win, 2 points if tie, each opponent gets 2 if lose
                     const oppBest = Math.min(aGross, bGross);
                     if (wolfGross < oppBest) {
                       return [{ userId: wolfId, pts: 6 }];
@@ -283,8 +283,8 @@ export default function WolfScorecardModal({ game, onClose }) {
                         { userId: pB.userId, pts: 2 },
                       ];
                     } else {
-                      // Tie: Wolf earns 1 point (same as regular Lone Wolf)
-                      return [{ userId: wolfId, pts: 1 }];
+                      // Tie: Wolf earns 2 points
+                      return [{ userId: wolfId, pts: 2 }];
                     }
                   } else if (decision === "lone") {
                     const oppBest = Math.min(aGross, bGross);
@@ -341,7 +341,7 @@ export default function WolfScorecardModal({ game, onClose }) {
                     return "All tied";
                   }
                   if (decision === "blind" || decision === "lone") {
-                    // Wolf ties the best of opponents -> tie (Blind Lone Wolf gets +1 point, handled above)
+                    // Wolf ties the best of opponents -> tie (Blind Lone Wolf gets +2 points, handled above)
                     const oppBest = Math.min(a, b);
                     if (w === oppBest) return null; // Don't show "Tie" since points are awarded
                   } else if (typeof decision === "string") {
@@ -393,7 +393,7 @@ export default function WolfScorecardModal({ game, onClose }) {
                     } else if (w > oppBest) {
                       return `Opponents' Best (${oppBest}) beat ${wolfName} (${w}) [Blind Lone Wolf]: ${aName} +2, ${bName} +2`;
                     } else {
-                      return `${wolfName} (${w}) tied Opponents' Best (${oppBest}) [Blind Lone Wolf]: ${wolfName} +1`;
+                      return `${wolfName} (${w}) tied Opponents' Best (${oppBest}) [Blind Lone Wolf]: ${wolfName} +2`;
                     }
                   } else if (decision === "lone") {
                     const oppBest = Math.min(a, b);
