@@ -21,6 +21,7 @@ import {
   getMatchFormatLabel,
 } from "../lib/matchFormats";
 import SearchableCourseDropdown from "../components/SearchableCourseDropdown";
+import PageShell from "../components/layout/PageShell";
 
 function useIncompleteGameChecker(userId, currentTournament) {
   const [isChecking, setIsChecking] = useState(true);
@@ -438,7 +439,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
   const renderIncompleteBanner = () => {
     if (isChecking) {
       return (
-        <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl text-center text-gray-700 dark:text-gray-300">
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-4 text-center text-gray-700 dark:text-gray-300">
           Checking for in-progress games...
         </div>
       );
@@ -447,205 +448,177 @@ export default function CreateGame({ userId, user, courses = [] }) {
     if (!incompleteGame) return null;
 
     return (
-      <div className="mb-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
-        <div className="text-sm sm:text-base text-yellow-700 dark:text-yellow-200">
-          <strong>You have an unfinished game:</strong>{" "}
-          <span className="font-semibold">{incompleteGame.name || "Untitled Game"}</span>.
-          Finish entering scores from the{" "}
-          <button
-            className="underline font-semibold hover:text-yellow-800 dark:hover:text-yellow-100"
-            onClick={() => navigate("/scores")}
-          >
-            Enter Scores page
-          </button>{" "}
-          before creating a new one. You can also edit or delete it in the Manage Your Games section below.
-        </div>
+      <div className="rounded-2xl border border-yellow-200 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 p-4 text-sm sm:text-base text-yellow-700 dark:text-yellow-200">
+        <strong>You have an unfinished game:</strong>{" "}
+        <span className="font-semibold">{incompleteGame.name || "Untitled Game"}</span>. Finish entering
+        scores from the{" "}
+        <button
+          className="underline font-semibold hover:text-yellow-800 dark:hover:text-yellow-100"
+          onClick={() => navigate("/scores")}
+        >
+          Enter Scores page
+        </button>{" "}
+        before creating a new one. You can also edit or delete it in the Manage Your Games section below.
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 p-4 sm:p-6">
-      <div className="w-full max-w-4xl mx-auto">
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="mb-6 sm:mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl w-full sm:w-auto text-center"
-        >
-          ← Back to Dashboard
-        </button>
-
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 sm:p-6">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6 text-center">
-            Create Game
-          </h1>
-
-          {!currentTournament && (
-            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm sm:text-base text-red-700 dark:text-red-300">
-              You must select a tournament before creating a game. Visit the dashboard to choose a tournament.
-            </div>
-          )}
-
-          {renderIncompleteBanner()}
-
-          {editingGame && (
-            <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl">
-              <div className="text-sm sm:text-base text-blue-900 dark:text-blue-100">
-                <strong>Editing:</strong> {editingGame.name || "Untitled Game"}
-              </div>
-              <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-200 mt-1">
-                Update the details below, then save your changes or cancel if you want to start fresh.
-              </p>
-              <div className="mt-3">
-                <button
-                  type="button"
-                  onClick={handleCancelEdit}
-                  className="px-4 py-2 text-sm font-semibold text-blue-700 dark:text-blue-200 border border-blue-200 dark:border-blue-700 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
-                >
-                  Cancel Editing
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="mb-4 sm:mb-6">
-            <SearchableCourseDropdown
-              courses={courses}
-              selectedCourseId={selectedCourse?.id || null}
-              onCourseSelect={handleCourseSelect}
-              placeholder="Select a course"
-              label=""
-              disabled={isFormLocked}
-              error={errors.selectedCourse}
-              className="mb-3 sm:mb-4"
-            />
-
-            <input
-              placeholder="Game Name"
-              value={gameName}
-              onChange={(e) => {
-                setGameName(e.target.value);
-                setErrors((prev) => ({ ...prev, gameName: false }));
-              }}
-              className={`w-full p-3 sm:p-4 mb-3 sm:mb-4 rounded-2xl border ${
-                errors.gameName
-                  ? "border-red-500"
-                  : "border-gray-200 dark:border-gray-600"
-              } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-              disabled={isFormLocked}
-            />
-
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-2">
-                <label className="block text-gray-900 dark:text-white font-medium">
-                  Match Format
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowFormatHelp(true)}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-                  title="Learn about match formats"
-                >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              </div>
-              <select
-                value={matchFormat || ""}
-                onChange={(e) => {
-                  setMatchFormat(e.target.value);
-                  setErrors((prev) => ({ ...prev, matchFormat: false }));
-                }}
-                className={`w-full p-3 sm:p-4 rounded-2xl border ${
-                  errors.matchFormat
-                    ? "border-red-500"
-                    : "border-gray-200 dark:border-gray-600"
-                } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-                disabled={isFormLocked}
-              >
-                <option value="" disabled>
-                  Select Match Format
-                </option>
-                {MATCH_FORMAT_SELECT_OPTIONS.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="mb-4">
-              <label className="block text-gray-900 dark:text-white font-medium mb-2">
-                Number of Holes
-              </label>
-              <select
-                value={holeCount || ""}
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-                  setHoleCount(value);
-                  setErrors((prev) => ({ ...prev, holeCount: false }));
-                  if (value === 18) {
-                    setNineType("front");
-                  }
-                }}
-                className={`w-full p-3 sm:p-4 rounded-2xl border ${
-                  errors.holeCount
-                    ? "border-red-500"
-                    : "border-gray-200 dark:border-gray-600"
-                } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-                disabled={isFormLocked}
-              >
-                <option value="" disabled>
-                  Select Number of Holes
-                </option>
-                <option value={18}>18 Holes</option>
-                <option value={9}>9 Holes</option>
-              </select>
-            </div>
-
-            {holeCount === 9 && (
-              <div className="mb-4">
-                <label className="block text-gray-900 dark:text-white font-medium mb-2">
-                  Select 9 Holes
-                </label>
-                <select
-                  value={nineType || ""}
-                  onChange={(e) => {
-                    setNineType(e.target.value);
-                    setErrors((prev) => ({ ...prev, nineType: false }));
-                  }}
-                  className={`w-full p-3 sm:p-4 rounded-2xl border ${
-                    errors.nineType
-                      ? "border-red-500"
-                      : "border-gray-200 dark:border-gray-600"
-                  } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white mb-3 sm:mb-4 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-                  disabled={isFormLocked}
-                >
-                  <option value="" disabled>
-                    Select 9 Holes
-                  </option>
-                  <option value="front">Out (Front 9)</option>
-                  <option value="back">In (Back 9)</option>
-                </select>
-              </div>
-            )}
-
+    <React.Fragment>
+      <PageShell
+        title="Create Game"
+        description="Set up a new match for your tournament."
+        backHref="/dashboard"
+        contentClassName="pb-28"
+      >
+        {!currentTournament && (
+          <div className="rounded-2xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 text-sm sm:text-base text-red-700 dark:text-red-300">
+            You must select a tournament before creating a game. Visit the dashboard to choose a tournament.
           </div>
+        )}
+
+        {renderIncompleteBanner()}
+
+        {editingGame && (
+          <div className="rounded-2xl border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 p-4 space-y-2 text-blue-900 dark:text-blue-100">
+            <div className="text-sm sm:text-base">
+              <strong>Editing:</strong> {editingGame.name || "Untitled Game"}
+            </div>
+            <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-200">
+              Update the details below, then save your changes or cancel if you want to start fresh.
+            </p>
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="inline-flex items-center justify-center rounded-xl border border-blue-200 dark:border-blue-600 px-4 py-2 text-sm font-semibold text-blue-700 dark:text-blue-100 hover:bg-blue-100 dark:hover:bg-blue-800/40 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition"
+            >
+              Cancel Editing
+            </button>
+          </div>
+        )}
+
+        <section className="mobile-card p-5 space-y-5">
+          <SearchableCourseDropdown
+            courses={courses}
+            selectedCourseId={selectedCourse?.id || null}
+            onCourseSelect={handleCourseSelect}
+            placeholder="Select a course"
+            label=""
+            disabled={isFormLocked}
+            error={errors.selectedCourse}
+          />
+
+          <input
+            placeholder="Game Name"
+            value={gameName}
+            onChange={(e) => {
+              setGameName(e.target.value);
+              setErrors((prev) => ({ ...prev, gameName: false }));
+            }}
+            className={`w-full rounded-2xl border ${
+              errors.gameName ? "border-red-500" : "border-gray-200 dark:border-gray-600"
+            } bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:py-4 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
+            disabled={isFormLocked}
+          />
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <label className="block text-gray-900 dark:text-white font-medium">Match Format</label>
+              <button
+                type="button"
+                onClick={() => setShowFormatHelp(true)}
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                title="Learn about match formats"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+            <select
+              value={matchFormat || ""}
+              onChange={(e) => {
+                setMatchFormat(e.target.value);
+                setErrors((prev) => ({ ...prev, matchFormat: false }));
+              }}
+              className={`w-full rounded-2xl border ${
+                errors.matchFormat ? "border-red-500" : "border-gray-200 dark:border-gray-600"
+              } bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:py-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
+              disabled={isFormLocked}
+            >
+              <option value="" disabled>
+                Select Match Format
+              </option>
+              {MATCH_FORMAT_SELECT_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-gray-900 dark:text-white font-medium">Number of Holes</label>
+            <select
+              value={holeCount || ""}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                setHoleCount(value);
+                setErrors((prev) => ({ ...prev, holeCount: false }));
+                if (value === 18) {
+                  setNineType("front");
+                }
+              }}
+              className={`w-full rounded-2xl border ${
+                errors.holeCount ? "border-red-500" : "border-gray-200 dark:border-gray-600"
+              } bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:py-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
+              disabled={isFormLocked}
+            >
+              <option value="" disabled>
+                Select Number of Holes
+              </option>
+              <option value={18}>18 Holes</option>
+              <option value={9}>9 Holes</option>
+            </select>
+          </div>
+
+          {holeCount === 9 && (
+            <div className="space-y-2">
+              <label className="block text-gray-900 dark:text-white font-medium">Select 9 Holes</label>
+              <select
+                value={nineType || ""}
+                onChange={(e) => {
+                  setNineType(e.target.value);
+                  setErrors((prev) => ({ ...prev, nineType: false }));
+                }}
+                className={`w-full rounded-2xl border ${
+                  errors.nineType ? "border-red-500" : "border-gray-200 dark:border-gray-600"
+                } bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:py-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
+                disabled={isFormLocked}
+              >
+                <option value="" disabled>
+                  Select 9 Holes
+                </option>
+                <option value="front">Out (Front 9)</option>
+                <option value="back">In (Back 9)</option>
+              </select>
+            </div>
+          )}
 
           <button
             type="button"
             onClick={createGame}
-            className="w-full px-6 py-3 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-60"
+            className="w-full rounded-2xl bg-green-600 dark:bg-green-500 px-6 py-3 text-white font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-60"
             disabled={isFormLocked || !userId}
           >
             {editingGameId ? "Save Changes" : "Create Game"}
           </button>
 
-          <p className="mt-4 text-sm text-gray-600 dark:text-gray-300 text-center">
+          <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
             Ready to play?{" "}
             <button
               className="text-green-600 dark:text-green-400 font-semibold hover:underline"
@@ -654,12 +627,10 @@ export default function CreateGame({ userId, user, courses = [] }) {
               Enter scores for an existing game
             </button>
           </p>
-        </div>
-      </div>
+        </section>
 
-      <div className="w-full max-w-4xl mx-auto mt-6">
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 sm:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <section className="mobile-card p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
               Manage Your Games
             </h2>
@@ -667,14 +638,14 @@ export default function CreateGame({ userId, user, courses = [] }) {
               type="button"
               onClick={() => fetchUserGames()}
               disabled={!currentTournament || isLoadingUserGames}
-              className="w-full sm:w-auto px-4 py-2 rounded-2xl border border-gray-200 dark:border-gray-600 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+              className="inline-flex items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-600 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed transition"
             >
               {isLoadingUserGames ? "Refreshing..." : "Refresh"}
             </button>
           </div>
 
           {!currentTournament ? (
-            <div className="p-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300">
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 text-sm text-gray-700 dark:text-gray-300">
               Select a tournament to see the games you've created.
             </div>
           ) : isLoadingUserGames ? (
@@ -682,7 +653,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
               Loading your games...
             </div>
           ) : userGames.length === 0 ? (
-            <div className="p-4 bg-gray-50 dark:bg-gray-700/40 border border-gray-200 dark:border-gray-700 rounded-xl text-sm text-gray-700 dark:text-gray-300">
+            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 text-sm text-gray-700 dark:text-gray-300">
               No editable games yet. Create a game and you'll be able to edit or delete it here while it's still in progress.
             </div>
           ) : (
@@ -690,7 +661,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
               {userGames.map((game) => (
                 <div
                   key={game.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/70 p-3"
                 >
                   <div className="flex-1">
                     <p className="text-gray-900 dark:text-white font-semibold">
@@ -712,7 +683,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
                     <button
                       type="button"
                       onClick={() => handleEditGame(game)}
-                      className={`flex-1 sm:flex-none px-4 py-2 rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                      className={`flex-1 sm:flex-none rounded-xl px-4 py-2 font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
                         editingGameId === game.id
                           ? "bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100 border border-blue-400 dark:border-blue-600 focus:ring-blue-400 dark:focus:ring-blue-300"
                           : "bg-blue-600 dark:bg-blue-500 text-white focus:ring-blue-500 dark:focus:ring-blue-400"
@@ -723,7 +694,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
                     <button
                       type="button"
                       onClick={() => handleDeleteGame(game)}
-                      className="flex-1 sm:flex-none px-4 py-2 bg-red-600 dark:bg-red-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-red-400"
+                      className="flex-1 sm:flex-none rounded-xl bg-red-600 dark:bg-red-500 px-4 py-2 text-white font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-red-400"
                     >
                       Delete
                     </button>
@@ -732,19 +703,16 @@ export default function CreateGame({ userId, user, courses = [] }) {
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </section>
 
-      {claimableGames.length > 0 && (
-        <div className="w-full max-w-4xl mx-auto mt-6">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 sm:p-6 border border-yellow-200 dark:border-yellow-700/60">
-            <div className="mb-4">
+        {claimableGames.length > 0 && (
+          <section className="mobile-card p-5 space-y-4 border border-yellow-200/80 dark:border-yellow-700/60">
+            <div>
               <h2 className="text-lg sm:text-xl font-bold text-yellow-800 dark:text-yellow-200">
                 Legacy Games Without an Owner
               </h2>
-              <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                These in-progress games were created before we started tracking creators. Claim the ones you started to
-                enable editing or deletion.
+              <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                These in-progress games were created before we started tracking creators. Claim the ones you started to enable editing or deletion.
               </p>
             </div>
 
@@ -752,13 +720,11 @@ export default function CreateGame({ userId, user, courses = [] }) {
               {claimableGames.map((game) => (
                 <div
                   key={game.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border border-yellow-200 dark:border-yellow-700"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-yellow-200 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 p-3"
                 >
                   <div className="flex-1 text-yellow-900 dark:text-yellow-100">
                     <p className="font-semibold">{game.name || "Untitled Game"}</p>
-                    {game.course?.name && (
-                      <p className="text-sm">Course: {game.course.name}</p>
-                    )}
+                    {game.course?.name && <p className="text-sm">Course: {game.course.name}</p>}
                     <p className="text-xs text-yellow-800 dark:text-yellow-200">
                       Last updated: {formatUpdatedAt(game.updatedAt)}
                     </p>
@@ -766,19 +732,18 @@ export default function CreateGame({ userId, user, courses = [] }) {
                   <button
                     type="button"
                     onClick={() => handleClaimLegacyGame(game)}
-                    className="w-full sm:w-auto px-4 py-2 bg-yellow-600 dark:bg-yellow-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 dark:focus:ring-yellow-400"
+                    className="w-full sm:w-auto rounded-xl bg-yellow-600 dark:bg-yellow-500 px-4 py-2 text-white font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 dark:focus:ring-yellow-400"
                   >
                     Claim
                   </button>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      )}
+          </section>
+        )}
+      </PageShell>
 
       <Modal {...modal} onClose={hideModal} />
-
 
       {/* Format Help Modal */}
       {showFormatHelp && (
@@ -981,7 +946,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
           </div>
         </div>
       )}
-    </div>
+    </React.Fragment>
   );
 }
 

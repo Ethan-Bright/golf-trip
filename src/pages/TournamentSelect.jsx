@@ -16,6 +16,7 @@ import Modal from "../components/Modal";
 import useModal from "../hooks/useModal";
 import bcrypt from "bcryptjs";
 import SearchableTournamentDropdown from "../components/SearchableTournamentDropdown";
+import PageShell from "../components/layout/PageShell";
 
 export default function TournamentSelect() {
   const { user } = useAuth();
@@ -235,76 +236,77 @@ export default function TournamentSelect() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-green-100 dark:bg-gray-900 flex items-center justify-center p-6">
-        <div className="text-center">
+      <PageShell
+        title="Join a Tournament"
+        description="Loading tournaments..."
+        backHref="/"
+        showBackButton={false}
+      >
+        <div className="mobile-card p-8 text-center">
           <div className="w-8 h-8 border-4 border-green-200 dark:border-green-700 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-300">Loading tournaments...</p>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-green-100 dark:bg-gray-900 flex items-center justify-center p-6">
-      <div className="w-full max-w-md mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8">
-          <div className="text-center mb-8">
+    <>
+      <PageShell
+        title="Join a Tournament"
+        description="Create a new tournament or join an existing one."
+        backHref="/"
+        showBackButton={false}
+        bodyClassName="mobile-section"
+      >
+        {error && (
+          <div className="mobile-card p-4 border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm">
+            {error}
+          </div>
+        )}
+
+        <section className="mobile-card p-6 space-y-4 border border-gray-200/70 dark:border-gray-700">
+          <div className="text-center">
             <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-500 to-green-600 dark:from-green-400 dark:to-green-500 rounded-2xl flex items-center justify-center shadow-lg">
-              <svg
-                className="w-8 h-8 text-white"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z" />
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Join a Tournament
-            </h2>
             <p className="text-gray-600 dark:text-gray-300">
               Create a new tournament or join an existing one
             </p>
           </div>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-2xl text-sm">
-              {error}
-            </div>
-          )}
+          <button
+            onClick={createTournament}
+            className="w-full py-4 bg-green-600 dark:bg-green-500 text-white font-semibold rounded-2xl shadow-lg hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 transition-all duration-200"
+          >
+            Create Tournament
+          </button>
 
-          <div className="space-y-4">
-            <button
-              onClick={createTournament}
-              className="w-full py-4 bg-green-600 dark:bg-green-500 text-white font-semibold rounded-2xl shadow-lg hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 transition-all duration-200"
-            >
-              Create Tournament
-            </button>
-
-            <button
-              onClick={joinTournament}
-              disabled={tournaments.length === 0}
-              className="w-full py-4 bg-blue-600 dark:bg-blue-500 text-white font-semibold rounded-2xl shadow-lg hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Join Tournament
-            </button>
-          </div>
+          <button
+            onClick={joinTournament}
+            disabled={tournaments.length === 0}
+            className="w-full py-4 bg-blue-600 dark:bg-blue-500 text-white font-semibold rounded-2xl shadow-lg hover:bg-blue-700 dark:hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Join Tournament
+          </button>
 
           {tournaments.length === 0 && (
-            <p className="mt-4 text-center text-gray-600 dark:text-gray-400 text-sm">
+            <p className="text-center text-gray-600 dark:text-gray-400 text-sm">
               No tournaments available. Create one to get started!
             </p>
           )}
-        </div>
-      </div>
+        </section>
+      </PageShell>
 
-      {/* Tournament Selection Modal */}
       {showSelectionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
               Select Tournament
             </h3>
-            
+
             <div className="mb-6">
               <SearchableTournamentDropdown
                 tournaments={tournaments}
@@ -336,6 +338,6 @@ export default function TournamentSelect() {
       )}
 
       <Modal {...modal} onClose={hideModal} />
-    </div>
+    </>
   );
 }

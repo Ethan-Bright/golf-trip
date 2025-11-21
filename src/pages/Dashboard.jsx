@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTournament } from "../context/TournamentContext";
 import { useTheme } from "../context/ThemeContext";
@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { db } from "../firebase";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import TournamentModal from "../components/TournamentModal";
+import PageShell from "../components/layout/PageShell";
 
 // Profile Modal Component
 function ProfileModal({ user, onClose }) {
@@ -259,6 +260,8 @@ export default function Dashboard() {
   const [tournaments, setTournaments] = useState([]);
   const [tournamentName, setTournamentName] = useState("");
   const [showTournamentModal, setShowTournamentModal] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   // Always fetch tournament name when currentTournament changes
   useEffect(() => {
@@ -325,6 +328,40 @@ export default function Dashboard() {
     }
   }, [user?.uid, currentTournament]);
 
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setIsMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [isMenuOpen]);
+
+  const handleMenuNavigate = (path) => {
+    setIsMenuOpen(false);
+    navigate(path);
+  };
+
+  const handleEditProfile = () => {
+    setShowProfileModal(true);
+    setIsMenuOpen(false);
+  };
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -334,54 +371,255 @@ export default function Dashboard() {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-green-100 dark:bg-gray-900 relative">
-      {/* Swish Background Effect */}
-      <div className="absolute inset-0 opacity-20 dark:opacity-10 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full">
-          <div className="absolute top-10 left-10 w-96 h-96 bg-gradient-to-br from-green-400 to-green-600 rounded-full blur-3xl transform -rotate-12"></div>
-          <div className="absolute top-32 right-20 w-80 h-80 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full blur-3xl transform rotate-12"></div>
-          <div className="absolute bottom-20 left-1/4 w-72 h-72 bg-gradient-to-br from-green-300 to-yellow-500 rounded-full blur-3xl transform rotate-45"></div>
-          <div className="absolute bottom-10 right-1/3 w-64 h-64 bg-gradient-to-br from-yellow-300 to-green-500 rounded-full blur-3xl transform -rotate-30"></div>
-        </div>
-      </div>
+  const formatUpdatedAt = (timestamp) => {
+    if (!timestamp) return "Not updated yet";
+    try {
+      if (typeof timestamp.toDate === "function") {
+        return timestamp.toDate().toLocaleString();
+      }
+      if (timestamp.seconds) {
+        return new Date(timestamp.seconds * 1000).toLocaleString();
+      }
+    } catch (error) {
+      console.error("Error formatting timestamp:", error);
+    }
+    return "Not updated yet";
+  };
 
-      {/* Main Content */}
-      <div className="relative z-10 max-w-md mx-auto p-6 pb-24">
-        {/* <div className="flex justify-end mb-6">
+  const quickActions = [
+    {
+      title: "Edit Profile",
+      description: "Update your details & handicap",
+      iconClass:
+        "bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-300",
+      onClick: handleEditProfile,
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5z" />
+          <path d="M4 21v-1a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7v1" />
+        </svg>
+      ),
+    },
+    {
+      title: "How to Use",
+      description: "Guide new golfers through the flow",
+      iconClass:
+        "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-300",
+      onClick: () => handleMenuNavigate("/how-to-use"),
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 17A2.5 2.5 0 0 0 4 14.5V4.5A2.5 2.5 0 0 1 6.5 2H20v17" />
+        </svg>
+      ),
+    },
+    {
+      title: "Submit Suggestions",
+      description: "Request features or tweaks",
+      iconClass:
+        "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300",
+      onClick: () => handleMenuNavigate("/submit-suggestion"),
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 18h6" />
+          <path d="M10 22h4" />
+          <path d="M12 2a7 7 0 0 0-4 12.9A5 5 0 0 1 9 18h6a5 5 0 0 1 1-3.1A7 7 0 0 0 12 2z" />
+        </svg>
+      ),
+    },
+    {
+      title: "Invite Friend",
+      description: "Share the trip with others",
+      iconClass:
+        "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300",
+      onClick: () => handleMenuNavigate("/invite-friend"),
+      icon: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M8 7a4 4 0 1 0 8 0 4 4 0 0 0-8 0Z" />
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <path d="m17 11 2 2 4-4" />
+        </svg>
+      ),
+    },
+  ];
+
+  const navCards = [
+    {
+      title: "Leaderboard",
+      description: "View tournament standings",
+      onClick: () => navigate("/leaderboard"),
+      iconClass:
+        "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      ),
+    },
+    {
+      title: "Create Match",
+      description: "Create or edit a match for your group",
+      onClick: () => navigate("/create-game"),
+      iconClass:
+        "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z" />
+        </svg>
+      ),
+    },
+    {
+      title: "Enter Scores",
+      description: "Join an existing match to enter scores",
+      onClick: () => navigate("/scores"),
+      iconClass:
+        "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7H3v2h16V4z" />
+        </svg>
+      ),
+    },
+    {
+      title: "Join / Leave Team",
+      description: "Manage your tournament teams",
+      onClick: () => navigate("/join-team"),
+      iconClass:
+        "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-2 14c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm6-8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm0 8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z" />
+        </svg>
+      ),
+    },
+    {
+      title: "View Teams",
+      description: "Browse all tournament teams",
+      onClick: () => navigate("/viewteams"),
+      iconClass:
+        "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+        </svg>
+      ),
+    },
+    {
+      title: "View Members",
+      description: "See tournament or all users",
+      onClick: () => navigate("/members"),
+      iconClass:
+        "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-2 14c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm6-8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm0 8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z" />
+        </svg>
+      ),
+    },
+    {
+      title: "View My Stats",
+      description: "Review your personal statistics",
+      onClick: () => navigate("/my-stats"),
+      iconClass:
+        "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
+        </svg>
+      ),
+    },
+    {
+      title: "Course Information",
+      description: "View course details & hole information",
+      onClick: () => navigate("/course-info"),
+      iconClass:
+        "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+        </svg>
+      ),
+    },
+    {
+      title: "Sign Out",
+      description: "Log out of your account",
+      onClick: handleLogout,
+      iconClass: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400",
+      icon: (
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <PageShell
+        title={user?.displayName ? `Welcome, ${user.displayName}!` : "Welcome!"}
+        // description="Manage tournaments, matches, and stats from one place."
+        showBackButton={false}
+        actions={null}
+        headerClassName="text-center"
+        contentClassName="pb-28"
+      >
+        <div className="fixed top-4 left-4 z-40" ref={menuRef}>
           <button
             type="button"
-            onClick={toggleTheme}
-            aria-pressed={isDark}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-2xl bg-white/80 dark:bg-gray-800/80 text-gray-800 dark:text-gray-100 shadow-sm border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition-colors"
+            aria-label="Open quick menu"
+            aria-expanded={isMenuOpen}
+            onClick={() => setIsMenuOpen((prev) => !prev)}
+            className="w-12 h-12 rounded-2xl bg-white/90 dark:bg-gray-900/80 border border-gray-200/80 dark:border-gray-700 shadow-xl backdrop-blur flex flex-col items-center justify-center gap-1 transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-green-50 dark:focus:ring-offset-gray-900"
           >
-            {isDark ? (
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 3v1m0 16v1m8.66-11.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m3.34-5.66l-.71-.71m13.02 13.02l-.71-.71M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-                />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M21 12.79A9 9 0 1111.21 3a7 7 0 109.79 9.79z"
-                />
-              </svg>
-            )}
-            <span>{isDark ? "Light Mode" : "Dark Mode"}</span>
+            <span
+              className={`block w-6 h-0.5 rounded-full bg-green-600 dark:bg-green-300 transition transform ${
+                isMenuOpen ? "translate-y-1.5 rotate-45" : ""
+              }`}
+            />
+            <span
+              className={`block w-6 h-0.5 rounded-full bg-green-600 dark:bg-green-300 transition ${
+                isMenuOpen ? "opacity-0" : ""
+              }`}
+            />
+            <span
+              className={`block w-6 h-0.5 rounded-full bg-green-600 dark:bg-green-300 transition transform ${
+                isMenuOpen ? "-translate-y-1.5 -rotate-45" : ""
+              }`}
+            />
           </button>
-        </div> */}
-        {/* Header */}
-        <header className="text-center mb-8">
+
+          {isMenuOpen && (
+            <div className="mt-3 w-64 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-green-100 dark:border-gray-700 p-3 space-y-2">
+              <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-400 px-2">
+                Quick actions
+              </p>
+              {quickActions.map((action) => (
+                <button
+                  key={action.title}
+                  onClick={action.onClick}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-green-50 dark:hover:bg-green-900/20 text-left text-gray-800 dark:text-gray-100 transition"
+                >
+                  <span
+                    className={`w-9 h-9 rounded-2xl flex items-center justify-center ${action.iconClass}`}
+                  >
+                    {action.icon}
+                  </span>
+                  <div>
+                    <p className="font-semibold">{action.title}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {action.description}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <section className="mobile-card p-6 text-center space-y-4">
           <button
             onClick={() => setShowProfileModal(true)}
-            className="w-24 h-24 rounded-3xl overflow-hidden border-4 border-green-300 dark:border-green-500 shadow-xl hover:shadow-2xl transition-all duration-200 mb-4 group"
+            className="mx-auto w-24 h-24 rounded-3xl overflow-hidden border-4 border-green-300 dark:border-green-500 shadow-xl hover:shadow-2xl transition-all duration-200 group"
           >
             {user?.profilePictureUrl ? (
               <img
@@ -397,291 +635,124 @@ export default function Dashboard() {
               </div>
             )}
           </button>
-
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Welcome, {user?.displayName || "Golfer"}!
-          </h2>
-          <p className="text-gray-600 dark:text-gray-300 text-lg">
-            Handicap:{" "}
-            <span className="font-semibold text-green-600 dark:text-green-400">
-              {user?.handicap || "—"}
-            </span>
-          </p>
-
-          {tournamentName && (
-            <div className="mt-4 text-center">
-              <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">
-                Current Tournament:
-              </div>
-              <div className="text-sml font-semibold text-gray-900 dark:text-white">
-                {tournamentName}
-              </div>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-3 text-gray-600 dark:text-gray-300">
+            <div>
+              <p className="text-xs uppercase tracking-wide">Handicap</p>
+              <p className="text-3xl font-semibold text-green-600 dark:text-green-400">
+                {user?.handicap || "—"}
+              </p>
             </div>
-          )}
-
-          <div className="mt-4 text-center">
+            {tournamentName && (
+              <div className="sm:border-l sm:border-gray-200/70 dark:sm:border-gray-700/70 sm:pl-4">
+                <p className="text-xs uppercase tracking-wide">Current tournament</p>
+                <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                  {tournamentName}
+                </p>
+              </div>
+            )}
+          </div>
+          <div className="mt-4">
             <button
               onClick={() => setShowTournamentModal(true)}
-              className="px-4 py-2 bg-yellow-500 dark:bg-yellow-600 text-white text-sm font-semibold rounded-xl hover:bg-yellow-600 dark:hover:bg-yellow-700 transition-colors"
+              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-300/70 dark:border-yellow-500/60 bg-yellow-500/90 dark:bg-yellow-500/30 px-4 py-2 text-sm font-semibold text-gray-900 dark:text-yellow-100 shadow-sm hover:bg-yellow-500 dark:hover:bg-yellow-500/40 transition"
             >
-              Manage Tournaments
+              Manage tournaments
             </button>
           </div>
-        </header>
+        </section>
 
-        {/* Navigation Cards */}
-        <main className="space-y-4 mb-8">
-          {/* Leaderboard */}
-          <button
-            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            onClick={() => navigate("/leaderboard")}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-600 dark:text-green-400"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Leaderboard
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  View tournament standings
-                </p>
-              </div>
+        {tournaments.length > 0 && (
+          <section className="mobile-card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                Your tournaments
+              </h3>
+              <button
+                onClick={() => setShowTournamentModal(true)}
+                className="text-sm font-semibold text-green-600 dark:text-green-300"
+              >
+                Manage
+              </button>
             </div>
-          </button>
-
-          {/* Create Game */}
-          <button
-            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            onClick={() => navigate("/create-game")}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-600 dark:text-green-400"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
+            <ul className="space-y-3">
+              {tournaments.slice(0, 3).map((tournament) => (
+                <li
+                  key={tournament.id}
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100/60 dark:border-gray-800 px-4 py-3"
                 >
-                  <path d="M19 11h-6V5h-2v6H5v2h6v6h2v-6h6z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Create Match
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Create or edit a match for your group
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* Enter Scores */}
-          <button
-            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            onClick={() => navigate("/scores")}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-600 dark:text-green-400"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2-7H3v2h16V4z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Enter Scores
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Join an existing match to enter scores
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* Join/Leave Team */}
-          <button
-            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            onClick={() => navigate("/join-team")}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-600 dark:text-green-400"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-2 14c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm6-8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm0 8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Join/Leave Team
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Join a tournament team
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* View Teams */}
-          <button
-            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            onClick={() => navigate("/viewteams")}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-600 dark:text-green-400"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  View Teams
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Browse all teams
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* View Members */}
-          <button
-            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            onClick={() => navigate("/members")}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-600 dark:text-green-400"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-2 14c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm6-8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm0 8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  View Members
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  See tournament or all users
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* View Stats */}
-          <button
-            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            onClick={() => navigate("/my-stats")}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-600 dark:text-green-400"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  View My Stats
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  View your personal statistics
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* Course Information */}
-          <button
-            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            onClick={() => navigate("/course-info")}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-green-600 dark:text-green-400"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Course Information
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  View course details and hole information
-                </p>
-              </div>
-            </div>
-          </button>
-
-          {/* Sign Out */}
-          <button
-            className="w-full p-6 bg-white dark:bg-gray-800 text-left rounded-3xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            onClick={handleLogout}
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-2xl flex items-center justify-center">
-                <svg
-                  className="w-6 h-6 text-red-600 dark:text-red-400"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
-                </svg>
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Sign Out
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Logout from your account
-                </p>
-              </div>
-            </div>
-          </button>
-        </main>
-
-        <footer className="text-center text-gray-500 dark:text-gray-400 text-sm">
-          Golf Trip Leaderboard
-        </footer>
-
-        {showProfileModal && (
-          <ProfileModal
-            user={user}
-            onClose={() => setShowProfileModal(false)}
-            className={showProfileModal ? "block" : "hidden"}
-          />
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {tournament.name || "Untitled tournament"}
+                    </p>
+                  </div>
+                  {currentTournament === tournament.id ? (
+                    <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+                      Active
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => setTournament(tournament.id)}
+                      className="px-3 py-1 text-xs font-semibold rounded-xl border border-green-200 text-green-600 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/10"
+                    >
+                      Set active
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {tournaments.length > 3 && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Showing your most recent tournaments
+              </p>
+            )}
+          </section>
         )}
-        <TournamentModal
-          isOpen={showTournamentModal}
-          onClose={() => setShowTournamentModal(false)}
+
+        <section className="mobile-card p-5 space-y-4">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+            Navigate the app
+          </h3>
+          <div className="flex flex-col gap-3">
+            {navCards.map((card) => (
+              <button
+                key={card.title}
+                onClick={card.onClick}
+                className="w-full flex items-center gap-4 rounded-2xl px-3 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800/70 transition"
+              >
+                <span
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center ${card.iconClass}`}
+                >
+                  {card.icon}
+                </span>
+                <div>
+                  <p className="font-semibold text-gray-900 dark:text-white">
+                    {card.title}
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    {card.description}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
+          Golf Trip Leaderboard
+        </p>
+      </PageShell>
+
+      {showProfileModal && (
+        <ProfileModal
+          user={user}
+          onClose={() => setShowProfileModal(false)}
+          className={showProfileModal ? "block" : "hidden"}
         />
-      </div>
-    </div>
+      )}
+      <TournamentModal
+        isOpen={showTournamentModal}
+        onClose={() => setShowTournamentModal(false)}
+      />
+    </>
   );
 }

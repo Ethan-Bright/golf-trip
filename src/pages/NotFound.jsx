@@ -1,18 +1,20 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import PageShell from "../components/layout/PageShell";
 
 export default function NotFound() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6 flex items-center justify-center">
-      <div className="max-w-lg w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-3xl shadow-2xl p-6 sm:p-10 text-center space-y-4">
-        <p className="text-sm font-semibold text-green-600 uppercase tracking-wide">
-          404
-        </p>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
-          Page not found
-        </h1>
+    <PageShell
+      title="Page not found"
+      eyebrow="404"
+      description="The link you followed may be broken, or the page may have been removed."
+      showBackButton={false}
+      bodyClassName="items-center justify-center text-center"
+    >
+      <section className="mobile-card max-w-lg w-full space-y-6 text-center">
+        <p className="text-sm font-semibold text-green-600 uppercase tracking-wide">404</p>
         <p className="text-gray-600 dark:text-gray-300">
           The link you followed may be broken, or the page may have been removed. You can head back to your dashboard or return home.
         </p>
@@ -32,8 +34,8 @@ export default function NotFound() {
             Back to Landing
           </button>
         </div>
-      </div>
-    </div>
+      </section>
+    </PageShell>
   );
 }
 

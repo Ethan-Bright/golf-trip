@@ -18,9 +18,14 @@ export default function TournamentModal({ isOpen, onClose }) {
   const [error, setError] = useState("");
   const [selectedTournamentId, setSelectedTournamentId] = useState("");
   const [showSelectionModal, setShowSelectionModal] = useState(false);
-  const [mode, setMode] = useState("menu"); // 'menu', 'create', 'join'
+  const [mode, setMode] = useState("menu"); // 'menu', 'create', 'join', 'edit'
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [tournamentToLeave, setTournamentToLeave] = useState(null);
+  const [tournamentToEdit, setTournamentToEdit] = useState(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [tournamentToDelete, setTournamentToDelete] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeletingTournament, setIsDeletingTournament] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -259,6 +264,166 @@ export default function TournamentModal({ isOpen, onClose }) {
     }
   };
 
+  const handleEditTournamentSubmit = async (updatedName, newPassword) => {
+    if (!user?.uid || !tournamentToEdit) return;
+
+    const trimmedName = updatedName?.trim();
+    if (!trimmedName) {
+      setError("Tournament name cannot be empty");
+      return;
+    }
+
+    try {
+      setIsSavingEdit(true);
+      setError("");
+
+      const tournamentRef = doc(db, "tournaments", tournamentToEdit.id);
+      const tournamentSnap = await getDoc(tournamentRef);
+
+      if (!tournamentSnap.exists()) {
+        throw new Error("Tournament not found");
+      }
+
+      const tournamentData = tournamentSnap.data();
+      if (tournamentData.createdBy !== user.uid) {
+        throw new Error("Only the creator can edit this tournament");
+      }
+
+      if (trimmedName !== tournamentData.name) {
+        const tournamentsRef = collection(db, "tournaments");
+        const q = query(tournamentsRef, where("name", "==", trimmedName));
+        const querySnapshot = await getDocs(q);
+        const hasConflict = querySnapshot.docs.some(
+          (docSnap) => docSnap.id !== tournamentToEdit.id
+        );
+
+        if (hasConflict) {
+          throw new Error("Another tournament already uses that name");
+        }
+      }
+
+      const updates = { name: trimmedName };
+
+      if (newPassword) {
+        if (newPassword.length < 4) {
+          throw new Error("Password must be at least 4 characters");
+        }
+        updates.password = await bcrypt.hash(newPassword, 10);
+      }
+
+      await setDoc(tournamentRef, updates, { merge: true });
+
+      await fetchTournaments();
+      await fetchAllTournaments();
+      setTournamentToEdit(null);
+      setMode("menu");
+    } catch (err) {
+      console.error("Error updating tournament:", err);
+      setError(err.message || "Failed to update tournament");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeleteTournament = async () => {
+    if (!user?.uid || !tournamentToDelete) return;
+
+    const tournamentId = tournamentToDelete.id;
+
+    try {
+      setIsDeletingTournament(true);
+      setError("");
+
+      const tournamentRef = doc(db, "tournaments", tournamentId);
+      const tournamentSnap = await getDoc(tournamentRef);
+
+      if (!tournamentSnap.exists()) {
+        throw new Error("Tournament not found");
+      }
+
+      const tournamentData = tournamentSnap.data();
+      if (tournamentData.createdBy !== user.uid) {
+        throw new Error("Only the creator can delete this tournament");
+      }
+
+      // Remove members and update each user's tournament list
+      const membersRef = collection(db, "tournaments", tournamentId, "members");
+      const membersSnap = await getDocs(membersRef);
+      const memberIds = membersSnap.docs.map((docSnap) => docSnap.id);
+
+      await Promise.all(membersSnap.docs.map((memberDoc) => deleteDoc(memberDoc.ref)));
+
+      await Promise.all(
+        memberIds.map(async (memberId) => {
+          const userRef = doc(db, "users", memberId);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const tournaments = userSnap.data()?.tournaments || [];
+            const updated = tournaments.filter((tid) => tid !== tournamentId);
+            await setDoc(
+              userRef,
+              {
+                tournaments: updated,
+              },
+              { merge: true }
+            );
+          }
+        })
+      );
+
+      // Remove any team documents inside the tournament
+      const teamsRef = collection(db, "tournaments", tournamentId, "teams");
+      const teamsSnap = await getDocs(teamsRef);
+      await Promise.all(teamsSnap.docs.map((teamDoc) => deleteDoc(teamDoc.ref)));
+
+      // Remove games tied to this tournament
+      const gamesQuery = query(
+        collection(db, "games"),
+        where("tournamentId", "==", tournamentId)
+      );
+      const gamesSnap = await getDocs(gamesQuery);
+      await Promise.all(gamesSnap.docs.map((gameDoc) => deleteDoc(gameDoc.ref)));
+
+      // Remove scores tied to this tournament
+      const scoresQuery = query(
+        collection(db, "scores"),
+        where("tournamentId", "==", tournamentId)
+      );
+      const scoresSnap = await getDocs(scoresQuery);
+      await Promise.all(scoresSnap.docs.map((scoreDoc) => deleteDoc(scoreDoc.ref)));
+
+      await deleteDoc(tournamentRef);
+
+      const updatedUserTournamentIds = userTournamentIds.filter((id) => id !== tournamentId);
+      setUserTournamentIds(updatedUserTournamentIds);
+
+      setShowDeleteConfirm(false);
+      setTournamentToDelete(null);
+
+      await fetchTournaments();
+      await fetchAllTournaments();
+
+      if (currentTournament === tournamentId) {
+        if (updatedUserTournamentIds.length > 0) {
+          const nextTournamentId =
+            updatedUserTournamentIds[updatedUserTournamentIds.length - 1];
+          setTournament(nextTournamentId);
+          onClose();
+          window.location.reload();
+        } else {
+          setTournament(null);
+          onClose();
+          navigate("/tournament-select");
+        }
+      }
+    } catch (err) {
+      console.error("Error deleting tournament:", err);
+      setError(err.message || "Failed to delete tournament");
+    } finally {
+      setIsDeletingTournament(false);
+    }
+  };
+
   const handleLeaveTournament = async (tournamentId) => {
     if (!user?.uid) {
       setError("Not logged in");
@@ -336,6 +501,11 @@ export default function TournamentModal({ isOpen, onClose }) {
             onClick={() => {
               setMode("menu");
               setError("");
+              setShowLeaveConfirm(false);
+              setTournamentToLeave(null);
+              setTournamentToEdit(null);
+              setShowDeleteConfirm(false);
+              setTournamentToDelete(null);
               onClose();
             }}
             className="text-gray-500 dark:text-gray-400 text-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl p-1"
@@ -391,7 +561,7 @@ export default function TournamentModal({ isOpen, onClose }) {
                                 {tournament.memberCount || 0} members
                               </div>
                             </div>
-                            <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2 justify-end">
                               {tournament.id !== currentTournament && (
                                 <button
                                   onClick={() => {
@@ -404,6 +574,34 @@ export default function TournamentModal({ isOpen, onClose }) {
                                   Switch
                                 </button>
                               )}
+                          {tournament.createdBy === user?.uid && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setError("");
+                                  setTournamentToEdit(tournament);
+                                  setMode("edit");
+                                }}
+                                className="px-3 py-1 bg-purple-500 text-white text-xs rounded-lg hover:bg-purple-600"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setError("");
+                                  setTournamentToDelete(tournament);
+                                  setShowDeleteConfirm(true);
+                                }}
+                                className="px-3 py-1 bg-red-700 text-white text-xs rounded-lg hover:bg-red-800"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
                               <button
                                 onClick={(e) => {
                                   e.preventDefault();
@@ -461,6 +659,19 @@ export default function TournamentModal({ isOpen, onClose }) {
               error={error}
             />
           )}
+
+          {mode === "edit" && tournamentToEdit && (
+            <EditTournamentForm
+              tournament={tournamentToEdit}
+              onSubmit={handleEditTournamentSubmit}
+              onBack={() => {
+                setTournamentToEdit(null);
+                setMode("menu");
+                setError("");
+              }}
+              loading={isSavingEdit}
+            />
+          )}
         </div>
       </div>
 
@@ -493,6 +704,40 @@ export default function TournamentModal({ isOpen, onClose }) {
                 className="flex-1 py-2 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600"
               >
                 Leave Tournament
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && tournamentToDelete && (
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+              Delete Tournament?
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              This will permanently remove <strong>{tournamentToDelete.name}</strong>, including its teams, games, and scores. Everyone will lose access to it.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  if (isDeletingTournament) return;
+                  setShowDeleteConfirm(false);
+                  setTournamentToDelete(null);
+                }}
+                className="flex-1 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-60"
+                disabled={isDeletingTournament}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteTournament}
+                className="flex-1 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 disabled:opacity-60"
+                disabled={isDeletingTournament}
+              >
+                {isDeletingTournament ? "Deleting..." : "Delete Tournament"}
               </button>
             </div>
           </div>
@@ -556,6 +801,76 @@ function CreateTournamentForm({ onSubmit, onBack, error }) {
           className="flex-1 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold hover:bg-green-700 dark:hover:bg-green-600"
         >
           Create
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function EditTournamentForm({ tournament, onSubmit, onBack, loading }) {
+  const [tournamentName, setTournamentName] = useState(tournament?.name || "");
+  const [newPassword, setNewPassword] = useState("");
+
+  useEffect(() => {
+    setTournamentName(tournament?.name || "");
+  }, [tournament]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(tournamentName, newPassword);
+  };
+
+  if (!tournament) {
+    return null;
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+          Tournament Name:
+        </label>
+        <input
+          type="text"
+          value={tournamentName}
+          onChange={(e) => setTournamentName(e.target.value)}
+          placeholder="Enter tournament name..."
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          required
+          disabled={loading}
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+          New Password (optional):
+        </label>
+        <input
+          type="password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder="Leave blank to keep current password"
+          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={loading}
+        />
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          Enter a new password if you want to reset it. Leave blank to keep the existing password.
+        </p>
+      </div>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex-1 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600"
+          disabled={loading}
+        >
+          Back
+        </button>
+        <button
+          type="submit"
+          className="flex-1 py-2 bg-purple-600 dark:bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-700 dark:hover:bg-purple-600 disabled:opacity-60"
+          disabled={loading}
+        >
+          {loading ? "Saving..." : "Save Changes"}
         </button>
       </div>
     </form>

@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import Modal from "../components/Modal";
 import useModal from "../hooks/useModal";
 import { getTournamentTeamRef } from "../utils/teamService";
+import PageShell from "../components/layout/PageShell";
 
 export default function JoinTeam() {
   const { user } = useAuth();
@@ -195,40 +196,33 @@ export default function JoinTeam() {
 
   if (!user || loading)
     return (
-      <div className="min-h-screen bg-green-100 dark:bg-gray-900 flex items-center justify-center p-6">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-green-200 dark:border-green-700 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin mx-auto mb-4"></div>
+      <PageShell title="Join a Team" description="Pair up with another golfer in your tournament." backHref="/dashboard">
+        <div className="mobile-card p-8 text-center">
+          <div className="w-10 h-10 border-4 border-green-200 dark:border-green-700 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-300">Loading...</p>
         </div>
-      </div>
+      </PageShell>
     );
 
   return (
-    <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-6">
-      <div className="max-w-md mx-auto">
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl"
-        >
-          ← Back to Dashboard
-        </button>
-
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
-            Join a Team
-          </h2>
-
+    <PageShell
+      title="Join a Team"
+      description="Invite another golfer in your tournament to team up and start scoring together."
+      backHref="/dashboard"
+    >
+      <div className="max-w-md mx-auto w-full">
+        <div className="mobile-card p-6 space-y-6 border border-gray-200/70 dark:border-gray-700">
           {currentUserData?.teamId && (
             <button
               onClick={leaveTeam}
-              className="w-full mb-4 py-3 bg-red-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              className="w-full mb-2 py-3 bg-red-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
             >
               Leave Current Team
             </button>
           )}
 
           {message && (
-            <div className="mb-4 p-4 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-xl text-center font-medium">
+            <div className="p-4 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-xl text-center font-medium">
               {message}
             </div>
           )}
@@ -242,7 +236,7 @@ export default function JoinTeam() {
               {users.map((u) => (
                 <div
                   key={u.id}
-                  className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-4 rounded-2xl shadow-lg gap-4"
+                  className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-4 rounded-2xl shadow gap-4"
                 >
                   <div className="flex items-center gap-3">
                     {u.profilePictureUrl ? (
@@ -257,12 +251,8 @@ export default function JoinTeam() {
                       </div>
                     )}
                     <div>
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        {u.displayName}
-                      </p>
-                      <p className="text-gray-600 dark:text-gray-300 text-sm">
-                        HCP: {u.handicap}
-                      </p>
+                      <p className="font-semibold text-gray-900 dark:text-white">{u.displayName}</p>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm">HCP: {u.handicap}</p>
                     </div>
                   </div>
                   <button
@@ -278,6 +268,6 @@ export default function JoinTeam() {
         </div>
       </div>
       <Modal {...modal} onClose={hideModal} />
-    </div>
+    </PageShell>
   );
 }

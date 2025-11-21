@@ -14,6 +14,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import SearchableCourseDropdown from "../components/SearchableCourseDropdown";
+import PageShell from "../components/layout/PageShell";
 
 const STATS_PAGE_SIZE = 100;
 
@@ -495,386 +496,364 @@ export default function MyStats() {
     setHoleHistoryModalOpen(true);
   };
 
-  if (loading) {
+  const renderAllTimeStats = () => {
+    if (overallStats.totalRounds === 0) {
+      return (
+        <div className="text-center py-12">
+          <p className="text-gray-600 dark:text-gray-300 text-lg mb-2">
+            No stats available yet
+          </p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            Complete rounds with stats tracking enabled to see {statsPronoun} statistics here.
+          </p>
+        </div>
+      );
+    }
+
     return (
-      <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-            <p className="mt-2 text-gray-600 dark:text-gray-300">Loading stats...</p>
+      <>
+        <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-2xl p-6 border border-green-200 dark:border-green-700">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+            Overall Statistics
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {overallStats.totalRounds}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Rounds
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {overallStats.avgPuttsPerHole}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Avg Putts/Hole
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {overallStats.firPercentage}%
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                FIR%
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                ({overallStats.totalFIR}/{overallStats.totalFirOpportunities || 0})
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {overallStats.girPercentage}%
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                GIR%
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                ({overallStats.totalGIR}/{overallStats.totalHoles})
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            Round History
+          </h2>
+          {rounds.map((round) => (
+            <div
+              key={round.gameId}
+              className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-600"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {round.gameName}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    {round.courseName} • {round.date}
+                  </p>
+                </div>
+                <div className="mt-2 sm:mt-0">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    {round.holesPlayed} holes
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-500 dark:text-gray-400 text-xs">Avg Putts</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {round.avgPutts}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500 dark:text-gray-400 text-xs">FIR%</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {round.firPercentage}%
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                    ({round.firCount}/{round.firOpportunities || 0})
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500 dark:text-gray-400 text-xs">GIR%</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {round.girPercentage}%
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-500">
+                    ({round.girCount}/{round.holesPlayed})
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500 dark:text-gray-400 text-xs">Total Putts</p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {round.totalPutts}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  };
+
+  const renderCourseStats = () => {
+    if (!selectedCourseId) {
+      return (
+        <div className="text-center py-12">
+          <p className="text-gray-600 dark:text-gray-300 text-lg mb-2">
+            Select a course to view stats
+          </p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            Choose a course from the dropdown above to see detailed stats.
+          </p>
+        </div>
+      );
+    }
+
+    if (!courseStats) {
+      return (
+        <div className="text-center py-12">
+          <p className="text-gray-600 dark:text-gray-300 text-lg mb-2">
+            No stats available for this course yet
+          </p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">
+            Complete rounds on this course with stats tracking enabled to see statistics.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl p-6 border border-blue-200 dark:border-blue-700">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+            Course Overview
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {courseStats.totalRounds}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Rounds
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {courseStats.avgPuttsPerHole}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Avg Putts/Hole
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {courseStats.firPercentage}%
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                FIR%
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                ({courseStats.totalFIR}/{courseStats.totalFirOpportunities || 0})
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {courseStats.girPercentage}%
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                GIR%
+              </div>
+              <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                ({courseStats.totalGIR}/{courseStats.totalHoles})
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {holeStats.map((hole) => (
+            <div
+              key={hole.holeNumber}
+              className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-600"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Hole {hole.holeNumber} • Par {hole.par}
+                  </h3>
+                  {hole.strokeIndex && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Stroke Index {hole.strokeIndex}
+                    </p>
+                  )}
+                </div>
+                <div className="mt-2 sm:mt-0 text-sm text-gray-600 dark:text-gray-300">
+                  <p>
+                    Avg Score:{" "}
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {hole.avgScore}
+                    </span>
+                  </p>
+                  <p>
+                    FIR:{" "}
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {hole.firPercentage}% ({hole.firCount}/{hole.firOpportunities})
+                    </span>
+                  </p>
+                  <p>
+                    GIR:{" "}
+                    <span className="font-semibold text-gray-900 dark:text-white">
+                      {hole.girPercentage}% ({hole.girCount}/{hole.girOpportunities})
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleViewHoleHistory(hole)}
+                className="mt-3 text-sm text-blue-600 dark:text-blue-400 font-semibold hover:underline"
+              >
+                View Hole History
+              </button>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  };
+
+  if (loading) {
+    return (
+      <PageShell
+        title={statsTitle}
+        description="Crunching the latest rounds..."
+        backHref={statsOriginPath}
+      >
+        <div className="mobile-card p-8 text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+          <p className="mt-2 text-gray-600 dark:text-gray-300">Loading stats...</p>
+        </div>
+      </PageShell>
     );
   }
 
   // Show view selection screen if no view is selected
   if (viewType === null) {
     return (
-      <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6">
-        <div className="max-w-4xl mx-auto">
-          <button
-            onClick={() => navigate(statsOriginPath)}
-            className="mb-6 sm:mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl text-sm sm:text-base"
-          >
-            ← Back to {statsOriginLabel}
-          </button>
-
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 sm:p-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
-              {statsTitle}
-            </h1>
-
-            {overallStats.totalRounds === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-600 dark:text-gray-300 text-lg mb-2">
-                  No stats available yet
+      <PageShell
+        title={statsTitle}
+        description="Choose which stats you want to dive into."
+        backHref={statsOriginPath}
+        bodyClassName="mobile-section"
+      >
+        <section className="mobile-card p-6 sm:p-8 border border-gray-200/70 dark:border-gray-700 space-y-8">
+          {overallStats.totalRounds === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-600 dark:text-gray-300 text-lg mb-2">
+                No stats available yet
+              </p>
+              <p className="text-gray-500 dark:text-gray-400 text-sm">
+                Complete rounds with stats tracking enabled to see {statsPronoun} statistics here.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <button
+                onClick={() => setViewType("all-time")}
+                className="bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-2xl p-8 shadow-lg transition-all duration-200 transform hover:scale-105"
+              >
+                <div className="text-4xl mb-4">📊</div>
+                <h2 className="text-2xl font-bold mb-2">View All Time Stats</h2>
+                <p className="text-green-100 text-sm">
+                  See {statsPronoun} overall statistics across all courses
                 </p>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  Complete rounds with stats tracking enabled to see {statsPronoun} statistics here.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button
-                  onClick={() => setViewType("all-time")}
-                  className="bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-2xl p-8 shadow-lg transition-all duration-200 transform hover:scale-105"
-                >
-                  <div className="text-4xl mb-4">📊</div>
-                  <h2 className="text-2xl font-bold mb-2">View All Time Stats</h2>
-                  <p className="text-green-100 text-sm">
-                    See {statsPronoun} overall statistics across all courses
-                  </p>
-                </button>
+              </button>
 
-                <button
-                  onClick={() => setViewType("course")}
-                  className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-2xl p-8 shadow-lg transition-all duration-200 transform hover:scale-105"
-                >
-                  <div className="text-4xl mb-4">🏌️</div>
-                  <h2 className="text-2xl font-bold mb-2">View Course Stats</h2>
-                  <p className="text-blue-100 text-sm">
-                    See detailed statistics for a specific course
-                  </p>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+              <button
+                onClick={() => setViewType("course")}
+                className="bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-2xl p-8 shadow-lg transition-all duration-200 transform hover:scale-105"
+              >
+                <div className="text-4xl mb-4">🏌️</div>
+                <h2 className="text-2xl font-bold mb-2">View Course Stats</h2>
+                <p className="text-blue-100 text-sm">
+                  See detailed statistics for a specific course
+                </p>
+              </button>
+            </div>
+          )}
+        </section>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-green-100 dark:bg-gray-900 p-4 sm:p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6 sm:mb-8">
-          <button
-            onClick={() => {
-              setViewType(null);
-              setSelectedCourseId(null);
-            }}
-            className="px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl text-sm sm:text-base"
-          >
-            ← Back to Options
-          </button>
-          <button
-            onClick={() => navigate(statsOriginPath)}
-            className="px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl text-sm sm:text-base"
-          >
-            {statsOriginLabel}
-          </button>
-        </div>
+    <>
+      <PageShell
+        title={viewType === "all-time" ? "All Time Stats" : "Course Stats"}
+        description={`Viewing ${statsOwnerPossessive} data`}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                setViewType(null);
+                setSelectedCourseId(null);
+              }}
+              className="px-4 py-2 rounded-2xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+            >
+              Back to Options
+            </button>
+            <button
+              onClick={() => navigate(statsOriginPath)}
+              className="px-4 py-2 rounded-2xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+            >
+              {statsOriginLabel}
+            </button>
+          </div>
+        }
+        bodyClassName="mobile-section"
+      >
+        {viewType === "course" && (
+          <section className="mobile-card p-6 border border-gray-200/70 dark:border-gray-700 space-y-4">
+            <SearchableCourseDropdown
+              courses={availableCourses}
+              selectedCourseId={selectedCourseId}
+              onCourseSelect={setSelectedCourseId}
+              placeholder="Select a course..."
+              label="Select Course"
+              error={false}
+            />
+          </section>
+        )}
 
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-6 text-center">
-            {viewType === "all-time" ? "All Time Stats" : "Course Stats"}
-          </h1>
-          <p className="text-center text-sm text-gray-600 dark:text-gray-300 mb-6">
-            Viewing {statsOwnerPossessive} data
-          </p>
-
-          {viewType === "course" && (
-            <div className="mb-6">
-              <SearchableCourseDropdown
-                courses={availableCourses}
-                selectedCourseId={selectedCourseId}
-                onCourseSelect={setSelectedCourseId}
-                placeholder="Select a course..."
-                label="Select Course"
-                error={false}
-              />
-            </div>
-          )}
-
-          {viewType === "all-time" ? (
-            // All-Time Stats View
-            overallStats.totalRounds === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-600 dark:text-gray-300 text-lg mb-2">
-                  No stats available yet
-                </p>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  Complete rounds with stats tracking enabled to see {statsPronoun} statistics here.
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Overall Stats Summary */}
-                <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-2xl p-6 mb-6 border border-green-200 dark:border-green-700">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
-                    Overall Statistics
-                  </h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                        {overallStats.totalRounds}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Rounds
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                        {overallStats.avgPuttsPerHole}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Avg Putts/Hole
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                        {overallStats.firPercentage}%
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        FIR%
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        ({overallStats.totalFIR}/{overallStats.totalFirOpportunities || 0})
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                        {overallStats.girPercentage}%
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        GIR%
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        ({overallStats.totalGIR}/{overallStats.totalHoles})
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Individual Rounds */}
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                    Round History
-                  </h2>
-                  <div className="space-y-4">
-                    {rounds.map((round) => (
-                      <div
-                        key={round.gameId}
-                        className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-600"
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3">
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                              {round.gameName}
-                            </h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              {round.courseName} • {round.date} • {round.holesPlayed} holes
-                            </p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div>
-                            <div className="text-gray-600 dark:text-gray-400">Avg Putts</div>
-                            <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                              {round.avgPutts}
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-gray-600 dark:text-gray-400">FIR%</div>
-                            <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                              {round.firPercentage}%
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-500">
-                              ({round.firCount}/{round.firOpportunities || 0})
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-gray-600 dark:text-gray-400">GIR%</div>
-                            <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                              {round.girPercentage}%
-                            </div>
-                            <div className="text-xs text-gray-500 dark:text-gray-500">
-                              ({round.girCount}/{round.holesPlayed})
-                            </div>
-                          </div>
-                          <div>
-                            <div className="text-gray-600 dark:text-gray-400">Total Putts</div>
-                            <div className="text-lg font-semibold text-gray-900 dark:text-white">
-                              {round.totalPutts}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )
-          ) : (
-            // Course Stats View
-            !selectedCourseId ? (
-              <div className="text-center py-12">
-                <p className="text-gray-600 dark:text-gray-300 text-lg mb-2">
-                  Please select a course to view statistics
-                </p>
-              </div>
-            ) : !courseStats ? (
-              <div className="text-center py-12">
-                <p className="text-gray-600 dark:text-gray-300 text-lg mb-2">
-                  No stats available for this course yet
-                </p>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">
-                  Complete rounds on this course with stats tracking enabled to see statistics.
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Course Overall Stats */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-2xl p-6 mb-6 border border-blue-200 dark:border-blue-700">
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
-                    Course Statistics
-                  </h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                        {courseStats.totalRounds}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Rounds
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                        {courseStats.avgPuttsPerHole}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Avg Putts/Hole
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                        {courseStats.firPercentage}%
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        FIR%
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        ({courseStats.totalFIR}/{courseStats.totalFirOpportunities || 0})
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                        {courseStats.girPercentage}%
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        GIR%
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                        ({courseStats.totalGIR}/{courseStats.totalHoles})
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Hole-by-Hole Stats */}
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
-                    Hole-by-Hole Statistics
-                  </h2>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-gray-200 dark:border-gray-700">
-                          <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Hole
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Par
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Avg Score
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            Avg Putts
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            FIR%
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            GIR%
-                          </th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700 dark:text-gray-300">
-                            History
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {holeStats.map((hole) => (
-                          <tr
-                            key={hole.holeNumber}
-                            className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                          >
-                            <td className="py-3 px-4 text-gray-900 dark:text-white font-medium">
-                              {hole.holeNumber}
-                            </td>
-                            <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
-                              {hole.par}
-                            </td>
-                            <td className="py-3 px-4 text-center text-gray-900 dark:text-white font-semibold">
-                              {hole.timesPlayed > 0 ? hole.avgScore : "-"}
-                            </td>
-                            <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
-                              {hole.timesPlayed > 0 ? hole.avgPutts : "-"}
-                            </td>
-                            <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
-                              {hole.par === 3
-                                ? "-"
-                                : hole.timesPlayed > 0
-                                ? `${hole.firPercentage}%`
-                                : "-"}
-                            </td>
-                            <td className="py-3 px-4 text-center text-gray-700 dark:text-gray-300">
-                              {hole.timesPlayed > 0 ? `${hole.girPercentage}%` : "-"}
-                            </td>
-                            <td className="py-3 px-4 text-center">
-                              {hole.timesPlayed > 0 ? (
-                                <button
-                                  onClick={() => handleViewHoleHistory(hole)}
-                                  className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
-                                >
-                                  View
-                                </button>
-                              ) : (
-                                <span className="text-gray-400 text-sm">-</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </>
-            )
-          )}
-        </div>
-      </div>
+        <section className="mobile-card p-6 border border-gray-200/70 dark:border-gray-700 space-y-6">
+          {viewType === "all-time" ? renderAllTimeStats() : renderCourseStats()}
+        </section>
+      </PageShell>
 
       {/* Hole History Modal */}
       {holeHistoryModalOpen && selectedHole && (
@@ -978,6 +957,6 @@ export default function MyStats() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

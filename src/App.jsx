@@ -24,6 +24,10 @@ import CourseInfo from "./pages/CourseInfo";
 import MyStats from "./pages/MyStats";
 import NotFound from "./pages/NotFound";
 import ErrorBoundary from "./components/ErrorBoundary";
+import HowToUse from "./pages/HowToUse";
+import SubmitSuggestion from "./pages/SubmitSuggestion";
+import InviteFriend from "./pages/InviteFriend";
+import MobileNav from "./components/layout/MobileNav";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -38,81 +42,108 @@ function App() {
       <AuthProvider>
         <TournamentProvider>
           <Router>
-          <ErrorBoundary>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route
-              path="/scores"
-              element={
-                <PrivateRoute>
-                  <EnterScoreWrapper />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/create-game"
-              element={
-                <PrivateRoute>
-                  <CreateGameWrapper courses={courses} />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/tournament-select"
-              element={
-                <PrivateRoute>
-                  <TournamentSelect />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/leaderboard"
-              element={
-                <PrivateRoute>
-                  <Leaderboard />
-                </PrivateRoute>
-              }
-            />
-            <Route path="/join-team" element={<JoinTeam />} />
-            <Route
-              path="/ViewTeams"
-              element={
-                <PrivateRoute>
-                  <ViewTeams />
-                </PrivateRoute>
-              }
-            />
-            <Route path="/members" element={<ViewMembers />} />
-            <Route
-              path="/course-info"
-              element={
-                <PrivateRoute>
-                  <CourseInfo />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/my-stats"
-              element={
-                <PrivateRoute>
-                  <MyStats />
-                </PrivateRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          </ErrorBoundary>
-        </Router>
+            <ErrorBoundary>
+              <>
+                <Routes>
+                  <Route path="/" element={<Landing />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route
+                    path="/scores"
+                    element={
+                      <PrivateRoute>
+                        <EnterScoreWrapper />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/create-game"
+                    element={
+                      <PrivateRoute>
+                        <CreateGameWrapper courses={courses} />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/tournament-select"
+                    element={
+                      <PrivateRoute>
+                        <TournamentSelect />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <PrivateRoute>
+                        <Dashboard />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/leaderboard"
+                    element={
+                      <PrivateRoute>
+                        <Leaderboard />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route path="/join-team" element={<JoinTeam />} />
+                  <Route
+                    path="/ViewTeams"
+                    element={
+                      <PrivateRoute>
+                        <ViewTeams />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route path="/members" element={<ViewMembers />} />
+                  <Route
+                    path="/course-info"
+                    element={
+                      <PrivateRoute>
+                        <CourseInfo />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/my-stats"
+                    element={
+                      <PrivateRoute>
+                        <MyStats />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/how-to-use"
+                    element={
+                      <PrivateRoute>
+                        <HowToUse />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/submit-suggestion"
+                    element={
+                      <PrivateRoute>
+                        <SubmitSuggestion />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/invite-friend"
+                    element={
+                      <PrivateRoute>
+                        <InviteFriend />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <MobileNav />
+              </>
+            </ErrorBoundary>
+          </Router>
         </TournamentProvider>
       </AuthProvider>
     </ThemeProvider>

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import React from "react";
+import PageShell from "../components/layout/PageShell";
 
 export default function Login() {
   const { login, setUserAndPersist } = useAuth();
@@ -30,58 +31,41 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-green-100 dark:bg-gray-900 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-md mx-auto">
+    <PageShell
+      title="Welcome Back"
+      description="Sign in to your account"
+      backHref="/"
+      actions={
         <button
-          onClick={() => navigate("/")}
-          className="mb-8 inline-flex items-center gap-2 px-4 py-3 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold rounded-2xl shadow-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 transition-all duration-200"
+          onClick={() => navigate("/register")}
+          className="px-4 py-2 rounded-2xl border border-green-500 text-green-600 dark:text-green-300 font-semibold hover:bg-green-50 dark:hover:bg-green-900/20 transition"
         >
-          Back
+          Create account
         </button>
-
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 p-8 backdrop-blur-sm">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-green-500 to-green-600 dark:from-green-400 dark:to-green-500 rounded-2xl flex items-center justify-center shadow-lg">
-              <svg
-                className="w-8 h-8 text-white"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Welcome Back
-            </h2>
-            <p className="text-gray-600 dark:text-gray-300">
-              Sign in to your account
-            </p>
-          </div>
-
+      }
+    >
+      <div className="w-full max-w-md mx-auto">
+        <section className="mobile-card p-8 space-y-6 border border-gray-200/70 dark:border-gray-700">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <input
-                type="text"
-                placeholder="Display Name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                required
-                className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-              />
-            </div>
+            <input
+              type="text"
+              placeholder="Display Name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              required
+              className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            />
 
-            <div>
-              <input
-                type="password"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-              />
-            </div>
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+            />
 
-            <div className="flex items-center">
+            <label className="flex items-center text-sm text-gray-700 dark:text-gray-300 gap-2">
               <input
                 id="rememberMe"
                 type="checkbox"
@@ -89,13 +73,8 @@ export default function Login() {
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
               />
-              <label
-                htmlFor="rememberMe"
-                className="ml-2 text-gray-700 dark:text-gray-300 text-sm"
-              >
-                Remember me
-              </label>
-            </div>
+              Remember me
+            </label>
 
             <button
               type="submit"
@@ -106,28 +85,26 @@ export default function Login() {
           </form>
 
           {error && (
-            <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-2xl text-sm">
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-2xl text-sm">
               {error}
             </div>
           )}
 
-          <div className="mt-8 text-center">
-            <p className="text-gray-500 dark:text-gray-400 text-sm">
-              Don't have an account?{" "}
-              <button
-                onClick={() => navigate("/register")}
-                className="text-green-600 dark:text-green-400 font-semibold"
-              >
-                Create one
-              </button>
-            </p>
-          </div>
-        </div>
+          <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
+            Need an account?{" "}
+            <button
+              onClick={() => navigate("/register")}
+              className="text-green-600 dark:text-green-400 font-semibold"
+            >
+              Create one
+            </button>
+          </p>
+        </section>
 
-        <div className="mt-8 text-center text-gray-500 dark:text-gray-400 text-sm">
+        <p className="mt-6 text-center text-gray-500 dark:text-gray-400 text-sm">
           Golf Trip Leaderboard
-        </div>
+        </p>
       </div>
-    </div>
+    </PageShell>
   );
 }
