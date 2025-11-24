@@ -24,38 +24,66 @@ export default function StablefordLeaderboard({ game }) {
       const gamePlayersMap = {};
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
 
+      const resolveTeamUsers = (team) => {
+        const roster =
+          Array.isArray(team.players) && team.players.length > 0
+            ? team.players
+            : [team.player1, team.player2].filter(Boolean);
+        return roster
+          .map((slot) => {
+            const playerId = slot?.uid || slot?.userId || slot?.id;
+            if (!playerId) return null;
+            const foundUser = users.find(
+              (u) => u.id === playerId && gamePlayersMap[u.id]
+            );
+            return foundUser || null;
+          })
+          .filter(Boolean);
+      };
+
       const leaderboardData = [];
 
       teams.forEach((team) => {
-        const player1 = users.find(
-          (u) => u.id === team.player1?.uid && gamePlayersMap[u.id]
-        );
-        const player2 = users.find(
-          (u) => u.id === team.player2?.uid && gamePlayersMap[u.id]
-        );
-        if (!player1 && !player2) return;
+        const teamMembers = resolveTeamUsers(team);
+        if (teamMembers.length === 0) return;
 
         let totalPoints = 0;
         let holesThru = 0;
         let totalStrokes = 0;
         let isRoundComplete = true;
 
-        const p1Scores = gamePlayersMap[player1?.id]?.scores ?? [];
-        const p2Scores = gamePlayersMap[player2?.id]?.scores ?? [];
+        const memberScores = teamMembers.map(
+          (member) => gamePlayersMap[member.id]?.scores ?? []
+        );
 
         for (let i = 0; i < 18; i++) {
-          const p1Net = p1Scores[i]?.net;
-          const p2Net = p2Scores[i]?.net;
-          if (p1Net != null || p2Net != null) holesThru++;
-          totalPoints += Math.max(p1Net ?? 0, p2Net ?? 0);
-          
-          // Calculate strokes using gross scores
-          const p1Gross = p1Scores[i]?.gross ?? 0;
-          const p2Gross = p2Scores[i]?.gross ?? 0;
-          totalStrokes += Math.max(p1Gross, p2Gross);
-          
-          // Check if round is complete
-          if (p1Gross === 0 && p2Gross === 0) {
+          const holeNets = [];
+          let holeHasNet = false;
+          let holeHasGross = false;
+          let bestGross = null;
+
+          memberScores.forEach((scores) => {
+            const score = scores[i];
+            if (!score) return;
+            if (score.net != null) {
+              holeHasNet = true;
+              holeNets.push(score.net);
+            }
+            if (score.gross != null && score.gross > 0) {
+              holeHasGross = true;
+              bestGross =
+                bestGross === null ? score.gross : Math.max(bestGross, score.gross);
+            }
+          });
+
+          if (holeHasNet) {
+            holesThru++;
+            totalPoints += Math.max(...holeNets);
+          }
+
+          if (holeHasGross && bestGross !== null) {
+            totalStrokes += bestGross;
+          } else {
             isRoundComplete = false;
           }
         }
@@ -63,25 +91,21 @@ export default function StablefordLeaderboard({ game }) {
         const opponentPlayers = [];
         let opponentDisplayName = "";
         const opponentTeam = teams.find(
-          (t) => t.id !== team.id && t.player1?.uid && t.player2?.uid
+          (t) =>
+            t.id !== team.id &&
+            (Array.isArray(t.players) ? t.players.length : 0) >= 1
         );
 
         if (opponentTeam) {
-          const opponent1 = users.find(
-            (u) => u.id === opponentTeam.player1?.uid && gamePlayersMap[u.id]
-          );
-          const opponent2 = users.find(
-            (u) => u.id === opponentTeam.player2?.uid && gamePlayersMap[u.id]
-          );
-          if (opponent1) opponentPlayers.push(opponent1);
-          if (opponent2) opponentPlayers.push(opponent2);
+          const opponents = resolveTeamUsers(opponentTeam);
+          opponentPlayers.push(...opponents);
           opponentDisplayName = opponentTeam.name;
         }
 
         leaderboardData.push({
           id: team.id,
           name: team.name,
-          players: [player1, player2].filter(Boolean),
+          players: teamMembers,
           totalPoints,
           thru: holesThru,
           isSolo: false,

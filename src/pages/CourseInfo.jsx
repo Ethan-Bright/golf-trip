@@ -6,6 +6,7 @@ import PageShell from "../components/layout/PageShell";
 export default function CourseInfo() {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [flyover, setFlyover] = useState(null);
+  const [isDropdownOpen, setDropdownOpen] = useState(false);
 
   const selectedCourseData = courses.find((c) => c.id === selectedCourse);
   const showFlyover = selectedCourseData?.id === "pezula";
@@ -21,7 +22,11 @@ export default function CourseInfo() {
       backText="Dashboard"
       backHref="/dashboard"
     >
-      <div className="mobile-card p-5 border border-green-100/70 dark:border-gray-800/70">
+      <div
+        className={`mobile-card p-5 border border-green-100/70 dark:border-gray-800/70 ${
+          isDropdownOpen ? "relative z-40" : ""
+        }`}
+      >
         <SearchableCourseDropdown
           courses={courses}
           selectedCourseId={selectedCourse}
@@ -30,6 +35,7 @@ export default function CourseInfo() {
           label=""
           error={false}
           className="text-lg font-medium"
+          onDropdownToggle={setDropdownOpen}
         />
       </div>
 

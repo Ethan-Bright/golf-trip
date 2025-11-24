@@ -330,6 +330,13 @@ const extractTeamMemberIds = (team) => {
   const ids = new Set();
   const addId = (playerSlot) => {
     if (!playerSlot) return;
+    if (typeof playerSlot === "string") {
+      const trimmed = playerSlot.trim();
+      if (trimmed) {
+        ids.add(trimmed);
+      }
+      return;
+    }
     const id = playerSlot.uid || playerSlot.userId || playerSlot.id;
     if (typeof id === "string" && id.trim()) {
       ids.add(id);
@@ -338,6 +345,11 @@ const extractTeamMemberIds = (team) => {
 
   addId(team.player1);
   addId(team.player2);
+  addId(team.player3);
+
+  if (Array.isArray(team.players)) {
+    team.players.forEach((member) => addId(member));
+  }
 
   if (Array.isArray(team.members)) {
     team.members.forEach((member) => {

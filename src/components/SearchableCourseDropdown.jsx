@@ -9,6 +9,7 @@ export default function SearchableCourseDropdown({
   disabled = false,
   error = false,
   className = "",
+  onDropdownToggle,
 }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,6 +39,12 @@ export default function SearchableCourseDropdown({
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof onDropdownToggle === "function") {
+      onDropdownToggle(isDropdownOpen);
+    }
+  }, [isDropdownOpen, onDropdownToggle]);
+
   const handleCourseSelect = (courseId) => {
     onCourseSelect(courseId);
     setIsDropdownOpen(false);
@@ -45,7 +52,10 @@ export default function SearchableCourseDropdown({
   };
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
+    <div
+      className={`relative ${isDropdownOpen ? "z-20" : ""} ${className}`}
+      ref={dropdownRef}
+    >
       {label && (
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           {label}
@@ -90,7 +100,7 @@ export default function SearchableCourseDropdown({
         </button>
 
         {isDropdownOpen && !disabled && (
-          <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg">
+          <div className="absolute z-30 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg">
             {/* Search Input inside Dropdown */}
             <div className="p-2 border-b border-gray-200 dark:border-gray-600">
               <input
