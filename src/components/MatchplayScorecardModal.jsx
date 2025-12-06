@@ -90,6 +90,7 @@ export default function MatchplayScorecardModal({
       const leftHighlight = buildGroupHighlightInfo(leftGroup, actualHoleIndex, {
         valueSelector: (player, index) =>
           getScoreMetric(player?.scores?.[index]),
+        preferLower: true, // Lower net/gross score wins in matchplay
       });
       const rightHighlight = buildGroupHighlightInfo(
         rightGroup,
@@ -97,6 +98,7 @@ export default function MatchplayScorecardModal({
         {
           valueSelector: (player, index) =>
             getScoreMetric(player?.scores?.[index]),
+          preferLower: true, // Lower net/gross score wins in matchplay
         }
       );
 

@@ -53,11 +53,11 @@ export default function Matchplay2v2GameScorecardModal({ game, teamsData, onClos
     
     if (playerScores.length === 0) return null;
     
-    const maxScore = Math.max(...playerScores.map(s => s.score));
-    const bestPlayer = playerScores.find(s => s.score === maxScore);
+    const minScore = Math.min(...playerScores.map(s => s.score));
+    const bestPlayer = playerScores.find(s => s.score === minScore);
     
     return {
-      score: maxScore,
+      score: minScore,
       playerName: bestPlayer.playerName
     };
   };
@@ -71,8 +71,8 @@ export default function Matchplay2v2GameScorecardModal({ game, teamsData, onClos
     if (teamScores.length === 0) return null;
     if (teamScores.length === 1) return teamScores[0];
 
-    const maxScore = Math.max(...teamScores.map(t => t.bestScore.score));
-    const winners = teamScores.filter(t => t.bestScore.score === maxScore);
+    const minScore = Math.min(...teamScores.map(t => t.bestScore.score));
+    const winners = teamScores.filter(t => t.bestScore.score === minScore);
     
     return winners.length === 1 ? winners[0] : null;
   };
@@ -144,7 +144,7 @@ export default function Matchplay2v2GameScorecardModal({ game, teamsData, onClos
                         >
                           {teamScore !== null ? (
                             <div>
-                              <div>{teamScore.score} pts</div>
+                              <div>{teamScore.score}</div>
                               {isWinner && (
                                 <div className="text-xs text-green-800 dark:text-green-200 mt-1">
                                   {teamScore.playerName}
