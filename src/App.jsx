@@ -28,6 +28,7 @@ import HowToUse from "./pages/HowToUse";
 import SubmitSuggestion from "./pages/SubmitSuggestion";
 import InviteFriend from "./pages/InviteFriend";
 import MobileNav from "./components/layout/MobileNav";
+import PWARefreshControl from "./components/PWARefreshControl";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -141,6 +142,7 @@ function App() {
                   <Route path="*" element={<NotFound />} />
                 </Routes>
                 <MobileNav />
+                <PWARefreshControl />
               </>
             </ErrorBoundary>
           </Router>

@@ -15,6 +15,14 @@ describe("scoring helpers", () => {
       expect(strokesReceivedForHole(4, 2)).toBe(1);
       expect(strokesReceivedForHole(4, 10)).toBe(0);
     });
+
+    it("treats scratch and plus handicaps correctly", () => {
+      expect(strokesReceivedForHole(0, 1)).toBe(0);
+      expect(strokesReceivedForHole(-2, 1)).toBe(-1);
+      expect(strokesReceivedForHole(-2, 2)).toBe(-1);
+      expect(strokesReceivedForHole(-2, 3)).toBe(0);
+      expect(strokesReceivedForHole(-20, 1)).toBe(-2); // base -1, extra -1
+    });
   });
 
   describe("netScore", () => {

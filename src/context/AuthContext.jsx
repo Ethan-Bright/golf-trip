@@ -10,6 +10,7 @@ import {
 } from "firebase/firestore";
 import imageCompression from "browser-image-compression";
 import bcrypt from "bcryptjs";
+import { isStandalonePWA } from "../utils/pwa";
 
 const AuthContext = createContext();
 
@@ -170,23 +171,33 @@ export function AuthProvider({ children }) {
         // If remember is not specified, check which storage currently has the user
         // This preserves the user's original "remember me" preference
         let shouldRemember = remember;
+        const runningStandalone = isStandalonePWA();
+
         if (remember === null) {
           const hasLocalStorage = localStorage.getItem("golfTripUser") !== null;
-          const hasSessionStorage = sessionStorage.getItem("golfTripUser") !== null;
+          const hasSessionStorage =
+            sessionStorage.getItem("golfTripUser") !== null;
           // If localStorage has the user, they used "remember me"
           // If only sessionStorage has it, they didn't use "remember me"
           // If neither has it (new login), default to true
-          shouldRemember = hasLocalStorage || (!hasLocalStorage && !hasSessionStorage);
+          shouldRemember =
+            runningStandalone ||
+            hasLocalStorage ||
+            (!hasLocalStorage && !hasSessionStorage);
         }
-        
+
+        // In PWA/standalone mode, always back up to localStorage so closing the app keeps the session
+        const persistToLocal = runningStandalone || shouldRemember;
+        const persistToSession = !shouldRemember;
+
         // Always clear both storages first to avoid conflicts
         localStorage.removeItem("golfTripUser");
         sessionStorage.removeItem("golfTripUser");
-        
-        // Then save to the appropriate storage based on remember preference
-        if (shouldRemember) {
+
+        if (persistToLocal) {
           localStorage.setItem("golfTripUser", JSON.stringify(userData));
-        } else {
+        }
+        if (persistToSession) {
           sessionStorage.setItem("golfTripUser", JSON.stringify(userData));
         }
       } catch (e) {

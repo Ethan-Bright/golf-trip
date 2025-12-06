@@ -94,6 +94,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
   const [matchFormat, setMatchFormat] = useState("");
   const [holeCount, setHoleCount] = useState("");
   const [nineType, setNineType] = useState("");
+  const [startingHole, setStartingHole] = useState(1);
   const [errors, setErrors] = useState({});
   const [showFormatHelp, setShowFormatHelp] = useState(false);
   const [userGames, setUserGames] = useState([]);
@@ -236,6 +237,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
     setMatchFormat("");
     setHoleCount("");
     setNineType("");
+    setStartingHole(1);
     setIsFunGame(false);
     setErrors({});
     setEditingGameId(null);
@@ -264,6 +266,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
         ? game.nineType || ""
         : game.nineType || "front"
     );
+    setStartingHole(game.startingHole || 1);
     setIsFunGame(Boolean(game.isFunGame));
     setErrors({});
     setEditingGameId(game.id);
@@ -392,6 +395,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
           matchFormat,
           holeCount,
           nineType,
+          startingHole,
           isFunGame,
           updatedAt: serverTimestamp(),
         });
@@ -411,6 +415,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
         matchFormat,
         holeCount,
         nineType,
+        startingHole,
         isFunGame,
         tournamentId: currentTournament,
         playerIds: [userId].filter(Boolean),
@@ -576,6 +581,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
                 setErrors((prev) => ({ ...prev, holeCount: false }));
                 if (value === 18) {
                   setNineType("front");
+                  setStartingHole(1);
                 }
               }}
               className={`w-full rounded-2xl border ${
@@ -590,6 +596,23 @@ export default function CreateGame({ userId, user, courses = [] }) {
               <option value={9}>9 Holes</option>
             </select>
           </div>
+
+          {holeCount === 18 && (
+            <div className="space-y-2">
+              <label className="block text-gray-900 dark:text-white font-medium">
+                Starting Tee
+              </label>
+              <select
+                value={startingHole}
+                onChange={(e) => setStartingHole(Number(e.target.value))}
+                className="w-full rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:py-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                disabled={isFormLocked}
+              >
+                <option value={1}>Start on Hole 1</option>
+                <option value={10}>Start on Hole 10</option>
+              </select>
+            </div>
+          )}
 
           {holeCount === 9 && (
             <div className="space-y-2">

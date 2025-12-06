@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useRef } from "react";
 import { buildColumnBorderClasses } from "../utils/scorecardUtils";
 import { shareScorecardAsImage } from "../utils/shareScorecard";
+import { strokesReceivedForHole } from "../lib/scoring";
 
 export default function WolfNetScorecardModal({ game, onClose }) {
   const [isSharing, setIsSharing] = useState(false);
@@ -25,15 +26,21 @@ export default function WolfNetScorecardModal({ game, onClose }) {
   // Get net score for a player on a hole
   const getNet = (playerId, i) => {
     const player = getPlayerById(playerId);
-    if (!player || !holes?.[i] || !player.handicap) return null;
+    if (
+      !player ||
+      !holes?.[i] ||
+      player.handicap === null ||
+      player.handicap === undefined
+    )
+      return null;
     const gross = getGross(playerId, i);
     if (gross == null) return null;
-    const handicap = player.handicap || 0;
-    const baseStroke = Math.floor(handicap / 18);
-    const extraStrokes = handicap % 18;
     const hole = holes[i];
-    const holeStroke = baseStroke + (hole.strokeIndex <= extraStrokes ? 1 : 0);
-    return Math.max(0, gross - holeStroke);
+    const strokeAdjustment = strokesReceivedForHole(
+      player.handicap,
+      hole.strokeIndex
+    );
+    return Math.max(0, gross - strokeAdjustment);
   };
 
   const displayPlayers = useMemo(() => {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   doc,
   updateDoc,
@@ -19,6 +19,7 @@ import {
   getMatchFormatLabel,
   normalizeMatchFormat,
 } from "../lib/matchFormats";
+import { strokesReceivedForHole } from "../lib/scoring";
 import {
   fetchTeamsForTournament,
   normalizeTeamPlayers,
@@ -37,6 +38,7 @@ export default function EnterScore({ userId, user }) {
   const [points, setPoints] = useState(0);
   const [holeCount, setHoleCount] = useState(""); // start empty for "Select Number of Holes"
   const [nineType, setNineType] = useState(""); // start empty for "Select 9 Holes"
+  const [startingHole, setStartingHole] = useState(1); // tee box start for 18-hole rounds (1 or 10)
   const [showFormatHelp, setShowFormatHelp] = useState(false);
   const [trackStats, setTrackStats] = useState(false);
   const [trackStatsLocked, setTrackStatsLocked] = useState(false);
@@ -44,6 +46,7 @@ export default function EnterScore({ userId, user }) {
   const [wolfOrder, setWolfOrder] = useState(null); // array of userIds length 3
   const [wolfDecisions, setWolfDecisions] = useState([]); // per-hole: 'lone' | partnerUserId | null
   const [wolfHoles, setWolfHoles] = useState(null); // per-hole: { wolfId, decision } | null
+  const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
 
   const sanitizeWolfDecisions = useCallback(
     (decisions, length) => {
@@ -152,6 +155,7 @@ export default function EnterScore({ userId, user }) {
           setNineType(
             totalHoles === 9 && gameData.nineType ? gameData.nineType : "front"
           );
+          setStartingHole(gameData.startingHole || 1);
           setTrackStats(deriveTrackStatsPreference(player, gameData));
           setTrackStatsLocked(deriveTrackStatsLockState(player, gameData));
           setWolfOrder(gameData.wolfOrder || null);
@@ -223,6 +227,7 @@ export default function EnterScore({ userId, user }) {
 
         setHoleCount(gameData.holeCount || 18);
         setNineType(gameData.nineType || "front");
+        setStartingHole(gameData.startingHole || 1);
         setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
         setGamePlayers(gameData.players || []);
         setWolfOrder(gameData.wolfOrder || null);
@@ -343,6 +348,125 @@ export default function EnterScore({ userId, user }) {
   const isWolfFormat = normalizedFormat === "wolf" || normalizedFormat === "wolf-handicap";
   const isWolfHandicapFormat = normalizedFormat === "wolf-handicap";
   const totalHolesInGame = holeCount || selectedCourse?.holes?.length || 18;
+  const startIndex = useMemo(
+    () => (nineType === "back" ? 9 : 0),
+    [nineType]
+  );
+  const endIndex = useMemo(
+    () =>
+      holeCount === 9
+        ? startIndex + 9
+        : selectedCourse?.holes.length || 18,
+    [holeCount, startIndex, selectedCourse]
+  );
+  const displayedHoles = useMemo(
+    () => selectedCourse?.holes.slice(startIndex, endIndex) || [],
+    [selectedCourse, startIndex, endIndex]
+  );
+  const displayedScores = useMemo(
+    () => scores.slice(startIndex, endIndex),
+    [scores, startIndex, endIndex]
+  );
+
+  const playOrder = useMemo(() => {
+    const totalHoles = endIndex - startIndex;
+    if (!selectedCourse?.holes || totalHoles <= 0) return [];
+
+    if (holeCount === 9) {
+      return Array.from({ length: totalHoles }, (_, i) => startIndex + i);
+    }
+
+    const baseOrder = Array.from({ length: totalHoles }, (_, i) => startIndex + i);
+    if (holeCount === 18 && startingHole === 10) {
+      return Array.from({ length: totalHoles }, (_, i) => (9 + i) % totalHoles);
+    }
+    return baseOrder;
+  }, [endIndex, startIndex, selectedCourse, holeCount, startingHole]);
+
+  const playOrderIndexMap = useMemo(() => {
+    const map = new Map();
+    playOrder.forEach((holeIdx, orderPos) => map.set(holeIdx, orderPos));
+    return map;
+  }, [playOrder]);
+
+  const firstUnenteredOrderPos = useMemo(
+    () =>
+      playOrder.findIndex((absIndex) => {
+        const gross = scores?.[absIndex]?.gross;
+        return gross === null || gross === undefined;
+      }),
+    [playOrder, scores]
+  );
+
+  const firstUnenteredHoleIndex = useMemo(
+    () =>
+      firstUnenteredOrderPos === -1 ? null : playOrder[firstUnenteredOrderPos],
+    [firstUnenteredOrderPos, playOrder]
+  );
+
+  const getHoleLockState = useCallback(
+    (absIndex) => {
+      const orderPos = playOrderIndexMap.get(absIndex);
+      const gross = scores?.[absIndex]?.gross;
+      const holeInfo = wolfHoles?.[absIndex];
+      const wolfDecision =
+        holeInfo && "decision" in holeInfo
+          ? holeInfo.decision
+          : wolfDecisions?.[absIndex] ?? null;
+      const wolfLocked =
+        isWolfFormat &&
+        (wolfDecision === null || wolfDecision === undefined);
+      const futureLocked =
+        firstUnenteredOrderPos !== -1 &&
+        orderPos !== undefined &&
+        orderPos > firstUnenteredOrderPos &&
+        (gross === null || gross === undefined);
+      const locked = Boolean(wolfLocked || futureLocked);
+      const reason = wolfLocked
+        ? "Wolf must choose before scoring."
+        : futureLocked
+        ? "Enter earlier holes first."
+        : "";
+
+      return { locked, reason, wolfDecision };
+    },
+    [
+      playOrderIndexMap,
+      scores,
+      wolfHoles,
+      wolfDecisions,
+      isWolfFormat,
+      firstUnenteredOrderPos,
+    ]
+  );
+
+  useEffect(() => {
+    setHasAutoScrolled(false);
+  }, [gameId, startIndex, startingHole, holeCount]);
+
+  useEffect(() => {
+    if (hasAutoScrolled) return;
+    if (
+      firstUnenteredHoleIndex === null ||
+      firstUnenteredHoleIndex === undefined ||
+      typeof document === "undefined"
+    ) {
+      return;
+    }
+
+    const card = document.getElementById(`hole-card-${firstUnenteredHoleIndex}`);
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    const input = document.getElementById(
+      `hole-input-${firstUnenteredHoleIndex}`
+    );
+    if (input) {
+      input.focus({ preventScroll: true });
+    }
+    setHasAutoScrolled(true);
+  }, [firstUnenteredHoleIndex, hasAutoScrolled]);
   const getWolfForHole = (absHoleIndex) => {
     if (!isWolfFormat || !wolfOrder || wolfOrder.length !== 3) return null;
     return wolfOrder[absHoleIndex % 3] || null;
@@ -355,15 +479,21 @@ export default function EnterScore({ userId, user }) {
   
   // Get net score for a player on a hole (for handicap formats)
   const getNetFor = (player, absHoleIndex) => {
-    if (!player || !selectedCourse?.holes?.[absHoleIndex] || !player.handicap) return null;
+    if (
+      !player ||
+      !selectedCourse?.holes?.[absHoleIndex] ||
+      player.handicap === null ||
+      player.handicap === undefined
+    )
+      return null;
     const gross = getGrossFor(player, absHoleIndex);
     if (gross == null) return null;
-    const handicap = player.handicap || 0;
-    const baseStroke = Math.floor(handicap / 18);
-    const extraStrokes = handicap % 18;
     const hole = selectedCourse.holes[absHoleIndex];
-    const holeStroke = baseStroke + (hole.strokeIndex <= extraStrokes ? 1 : 0);
-    return Math.max(0, gross - holeStroke);
+    const strokeAdjustment = strokesReceivedForHole(
+      player.handicap,
+      hole.strokeIndex
+    );
+    return Math.max(0, gross - strokeAdjustment);
   };
   
   // Get score (gross or net depending on format)
@@ -525,7 +655,21 @@ export default function EnterScore({ userId, user }) {
 
   // --- Handle score changes ---
   const handleScoreChange = (holeIndex, value) => {
+    const lockState = getHoleLockState(holeIndex);
+    if (lockState?.locked) return;
+
     const updated = [...scores];
+    if (!updated[holeIndex]) {
+      updated[holeIndex] = {
+        gross: null,
+        net: null,
+        netScore: null,
+        fir: null,
+        gir: null,
+        putts: null,
+      };
+    }
+
     const numericValue =
       value === "" || value === null || Number.isNaN(Number(value))
         ? null
@@ -538,15 +682,13 @@ export default function EnterScore({ userId, user }) {
       user?.handicap != null &&
       numericValue != null
     ) {
-      const handicap = user.handicap;
-      const baseStroke = Math.floor(handicap / 18);
-      const extraStrokes = handicap % 18;
-
       const hole = selectedCourse.holes[holeIndex];
-      const holeStroke =
-        baseStroke + (hole.strokeIndex <= extraStrokes ? 1 : 0);
+      const strokeAdjustment = strokesReceivedForHole(
+        user?.handicap ?? 0,
+        hole.strokeIndex
+      );
 
-      const netScore = Math.max(0, numericValue - holeStroke);
+      const netScore = Math.max(0, numericValue - strokeAdjustment);
       const points = Math.max(0, hole.par + 2 - netScore);
 
       updated[holeIndex].netScore = netScore;
@@ -563,7 +705,11 @@ export default function EnterScore({ userId, user }) {
 
   // --- Handle stats changes ---
   const handleStatsChange = (holeIndex, statType, value) => {
+    const lockState = getHoleLockState(holeIndex);
+    if (lockState?.locked) return;
+
     const updated = [...scores];
+    if (!updated[holeIndex]) return;
     if (statType === "fir" || statType === "gir") {
       updated[holeIndex][statType] = Boolean(value);
     } else if (statType === "putts") {
@@ -652,11 +798,13 @@ export default function EnterScore({ userId, user }) {
         setMatchFormat("");
         setHoleCount("");
         setNineType("");
+        setStartingHole(1);
         setScores([]);
         setPoints(0);
         setTrackStats(false);
         setTrackStatsLocked(false);
         setIsFunGame(false);
+        setHasAutoScrolled(false);
         
         showSuccess("Left game successfully!", "Success");
       }
@@ -748,14 +896,6 @@ export default function EnterScore({ userId, user }) {
     }, 300);
     return () => clearTimeout(timeout);
   }, [scores, gameId, userId]);
-
-  // --- Slice holes & scores for front/back 9 ---
-  const startIndex = nineType === "back" ? 9 : 0;
-  const endIndex =
-    holeCount === 9 ? startIndex + 9 : selectedCourse?.holes.length || 18;
-  const displayedHoles =
-    selectedCourse?.holes.slice(startIndex, endIndex) || [];
-  const displayedScores = scores.slice(startIndex, endIndex);
 
   return (
     <div className="min-h-screen bg-gray-900 p-4 sm:p-6 pb-28">
@@ -929,6 +1069,8 @@ export default function EnterScore({ userId, user }) {
                 onScoreChange={handleScoreChange}
                 onStatsChange={handleStatsChange}
                 onWolfDecisionChange={handleWolfDecisionChange}
+                getHoleLockState={getHoleLockState}
+                firstUnenteredHoleIndex={firstUnenteredHoleIndex}
               />
 
               <div className="mt-4 sm:mt-6 text-center font-semibold text-lg sm:text-xl text-green-700 dark:text-green-400">

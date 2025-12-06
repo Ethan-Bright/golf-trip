@@ -3,6 +3,7 @@ import { normalizeMatchFormat } from "../lib/matchFormats";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 import WolfNetScorecardModal from "./WolfNetScorecardModal";
+import { strokesReceivedForHole } from "../lib/scoring";
 
 export default function WolfNetLeaderboard({ game }) {
   const { players = [], wolfOrder = null, wolfDecisions = [], course } = game || {};
@@ -50,15 +51,21 @@ export default function WolfNetLeaderboard({ game }) {
   
   // Get net score for a player on a hole
   const getNetFor = (player, absHoleIndex) => {
-    if (!player || !course?.holes?.[absHoleIndex] || !player.handicap) return null;
+    if (
+      !player ||
+      !course?.holes?.[absHoleIndex] ||
+      player.handicap === null ||
+      player.handicap === undefined
+    )
+      return null;
     const gross = getGrossFor(player, absHoleIndex);
     if (gross == null) return null;
-    const handicap = player.handicap || 0;
-    const baseStroke = Math.floor(handicap / 18);
-    const extraStrokes = handicap % 18;
     const hole = course.holes[absHoleIndex];
-    const holeStroke = baseStroke + (hole.strokeIndex <= extraStrokes ? 1 : 0);
-    return Math.max(0, gross - holeStroke);
+    const strokeAdjustment = strokesReceivedForHole(
+      player.handicap,
+      hole.strokeIndex
+    );
+    return Math.max(0, gross - strokeAdjustment);
   };
 
   const computeWolfTotals = useMemo(() => {
