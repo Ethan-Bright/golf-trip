@@ -19,7 +19,10 @@ export default function Matchplay2v2Leaderboard({ game }) {
         ...doc.data(),
       }));
 
-      const teams = await fetchTeamsForTournament(game?.tournamentId);
+      const teams =
+        Array.isArray(game?.finalizedTeams) && game.finalizedTeams.length > 0
+          ? game.finalizedTeams
+          : await fetchTeamsForTournament(game?.tournamentId);
 
       const gamePlayersMap = {};
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));

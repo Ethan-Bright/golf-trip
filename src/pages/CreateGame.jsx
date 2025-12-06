@@ -100,6 +100,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
   const [claimableGames, setClaimableGames] = useState([]);
   const [isLoadingUserGames, setIsLoadingUserGames] = useState(false);
   const [editingGameId, setEditingGameId] = useState(null);
+  const [isFunGame, setIsFunGame] = useState(false);
   const { incompleteGame, isChecking, refetchIncompleteGame } = useIncompleteGameChecker(
     userId,
     currentTournament
@@ -235,6 +236,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
     setMatchFormat("");
     setHoleCount("");
     setNineType("");
+    setIsFunGame(false);
     setErrors({});
     setEditingGameId(null);
   }, []);
@@ -262,6 +264,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
         ? game.nineType || ""
         : game.nineType || "front"
     );
+    setIsFunGame(Boolean(game.isFunGame));
     setErrors({});
     setEditingGameId(game.id);
 
@@ -389,6 +392,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
           matchFormat,
           holeCount,
           nineType,
+          isFunGame,
           updatedAt: serverTimestamp(),
         });
 
@@ -407,6 +411,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
         matchFormat,
         holeCount,
         nineType,
+        isFunGame,
         tournamentId: currentTournament,
         playerIds: [userId].filter(Boolean),
         managerIds: [userId].filter(Boolean),
@@ -609,6 +614,23 @@ export default function CreateGame({ userId, user, courses = [] }) {
             </div>
           )}
 
+          <label className="flex items-start gap-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={isFunGame}
+              onChange={(e) => setIsFunGame(e.target.checked)}
+              disabled={isFormLocked}
+              className="mt-1 w-5 h-5 text-green-600 dark:text-green-400 bg-white dark:bg-gray-900 border-green-400 rounded focus:ring-2 focus:ring-green-500 disabled:opacity-60 disabled:cursor-not-allowed"
+            />
+            <div className="text-sm text-gray-900 dark:text-white space-y-1">
+              <div className="font-semibold">Fun Game</div>
+              <p className="text-gray-600 dark:text-gray-300">
+                When enabled, this round is for fun only—scores from this game will not count toward any
+                player stats.
+              </p>
+            </div>
+          </label>
+
           <button
             type="button"
             onClick={createGame}
@@ -666,6 +688,11 @@ export default function CreateGame({ userId, user, courses = [] }) {
                   <div className="flex-1">
                     <p className="text-gray-900 dark:text-white font-semibold">
                       {game.name || "Untitled Game"}
+                      {game.isFunGame && (
+                        <span className="ml-2 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/40 px-2 py-1 rounded-full">
+                          Fun Game
+                        </span>
+                      )}
                     </p>
                     {game.course?.name && (
                       <p className="text-sm text-gray-600 dark:text-gray-300">

@@ -722,7 +722,7 @@ export default function Leaderboard({ tournamentId }) {
             >
               🏆 View Achievements
             </button>
-            {game.players?.some((p) => p.trackStats ?? game.trackStats) && (
+            {!game.isFunGame && game.players?.some((p) => p.trackStats ?? game.trackStats) && (
               <button
                 onClick={() => setShowRoundStats(true)}
                 className="px-6 py-3 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 flex items-center gap-2"

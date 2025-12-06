@@ -19,6 +19,10 @@ import {
   getMatchFormatLabel,
   normalizeMatchFormat,
 } from "../lib/matchFormats";
+import {
+  fetchTeamsForTournament,
+  normalizeTeamPlayers,
+} from "../utils/teamService";
 
 export default function EnterScore({ userId, user }) {
   const navigate = useNavigate();
@@ -36,6 +40,7 @@ export default function EnterScore({ userId, user }) {
   const [showFormatHelp, setShowFormatHelp] = useState(false);
   const [trackStats, setTrackStats] = useState(false);
   const [trackStatsLocked, setTrackStatsLocked] = useState(false);
+  const [isFunGame, setIsFunGame] = useState(false);
   const [wolfOrder, setWolfOrder] = useState(null); // array of userIds length 3
   const [wolfDecisions, setWolfDecisions] = useState([]); // per-hole: 'lone' | partnerUserId | null
   const [wolfHoles, setWolfHoles] = useState(null); // per-hole: { wolfId, decision } | null
@@ -168,6 +173,7 @@ export default function EnterScore({ userId, user }) {
             0
           );
           setPoints(totalPoints);
+          setIsFunGame(Boolean(gameData.isFunGame));
 
           // Ensure wolf order exists for wolf format with exactly 3 players
           const normalizedGameFormat = normalizeMatchFormat(gameData.matchFormat || "");
@@ -233,6 +239,7 @@ export default function EnterScore({ userId, user }) {
             (game.course?.holes || []).length || 18
           )
         );
+        setIsFunGame(Boolean(gameData.isFunGame));
 
         if (existingPlayer) {
           setGameId(game.id);
@@ -649,6 +656,7 @@ export default function EnterScore({ userId, user }) {
         setPoints(0);
         setTrackStats(false);
         setTrackStatsLocked(false);
+        setIsFunGame(false);
         
         showSuccess("Left game successfully!", "Success");
       }
@@ -680,11 +688,50 @@ export default function EnterScore({ userId, user }) {
       // Check if all players have completed all their scores
       const gameIsComplete = isGameComplete(updatedGame);
 
-      await updateDoc(gameRef, {
+      let finalizedTeams = gameData.finalizedTeams || null;
+      if (
+        gameIsComplete &&
+        !finalizedTeams &&
+        gameData?.tournamentId
+      ) {
+        try {
+          const tournamentTeams = await fetchTeamsForTournament(
+            gameData.tournamentId
+          );
+          const playerIdsInGame = new Set(
+            updatedPlayers.map((p) => p.userId)
+          );
+          finalizedTeams = tournamentTeams
+            .map((team) => ({
+              ...team,
+              players: normalizeTeamPlayers(team),
+            }))
+            .filter((team) =>
+              (team.players || []).some((player) =>
+                playerIdsInGame.has(
+                  player.uid || player.userId || player.id
+                )
+              )
+            );
+        } catch (err) {
+          console.warn("Failed to snapshot teams for completed game:", err);
+        }
+      }
+
+      const updatePayload = {
         players: updatedPlayers,
         status: gameIsComplete ? "complete" : "inProgress",
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      if (gameIsComplete && finalizedTeams) {
+        updatePayload.finalizedTeams = finalizedTeams;
+        if (!gameData.finalizedAt) {
+          updatePayload.finalizedAt = serverTimestamp();
+        }
+      }
+
+      await updateDoc(gameRef, updatePayload);
 
       if (!auto) showSuccess("Scores saved successfully!", "Success");
     } catch (error) {
@@ -711,7 +758,7 @@ export default function EnterScore({ userId, user }) {
   const displayedScores = scores.slice(startIndex, endIndex);
 
   return (
-    <div className="min-h-screen bg-gray-900 p-4 sm:p-6">
+    <div className="min-h-screen bg-gray-900 p-4 sm:p-6 pb-28">
       <div className="w-full max-w-4xl mx-auto">
         <button
           onClick={() => navigate("/dashboard")}
@@ -794,6 +841,11 @@ export default function EnterScore({ userId, user }) {
               <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 text-center">
                 Enter Scores
               </h3>
+              {isFunGame && (
+                <div className="mb-4 sm:mb-6 p-4 rounded-2xl border border-purple-200 dark:border-purple-700 bg-purple-50 dark:bg-purple-900/20 text-purple-800 dark:text-purple-100 text-sm sm:text-base">
+                  Fun Game enabled: scores from this round will not be included in any player stats.
+                </div>
+              )}
               <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -819,6 +871,11 @@ export default function EnterScore({ userId, user }) {
                   <span className="block text-gray-900 dark:text-white font-medium">
                     Once you turn this on for a game it stays on for the round.
                   </span>
+                  {isFunGame && (
+                    <span className="block text-purple-800 dark:text-purple-200 font-semibold">
+                      Fun Game is on: scores won’t be included in stats even if tracking is enabled.
+                    </span>
+                  )}
                   {trackStatsLocked && (
                     <span className="block text-green-700 dark:text-green-400 font-semibold">
                       Tracking locked for this round.
@@ -831,6 +888,11 @@ export default function EnterScore({ userId, user }) {
                 <span className="font-semibold">
                   {gameName || "Untitled Game"}
                 </span>
+                {isFunGame && (
+                  <span className="ml-2 text-xs font-semibold text-purple-800 dark:text-purple-200 bg-purple-100 dark:bg-purple-900/40 px-2 py-1 rounded-full align-middle">
+                    Fun Game
+                  </span>
+                )}
                 {selectedCourse?.name && (
                   <>
                     {" "}
@@ -883,10 +945,11 @@ export default function EnterScore({ userId, user }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => navigate("/dashboard")}
-                  className="w-full sm:w-auto px-6 py-3 bg-gray-400 text-white rounded-xl shadow-md hover:bg-gray-500 transition"
+                  onClick={() => saveScores(false)}
+                  className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-xl shadow-md hover:bg-green-700 transition"
+                  disabled={!gameId}
                 >
-                  Back to Dashboard
+                  Finished Game
                 </button>
               </div>
             </div>

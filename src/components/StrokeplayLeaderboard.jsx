@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
 import { collection, getDocs } from "firebase/firestore";
 import StrokeplayScorecardModal from "./StrokeplayScorecardModal";
-import { fetchTeamsForTournament } from "../utils/teamService";
+import { fetchTeamsForTournament, getTeamIdForTournament } from "../utils/teamService";
 
 export default function StrokeplayLeaderboard({ game }) {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -54,7 +54,10 @@ export default function StrokeplayLeaderboard({ game }) {
         ...doc.data(),
       }));
 
-      const teams = await fetchTeamsForTournament(game?.tournamentId);
+      const teams =
+        Array.isArray(game?.finalizedTeams) && game.finalizedTeams.length > 0
+          ? game.finalizedTeams
+          : await fetchTeamsForTournament(game?.tournamentId);
 
       const gamePlayersMap = {};
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
@@ -169,7 +172,8 @@ export default function StrokeplayLeaderboard({ game }) {
       });
 
       const soloPlayers = users.filter(
-        (u) => !u.teamId && gamePlayersMap[u.id]
+        (u) =>
+          !getTeamIdForTournament(u, game?.tournamentId) && gamePlayersMap[u.id]
       );
       soloPlayers.forEach((player) => {
         const scores = gamePlayersMap[player.id]?.scores ?? [];

@@ -1,7 +1,7 @@
 import React from "react";
 
 export default function RoundStatsModal({ game, onClose }) {
-  if (!game) {
+  if (!game || game.isFunGame) {
     return null;
   }
 

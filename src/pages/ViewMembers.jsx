@@ -238,6 +238,7 @@ export default function ViewMembers() {
 
       const userRounds = gamesData
         .filter((game) => {
+          if (game.isFunGame) return false;
           const player = game.players?.find((p) => p.userId === member.uid);
           if (!player) return false;
           return player.trackStats ?? game.trackStats ?? false;

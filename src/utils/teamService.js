@@ -5,6 +5,19 @@ export const MAX_TEAM_SIZE = 3;
 
 const PLAYER_SLOTS = ["player1", "player2", "player3"];
 
+export function getTeamIdForTournament(user, tournamentId) {
+  if (!user) return null;
+  if (
+    tournamentId &&
+    user.teamMemberships &&
+    typeof user.teamMemberships === "object" &&
+    user.teamMemberships[tournamentId]
+  ) {
+    return user.teamMemberships[tournamentId];
+  }
+  return user.teamId || null;
+}
+
 export function getTournamentTeamRef(tournamentId, teamId) {
   if (!tournamentId || !teamId) return null;
   return doc(db, "tournaments", tournamentId, "teams", teamId);

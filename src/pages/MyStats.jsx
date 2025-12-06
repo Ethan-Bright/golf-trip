@@ -166,14 +166,16 @@ export default function MyStats() {
         }
 
         gamesData = gamesData.filter((game) =>
-          Array.isArray(game.players)
+          !game.isFunGame &&
+          (Array.isArray(game.players)
             ? game.players.some((p) => p.userId === statsUserId)
-            : false
+            : false)
         );
 
         // Collect games where the user participated
         const allUserRounds = gamesData
           .map((game) => {
+            if (game.isFunGame) return null;
             const player = game.players?.find((p) => p.userId === statsUserId);
             if (!player) return null;
 
@@ -838,7 +840,7 @@ export default function MyStats() {
         bodyClassName="mobile-section"
       >
         {viewType === "course" && (
-          <section className="mobile-card p-6 border border-gray-200/70 dark:border-gray-700 space-y-4">
+          <section className="mobile-card p-6 border border-gray-200/70 dark:border-gray-700 space-y-4 relative z-20">
             <SearchableCourseDropdown
               courses={availableCourses}
               selectedCourseId={selectedCourseId}

@@ -21,6 +21,7 @@ import {
   getTournamentTeamRef,
   MAX_TEAM_SIZE,
   normalizeTeamPlayers,
+  getTeamIdForTournament,
 } from "../utils/teamService";
 import PageShell from "../components/layout/PageShell";
 
@@ -34,6 +35,11 @@ export default function JoinTeam() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [currentUserData, setCurrentUserData] = useState(null);
+
+  const getUserTournamentTeam = useCallback(
+    (u) => getTeamIdForTournament(u, currentTournament),
+    [currentTournament]
+  );
 
   const fetchRoster = useCallback(async () => {
     if (!user?.uid || !currentTournament) {
@@ -61,7 +67,7 @@ export default function JoinTeam() {
       setCurrentUserData(currentUser);
 
       const usersWithoutTeam = allUsers.filter(
-        (u) => !u.teamId && u.uid !== user.uid
+        (u) => !getUserTournamentTeam(u) && u.uid !== user.uid
       );
 
       setAvailableUsers(usersWithoutTeam);
@@ -84,7 +90,7 @@ export default function JoinTeam() {
     } finally {
       setLoading(false);
     }
-  }, [user?.uid, currentTournament]);
+  }, [user?.uid, currentTournament, getUserTournamentTeam]);
 
   useEffect(() => {
     fetchRoster();
@@ -99,14 +105,21 @@ export default function JoinTeam() {
 
   const removeTeam = async (teamId) => {
     if (!teamId || !currentTournament) return;
-    const teammatesQuery = query(
+    const tournamentUsersQuery = query(
       collection(db, "users"),
-      where("teamId", "==", teamId)
+      where("tournaments", "array-contains", currentTournament)
     );
-    const snapshot = await getDocs(teammatesQuery);
+    const snapshot = await getDocs(tournamentUsersQuery);
+    const teammates = snapshot.docs.filter(
+      (memberDoc) =>
+        getTeamIdForTournament(memberDoc.data(), currentTournament) === teamId
+    );
     await Promise.all(
-      snapshot.docs.map((memberDoc) =>
-        updateDoc(memberDoc.ref, { teamId: null })
+      teammates.map((memberDoc) =>
+        updateDoc(memberDoc.ref, {
+          teamId: null,
+          [`teamMemberships.${currentTournament}`]: null,
+        })
       )
     );
 
@@ -120,7 +133,7 @@ export default function JoinTeam() {
   const joinTeam = async (selectedUser) => {
     if (!currentUserData) return;
     try {
-      if (currentUserData.teamId) {
+      if (getUserTournamentTeam(currentUserData)) {
         showConfirm(
           "You are already in a team. Joining another team will remove you and your teammates from your current team. Continue?",
           "Confirm Team Change",
@@ -140,13 +153,15 @@ export default function JoinTeam() {
     try {
       const currentUserRef = doc(db, "users", currentUserData.id);
       const selectedUserRef = doc(db, "users", selectedUser.id);
+      const existingTeamForCurrent = getUserTournamentTeam(currentUserData);
 
-      if (currentUserData.teamId) {
-        await removeTeam(currentUserData.teamId);
+      if (existingTeamForCurrent) {
+        await removeTeam(existingTeamForCurrent);
       }
 
+      const selectedUserTeamId = getUserTournamentTeam(selectedUser);
       const teamId =
-        selectedUser.teamId ||
+        selectedUserTeamId ||
         `team_${currentTournament}_${selectedUser.id}_${Date.now()}`;
       const teamRef = getTournamentTeamRef(currentTournament, teamId);
       const teamSnapshot = teamRef ? await getDoc(teamRef) : null;
@@ -163,10 +178,16 @@ export default function JoinTeam() {
         teamName = teamSnapshot.data().name;
       }
 
-      if (!selectedUser.teamId) {
-        await updateDoc(selectedUserRef, { teamId });
+      if (!selectedUserTeamId) {
+        await updateDoc(selectedUserRef, {
+          teamId,
+          [`teamMemberships.${currentTournament}`]: teamId,
+        });
       }
-      await updateDoc(currentUserRef, { teamId });
+      await updateDoc(currentUserRef, {
+        teamId,
+        [`teamMemberships.${currentTournament}`]: teamId,
+      });
 
       const initialPlayers = [
         buildPlayerPayload(selectedUser),
@@ -196,7 +217,7 @@ export default function JoinTeam() {
 
   const joinExistingTeam = (team) => {
     if (!currentUserData || !currentTournament) return;
-    const alreadyOnTeam = currentUserData.teamId === team.id;
+    const alreadyOnTeam = getUserTournamentTeam(currentUserData) === team.id;
     if (alreadyOnTeam) {
       setMessage("You are already on this team.");
       return;
@@ -209,7 +230,7 @@ export default function JoinTeam() {
     }
 
     try {
-      if (currentUserData.teamId) {
+      if (getUserTournamentTeam(currentUserData)) {
         showConfirm(
           "You are already in a team. Joining another team will remove you and your teammates from your current team. Continue?",
           "Confirm Team Change",
@@ -240,7 +261,9 @@ export default function JoinTeam() {
       const teamData = teamSnap.data();
       const normalizedPlayers = normalizeTeamPlayers(teamData);
 
-      if (normalizedPlayers.some((player) => player.uid === currentUserData.uid)) {
+      if (
+        normalizedPlayers.some((player) => player.uid === currentUserData.uid)
+      ) {
         setMessage("You are already on this team.");
         await fetchRoster();
         return;
@@ -265,7 +288,10 @@ export default function JoinTeam() {
         updatedAt: new Date(),
       });
 
-      await updateDoc(doc(db, "users", currentUserData.id), { teamId: team.id });
+      await updateDoc(doc(db, "users", currentUserData.id), {
+        teamId: team.id,
+        [`teamMemberships.${currentTournament}`]: team.id,
+      });
 
       setMessage(`You have joined "${teamData.name || "your new team"}"!`);
       setCurrentUserData((prev) => ({ ...prev, teamId: team.id }));
@@ -277,7 +303,7 @@ export default function JoinTeam() {
   };
 
   const leaveTeam = async () => {
-    if (!currentUserData || !currentUserData.teamId) return;
+    if (!currentUserData || !getUserTournamentTeam(currentUserData)) return;
     showConfirm(
       "Are you sure you want to leave your current team? Your teammate will also be removed.",
       "Leave Team",
@@ -289,7 +315,10 @@ export default function JoinTeam() {
 
   const proceedWithLeave = async () => {
     try {
-      await removeTeam(currentUserData.teamId);
+      const currentTeamId = getUserTournamentTeam(currentUserData);
+      if (currentTeamId) {
+        await removeTeam(currentTeamId);
+      }
       setMessage("You have left your team, and the team has been deleted.");
       await fetchRoster();
       setCurrentUserData((prev) => ({ ...prev, teamId: null }));
@@ -309,6 +338,8 @@ export default function JoinTeam() {
       </PageShell>
     );
 
+  const currentTeamId = getUserTournamentTeam(currentUserData);
+
   return (
     <PageShell
       title="Join a Team"
@@ -317,7 +348,7 @@ export default function JoinTeam() {
     >
       <div className="max-w-md mx-auto w-full">
         <div className="mobile-card p-6 space-y-6 border border-gray-200/70 dark:border-gray-700">
-          {currentUserData?.teamId && (
+          {currentTeamId && (
             <button
               onClick={leaveTeam}
               className="w-full mb-2 py-3 bg-red-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
@@ -356,7 +387,7 @@ export default function JoinTeam() {
                       MAX_TEAM_SIZE - teamPlayers.length,
                       0
                     );
-                    const isUsersTeam = currentUserData?.teamId === team.id;
+                    const isUsersTeam = currentTeamId === team.id;
                     const teamFull = teamPlayers.length >= MAX_TEAM_SIZE;
 
                     return (
