@@ -33,12 +33,12 @@ export default function Matchplay2v2Leaderboard({ game }) {
         for (let i = 0; i < 18; i++) {
           // Get best ball (lowest net score) from team 1
           const team1Scores = team1Players
-            .map(player => gamePlayersMap[player.id]?.scores?.[i]?.net)
+            .map(player => gamePlayersMap[player.id]?.scores?.[i]?.netScore)
             .filter(score => score != null);
           
           // Get best ball (lowest net score) from team 2
           const team2Scores = team2Players
-            .map(player => gamePlayersMap[player.id]?.scores?.[i]?.net)
+            .map(player => gamePlayersMap[player.id]?.scores?.[i]?.netScore)
             .filter(score => score != null);
           
           if (team1Scores.length === 0 || team2Scores.length === 0) continue;

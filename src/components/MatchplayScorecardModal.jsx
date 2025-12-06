@@ -11,12 +11,15 @@ import { normalizeMatchFormat } from "../lib/matchFormats";
 import { shareScorecardAsImage } from "../utils/shareScorecard";
 
 const getScoreMetric = (score) => {
+  // Prefer netScore (net strokes), then fall back to net points, then gross
+  if (typeof score?.netScore === "number") return score.netScore;
   if (typeof score?.net === "number") return score.net;
   if (typeof score?.gross === "number") return score.gross;
   return null;
 };
 
 const getScoreDisplay = (score) => {
+  if (typeof score?.netScore === "number") return score.netScore;
   if (typeof score?.net === "number") return score.net;
   if (typeof score?.gross === "number") return score.gross;
   return "-";

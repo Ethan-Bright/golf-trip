@@ -46,7 +46,7 @@ export default function Matchplay2v2GameScorecardModal({ game, teamsData, onClos
         const playerData = gamePlayersMap[player.id || player.uid];
         return {
           playerName: player.displayName || player.name || 'Unknown',
-          score: playerData?.scores?.[displayIndex]?.net
+          score: playerData?.scores?.[displayIndex]?.netScore
         };
       })
       .filter(s => s.score != null);
