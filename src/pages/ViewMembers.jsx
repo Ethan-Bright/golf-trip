@@ -241,7 +241,24 @@ export default function ViewMembers() {
           if (game.isFunGame) return false;
           const player = game.players?.find((p) => p.userId === member.uid);
           if (!player) return false;
-          return player.trackStats ?? game.trackStats ?? false;
+
+          // Only include rounds where the player entered all hole scores
+          const expectedHoles = game.holeCount || game.course?.holes?.length || 18;
+          const startIndex = game.nineType === "back" ? 9 : 0;
+          const endIndex =
+            game.holeCount === 9
+              ? startIndex + 9
+              : startIndex + expectedHoles;
+
+          const relevantScores = (player.scores || []).slice(startIndex, endIndex);
+          const expectedScoreCount = endIndex - startIndex;
+          if (relevantScores.length < expectedScoreCount) return false;
+          const allGrossEntered = relevantScores.every(
+            (score) => score?.gross !== null && score?.gross !== undefined
+          );
+          if (!allGrossEntered) return false;
+
+          return true;
         })
         .map((game) => {
           const player = game.players.find((p) => p.userId === member.uid);
@@ -263,6 +280,11 @@ export default function ViewMembers() {
 
           if (holesPlayed === 0) return null;
 
+          const hasStats = player.trackStats ?? game.trackStats ?? false;
+          const totalGross = playerScores.reduce(
+            (sum, score) => sum + (score.gross ?? 0),
+            0
+          );
           const totalPutts = playerScores.reduce(
             (sum, score) => sum + (score.putts || 0),
             0
@@ -289,6 +311,7 @@ export default function ViewMembers() {
               ? new Date(game.createdAt.seconds * 1000).toLocaleDateString()
               : "Unknown",
             holesPlayed,
+            totalGross,
             totalPutts,
             avgPutts: avgPutts.toFixed(2),
             firCount,
@@ -298,6 +321,7 @@ export default function ViewMembers() {
             scores: playerScores,
             startIndex,
             holeCount: game.holeCount,
+            hasStats,
           };
         })
         .filter(Boolean);
@@ -646,42 +670,58 @@ export default function ViewMembers() {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
                         <div>
                           <div className="text-gray-600 dark:text-gray-400">
-                            Avg Putts
+                            Total Gross
                           </div>
                           <div className="text-base font-semibold text-gray-900 dark:text-white">
-                            {round.avgPutts}
+                            {round.totalGross}
                           </div>
                         </div>
-                        <div>
-                          <div className="text-gray-600 dark:text-gray-400">
-                            FIR%
+                        {round.hasStats ? (
+                          <>
+                            <div>
+                              <div className="text-gray-600 dark:text-gray-400">
+                                Avg Putts
+                              </div>
+                              <div className="text-base font-semibold text-gray-900 dark:text-white">
+                                {round.avgPutts}
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-gray-600 dark:text-gray-400">
+                                FIR%
+                              </div>
+                              <div className="text-base font-semibold text-gray-900 dark:text-white">
+                                {round.firPercentage}%
+                              </div>
+                              <div className="text-[10px] text-gray-500 dark:text-gray-500">
+                                ({round.firCount}/{round.holesPlayed})
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-gray-600 dark:text-gray-400">
+                                GIR%
+                              </div>
+                              <div className="text-base font-semibold text-gray-900 dark:text-white">
+                                {round.girPercentage}%
+                              </div>
+                              <div className="text-[10px] text-gray-500 dark:text-gray-500">
+                                ({round.girCount}/{round.holesPlayed})
+                              </div>
+                            </div>
+                            <div>
+                              <div className="text-gray-600 dark:text-gray-400">
+                                Total Putts
+                              </div>
+                              <div className="text-base font-semibold text-gray-900 dark:text-white">
+                                {round.totalPutts}
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="col-span-1 sm:col-span-3 text-gray-600 dark:text-gray-400">
+                            Stats were not tracked for this round.
                           </div>
-                          <div className="text-base font-semibold text-gray-900 dark:text-white">
-                            {round.firPercentage}%
-                          </div>
-                          <div className="text-[10px] text-gray-500 dark:text-gray-500">
-                            ({round.firCount}/{round.holesPlayed})
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-600 dark:text-gray-400">
-                            GIR%
-                          </div>
-                          <div className="text-base font-semibold text-gray-900 dark:text-white">
-                            {round.girPercentage}%
-                          </div>
-                          <div className="text-[10px] text-gray-500 dark:text-gray-500">
-                            ({round.girCount}/{round.holesPlayed})
-                          </div>
-                        </div>
-                        <div>
-                          <div className="text-gray-600 dark:text-gray-400">
-                            Total Putts
-                          </div>
-                          <div className="text-base font-semibold text-gray-900 dark:text-white">
-                            {round.totalPutts}
-                          </div>
-                        </div>
+                        )}
                       </div>
 
                       <div className="mt-3 flex justify-end">

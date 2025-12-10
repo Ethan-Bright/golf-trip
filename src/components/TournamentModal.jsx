@@ -376,22 +376,6 @@ export default function TournamentModal({ isOpen, onClose }) {
       const teamsSnap = await getDocs(teamsRef);
       await Promise.all(teamsSnap.docs.map((teamDoc) => deleteDoc(teamDoc.ref)));
 
-      // Remove games tied to this tournament
-      const gamesQuery = query(
-        collection(db, "games"),
-        where("tournamentId", "==", tournamentId)
-      );
-      const gamesSnap = await getDocs(gamesQuery);
-      await Promise.all(gamesSnap.docs.map((gameDoc) => deleteDoc(gameDoc.ref)));
-
-      // Remove scores tied to this tournament
-      const scoresQuery = query(
-        collection(db, "scores"),
-        where("tournamentId", "==", tournamentId)
-      );
-      const scoresSnap = await getDocs(scoresQuery);
-      await Promise.all(scoresSnap.docs.map((scoreDoc) => deleteDoc(scoreDoc.ref)));
-
       await deleteDoc(tournamentRef);
 
       const updatedUserTournamentIds = userTournamentIds.filter((id) => id !== tournamentId);

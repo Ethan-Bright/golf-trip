@@ -1077,14 +1077,7 @@ export default function EnterScore({ userId, user }) {
                 Current Strokes: {displayedScores.reduce((sum, s) => sum + (s.gross ?? 0), 0)}
               </div>
 
-              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-4 sm:mt-6">
-                <button
-                  type="button"
-                  onClick={leaveGame}
-                  className="w-full sm:w-auto px-6 py-3 bg-red-500 text-white rounded-xl shadow-md hover:bg-red-600 transition"
-                >
-                  Leave Game
-                </button>
+              <div className="flex flex-col sm:flex-col justify-center gap-3 sm:gap-4 mt-4 sm:mt-6">
                 <button
                   type="button"
                   onClick={() => saveScores(false)}
@@ -1092,6 +1085,13 @@ export default function EnterScore({ userId, user }) {
                   disabled={!gameId}
                 >
                   Finished Game
+                </button>
+                <button
+                  type="button"
+                  onClick={leaveGame}
+                  className="w-full sm:w-auto px-6 py-3 bg-red-500 text-white rounded-xl shadow-md hover:bg-red-600 transition"
+                >
+                  Leave Game
                 </button>
               </div>
             </div>
