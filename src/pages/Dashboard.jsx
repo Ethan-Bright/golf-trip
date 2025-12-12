@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTournament } from "../context/TournamentContext";
 import { useTheme } from "../context/ThemeContext";
@@ -258,10 +258,31 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [tournaments, setTournaments] = useState([]);
+  const [recentTournamentIds, setRecentTournamentIds] = useState([]);
   const [tournamentName, setTournamentName] = useState("");
   const [showTournamentModal, setShowTournamentModal] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setRecentTournamentIds([]);
+      return;
+    }
+
+    const storageKey = `recentTournamentIds_${user.uid}`;
+    const stored = localStorage.getItem(storageKey);
+    if (stored) {
+      try {
+        setRecentTournamentIds(JSON.parse(stored));
+      } catch (err) {
+        console.error("Error parsing recent tournaments from storage", err);
+        setRecentTournamentIds([]);
+      }
+    } else {
+      setRecentTournamentIds([]);
+    }
+  }, [user?.uid]);
 
   // Always fetch tournament name when currentTournament changes
   useEffect(() => {
@@ -327,6 +348,49 @@ export default function Dashboard() {
       fetchTournaments();
     }
   }, [user?.uid, currentTournament]);
+
+  useEffect(() => {
+    if (!currentTournament || !user?.uid) return;
+
+    setRecentTournamentIds((prev) => {
+      const filtered = prev.filter((id) => id !== currentTournament);
+      const updated = [currentTournament, ...filtered].slice(0, 10);
+      return updated;
+    });
+  }, [currentTournament, user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    if (tournaments.length === 0) {
+      setRecentTournamentIds([]);
+      return;
+    }
+
+    setRecentTournamentIds((prev) => {
+      const validIds = new Set(tournaments.map((t) => t.id));
+      const filtered = prev.filter((id) => validIds.has(id));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  }, [tournaments, user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const storageKey = `recentTournamentIds_${user.uid}`;
+    localStorage.setItem(storageKey, JSON.stringify(recentTournamentIds));
+  }, [recentTournamentIds, user?.uid]);
+
+  const tournamentsToDisplay = useMemo(() => {
+    if (tournaments.length === 0) return [];
+
+    const tournamentsById = new Map(tournaments.map((tournament) => [tournament.id, tournament]));
+    const visited = recentTournamentIds
+      .map((id) => tournamentsById.get(id))
+      .filter(Boolean);
+
+    const remaining = tournaments.filter((tournament) => !recentTournamentIds.includes(tournament.id));
+    return [...visited, ...remaining].slice(0, 3);
+  }, [recentTournamentIds, tournaments]);
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -675,7 +739,7 @@ export default function Dashboard() {
               </button>
             </div>
             <ul className="space-y-3">
-              {tournaments.slice(0, 3).map((tournament) => (
+              {tournamentsToDisplay.map((tournament) => (
                 <li
                   key={tournament.id}
                   className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100/60 dark:border-gray-800 px-4 py-3"
@@ -700,9 +764,9 @@ export default function Dashboard() {
                 </li>
               ))}
             </ul>
-            {tournaments.length > 3 && (
+            {tournaments.length > tournamentsToDisplay.length && (
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                Showing your most recent tournaments
+                Showing your 3 last visited tournaments
               </p>
             )}
           </section>
