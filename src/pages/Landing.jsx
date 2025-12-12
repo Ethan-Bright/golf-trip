@@ -1,9 +1,19 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import PageShell from "../components/layout/PageShell";
+import { useAuth } from "../context/AuthContext";
 
 export default function Landing() {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (loading) return;
+    if (user) {
+      const hasTournaments = Array.isArray(user.tournaments) && user.tournaments.length > 0;
+      navigate(hasTournaments ? "/dashboard" : "/tournament-select", { replace: true });
+    }
+  }, [loading, user, navigate]);
 
   return (
     <PageShell

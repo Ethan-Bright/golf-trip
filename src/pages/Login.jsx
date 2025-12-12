@@ -1,16 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import React from "react";
 import PageShell from "../components/layout/PageShell";
 
 export default function Login() {
-  const { login, setUserAndPersist } = useAuth();
+  const { login, setUserAndPersist, user, loading } = useAuth();
   const navigate = useNavigate();
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+
+  useEffect(() => {
+    if (loading) return;
+    if (user) {
+      const hasTournaments = Array.isArray(user.tournaments) && user.tournaments.length > 0;
+      navigate(hasTournaments ? "/dashboard" : "/tournament-select", { replace: true });
+    }
+  }, [loading, user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
