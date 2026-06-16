@@ -3,13 +3,10 @@
     "source": "functions"
   },
   "hosting": {
+    "site": "golf-leaderboard-6e8df",
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
-      {
-        "source": "/join-game/**",
-        "function": "joinGameOg"
-      },
       {
         "source": "**",
         "destination": "/index.html"
