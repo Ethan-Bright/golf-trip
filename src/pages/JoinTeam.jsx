@@ -332,8 +332,8 @@ export default function JoinTeam() {
     return (
       <PageShell title="Join a Team" description="Pair up with another golfer in your tournament." backHref="/dashboard">
         <div className="mobile-card p-8 text-center">
-          <div className="w-10 h-10 border-4 border-green-200 dark:border-green-700 border-t-green-600 dark:border-t-green-400 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+          <div className="w-10 h-10 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-[var(--text-muted)]">Loading...</p>
         </div>
       </PageShell>
     );
@@ -347,18 +347,18 @@ export default function JoinTeam() {
       backHref="/dashboard"
     >
       <div className="max-w-md mx-auto w-full">
-        <div className="mobile-card p-6 space-y-6 border border-gray-200/70 dark:border-gray-700">
+        <div className="mobile-card p-6 space-y-6">
           {currentTeamId && (
             <button
               onClick={leaveTeam}
-              className="w-full mb-2 py-3 bg-red-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+              className="btn btn-danger btn-block mb-2"
             >
               Leave Current Team
             </button>
           )}
 
           {message && (
-            <div className="p-4 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-xl text-center font-medium">
+            <div className="p-4 bg-brand-500/15 text-brand-600 dark:text-brand-300 rounded-xl text-center font-medium">
               {message}
             </div>
           )}
@@ -366,15 +366,15 @@ export default function JoinTeam() {
           <div className="space-y-8">
             <section>
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-base font-semibold text-gray-900 dark:text-white">
+                <h4 className="text-base font-semibold text-[var(--text-strong)]">
                   Existing teams
                 </h4>
-                <span className="text-xs text-gray-500 dark:text-gray-400">
+                <span className="text-xs text-[var(--text-muted)]">
                   Up to {MAX_TEAM_SIZE} players per team
                 </span>
               </div>
               {teams.length === 0 ? (
-                <p className="text-gray-600 dark:text-gray-300 text-center">
+                <p className="text-[var(--text-muted)] text-center">
                   No teams have been created yet.
                 </p>
               ) : (
@@ -393,24 +393,24 @@ export default function JoinTeam() {
                     return (
                       <div
                         key={team.id}
-                        className="p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600 space-y-4"
+                        className="p-4 rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] space-y-4"
                       >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <p className="font-semibold text-gray-900 dark:text-white">
+                            <p className="font-semibold text-[var(--text-strong)]">
                               {team.name || "Unnamed Team"}
                             </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                            <p className="text-sm text-[var(--text-muted)]">
                               {teamPlayers.length} / {MAX_TEAM_SIZE} players
                             </p>
                           </div>
                           <button
                             onClick={() => joinExistingTeam(team)}
                             disabled={teamFull || isUsersTeam}
-                            className={`px-4 py-2 rounded-xl font-semibold shadow focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                            className={`btn btn-sm ${
                               teamFull || isUsersTeam
-                                ? "bg-gray-400 dark:bg-gray-600 text-white cursor-not-allowed focus:ring-transparent focus:ring-offset-0"
-                                : "bg-green-600 dark:bg-green-500 text-white focus:ring-green-500 dark:focus:ring-green-400"
+                                ? "btn-secondary"
+                                : "btn-primary"
                             }`}
                           >
                             {isUsersTeam
@@ -424,7 +424,7 @@ export default function JoinTeam() {
                           {teamPlayers.map((player) => (
                             <div
                               key={player.uid || player.userId || player.id}
-                              className="flex items-center gap-3 bg-white dark:bg-gray-800 px-3 py-2 rounded-2xl shadow"
+                              className="flex items-center gap-3 rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-card)] px-3 py-2"
                             >
                               {player.profilePictureUrl ? (
                                 <img
@@ -433,15 +433,15 @@ export default function JoinTeam() {
                                   className="w-10 h-10 rounded-xl object-cover"
                                 />
                               ) : (
-                                <div className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 font-bold">
+                                <div className="w-10 h-10 rounded-xl bg-brand-500/15 flex items-center justify-center text-brand-600 dark:text-brand-300 font-bold">
                                   {player.displayName?.charAt(0) || "?"}
                                 </div>
                               )}
                               <div>
-                                <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                                <p className="font-semibold text-[var(--text-strong)] text-sm">
                                   {player.displayName || "Unknown"}
                                 </p>
-                                <p className="text-xs text-gray-600 dark:text-gray-300">
+                                <p className="text-xs text-[var(--text-muted)]">
                                   HCP: {player.handicap ?? "—"}
                                 </p>
                               </div>
@@ -451,7 +451,7 @@ export default function JoinTeam() {
                             Array.from({ length: openSlots }).map((_, idx) => (
                               <div
                                 key={`open-${team.id}-${idx}`}
-                                className="px-4 py-2 rounded-2xl border border-dashed border-gray-300 dark:border-gray-500 text-sm text-gray-500 dark:text-gray-300 flex items-center justify-center"
+                                className="px-4 py-2 rounded-2xl border border-dashed border-[var(--surface-card-border)] text-sm text-[var(--text-muted)] flex items-center justify-center"
                               >
                                 Open slot
                               </div>
@@ -465,11 +465,11 @@ export default function JoinTeam() {
             </section>
 
             <section>
-              <h4 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
+              <h4 className="text-base font-semibold text-[var(--text-strong)] mb-3">
                 Invite a player to create a new team
               </h4>
               {availableUsers.length === 0 ? (
-                <p className="text-gray-600 dark:text-gray-300 text-center">
+                <p className="text-[var(--text-muted)] text-center">
                   Everyone in this tournament is already on a team.
                 </p>
               ) : (
@@ -477,7 +477,7 @@ export default function JoinTeam() {
                   {availableUsers.map((u) => (
                     <div
                       key={u.id}
-                      className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-4 rounded-2xl shadow gap-4"
+                      className="flex items-center justify-between rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] p-4 gap-4"
                     >
                       <div className="flex items-center gap-3">
                         {u.profilePictureUrl ? (
@@ -487,22 +487,22 @@ export default function JoinTeam() {
                             className="w-12 h-12 rounded-xl object-cover"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 font-bold text-lg">
+                          <div className="w-12 h-12 rounded-xl bg-brand-500/15 flex items-center justify-center text-brand-600 dark:text-brand-300 font-bold text-lg">
                             {u.displayName?.charAt(0) || "?"}
                           </div>
                         )}
                         <div>
-                          <p className="font-semibold text-gray-900 dark:text-white">
+                          <p className="font-semibold text-[var(--text-strong)]">
                             {u.displayName}
                           </p>
-                          <p className="text-gray-600 dark:text-gray-300 text-sm">
+                          <p className="text-[var(--text-muted)] text-sm">
                             HCP: {u.handicap}
                           </p>
                         </div>
                       </div>
                       <button
                         onClick={() => joinTeam(u)}
-                        className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                        className="btn btn-primary btn-sm"
                       >
                         Join Team
                       </button>

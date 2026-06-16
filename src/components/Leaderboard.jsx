@@ -37,7 +37,7 @@ export default function Leaderboard({ game }) {
       game.players.length === 0
     ) {
       return (
-        <p className="text-center text-gray-600 dark:text-gray-300 mt-4">
+        <p className="text-center text-[var(--text-muted)] mt-4">
           Select a game to view the leaderboard
         </p>
       );
@@ -71,7 +71,7 @@ export default function Leaderboard({ game }) {
         return <ScorecardLeaderboard game={game} />;
       default:
         return (
-          <div className="text-center text-gray-600 dark:text-gray-300 mt-4">
+          <div className="text-center text-[var(--text-muted)] mt-4">
             <p>Unknown game format: "{game.matchFormat || "empty"}"</p>
             <p className="text-sm mt-2">
               Available formats: 1v1 Match Play (With Handicaps), 1v1 Match Play (No Handicaps), 2v2 Match Play (With Handicaps), 2v2 Match Play (No Handicaps), American, American With Handicaps, Stableford, Wolf (3 Players), Stroke Play, Scorecard

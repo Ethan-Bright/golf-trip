@@ -80,39 +80,40 @@ function ProfileModal({ user, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="card card-elevated max-w-md w-full max-h-[90vh] overflow-y-auto overflow-hidden">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+        <div className="flex justify-between items-center p-6 border-b border-[var(--surface-card-border)]">
+          <h3 className="text-xl font-bold text-[var(--text-strong)]">
             Profile Settings
           </h3>
           <button
             onClick={onClose}
-            className="text-gray-500 dark:text-gray-400 text-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl p-1"
+            aria-label="Close"
+            className="btn btn-ghost btn-sm px-3 text-xl leading-none"
           >
             ×
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
+        <div className="flex border-b border-[var(--surface-card-border)]">
           <button
             onClick={() => setActiveTab("profile")}
-            className={`flex-1 py-4 text-center font-medium ${
+            className={`flex-1 py-4 text-center font-semibold transition ${
               activeTab === "profile"
-                ? "text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400 bg-green-50 dark:bg-green-900/20"
-                : "text-gray-600 dark:text-gray-300"
+                ? "text-brand-600 dark:text-brand-300 border-b-2 border-brand-500 bg-brand-500/10"
+                : "text-[var(--text-muted)]"
             }`}
           >
             Profile
           </button>
           <button
             onClick={() => setActiveTab("password")}
-            className={`flex-1 py-4 text-center font-medium ${
+            className={`flex-1 py-4 text-center font-semibold transition ${
               activeTab === "password"
-                ? "text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400 bg-green-50 dark:bg-green-900/20"
-                : "text-gray-600 dark:text-gray-300"
+                ? "text-brand-600 dark:text-brand-300 border-b-2 border-brand-500 bg-brand-500/10"
+                : "text-[var(--text-muted)]"
             }`}
           >
             Password
@@ -124,9 +125,7 @@ function ProfileModal({ user, onClose }) {
             <form onSubmit={handleUpdateProfile} className="space-y-6">
               {/* Profile Picture */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Profile Picture
-                </label>
+                <label className="field-label">Profile Picture</label>
                 <div className="flex items-center gap-4">
                   <input
                     type="file"
@@ -137,7 +136,7 @@ function ProfileModal({ user, onClose }) {
                   />
                   <label
                     htmlFor="profile-picture-edit"
-                    className="px-4 py-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-2xl cursor-pointer font-medium"
+                    className="btn btn-secondary btn-sm cursor-pointer"
                   >
                     Choose Photo
                   </label>
@@ -145,14 +144,14 @@ function ProfileModal({ user, onClose }) {
                     <img
                       src={profilePicturePreview}
                       alt="Profile preview"
-                      className="w-16 h-16 rounded-2xl object-cover border-2 border-green-200 dark:border-green-700"
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-brand-400/60"
                     />
                   )}
                 </div>
                 {uploadProgress > 0 && (
-                  <div className="w-full bg-green-100 dark:bg-green-900/30 rounded-full h-2 mt-3">
+                  <div className="w-full bg-brand-500/15 rounded-full h-2 mt-3 overflow-hidden">
                     <div
-                      className="bg-green-600 dark:bg-green-400 h-2 rounded-full"
+                      className="bg-gradient-to-r from-brand-400 to-accent-400 h-2 rounded-full"
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
                   </div>
@@ -161,29 +160,25 @@ function ProfileModal({ user, onClose }) {
 
               {/* Display Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Display Name
-                </label>
+                <label className="field-label">Display Name</label>
                 <input
                   type="text"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                  className="input"
                   required
                 />
               </div>
 
               {/* Handicap */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Handicap
-                </label>
+                <label className="field-label">Handicap</label>
                 <input
                   type="number"
                   step="0.1"
                   value={handicap}
                   onChange={(e) => setHandicap(e.target.value)}
-                  className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                  className="input"
                   required
                 />
               </div>
@@ -191,7 +186,7 @@ function ProfileModal({ user, onClose }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 disabled:opacity-50"
+                className="btn btn-primary btn-block"
               >
                 {loading ? "Updating..." : "Update Profile"}
               </button>
@@ -202,9 +197,7 @@ function ProfileModal({ user, onClose }) {
             <form onSubmit={handleUpdatePassword} className="space-y-6">
               {["Current", "New", "Confirm New"].map((label, i) => (
                 <div key={i}>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                    {label} Password
-                  </label>
+                  <label className="field-label">{label} Password</label>
                   <input
                     type="password"
                     value={
@@ -219,7 +212,7 @@ function ProfileModal({ user, onClose }) {
                       else if (i === 1) setNewPassword(e.target.value);
                       else setConfirmPassword(e.target.value);
                     }}
-                    className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                    className="input"
                     required
                   />
                 </div>
@@ -227,7 +220,7 @@ function ProfileModal({ user, onClose }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 disabled:opacity-50"
+                className="btn btn-primary btn-block"
               >
                 {loading ? "Updating..." : "Update Password"}
               </button>
@@ -235,12 +228,12 @@ function ProfileModal({ user, onClose }) {
           )}
 
           {error && (
-            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-2xl text-sm">
+            <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-500 dark:text-red-300 rounded-2xl text-sm">
               {error}
             </div>
           )}
           {success && (
-            <div className="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 rounded-2xl text-sm">
+            <div className="p-4 bg-brand-500/10 border border-brand-500/30 text-brand-600 dark:text-brand-300 rounded-2xl text-sm">
               {success}
             </div>
           )}
@@ -452,10 +445,27 @@ export default function Dashboard() {
 
   const quickActions = [
     {
+      title: isDark ? "Light mode" : "Dark mode",
+      description: isDark ? "Switch to a bright theme" : "Switch to a dark theme",
+      iconClass:
+        "bg-accent-400/20 text-accent-500 dark:text-accent-400",
+      onClick: toggleTheme,
+      icon: isDark ? (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="4" />
+          <path strokeLinecap="round" d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+        </svg>
+      ) : (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      ),
+    },
+    {
       title: "Edit Profile",
       description: "Update your details & handicap",
       iconClass:
-        "bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-300",
+        "bg-brand-500/15 text-brand-600 dark:text-brand-300",
       onClick: handleEditProfile,
       icon: (
         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -633,44 +643,44 @@ export default function Dashboard() {
             aria-label="Open quick menu"
             aria-expanded={isMenuOpen}
             onClick={() => setIsMenuOpen((prev) => !prev)}
-            className="w-12 h-12 rounded-2xl bg-white/90 dark:bg-gray-900/80 border border-gray-200/80 dark:border-gray-700 shadow-xl backdrop-blur flex flex-col items-center justify-center gap-1 transition hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-green-50 dark:focus:ring-offset-gray-900"
+            className="w-12 h-12 rounded-2xl floating-nav flex flex-col items-center justify-center gap-1 transition hover:scale-105 active:scale-95"
           >
             <span
-              className={`block w-6 h-0.5 rounded-full bg-green-600 dark:bg-green-300 transition transform ${
+              className={`block w-6 h-0.5 rounded-full bg-brand-500 dark:bg-brand-300 transition transform ${
                 isMenuOpen ? "translate-y-1.5 rotate-45" : ""
               }`}
             />
             <span
-              className={`block w-6 h-0.5 rounded-full bg-green-600 dark:bg-green-300 transition ${
+              className={`block w-6 h-0.5 rounded-full bg-brand-500 dark:bg-brand-300 transition ${
                 isMenuOpen ? "opacity-0" : ""
               }`}
             />
             <span
-              className={`block w-6 h-0.5 rounded-full bg-green-600 dark:bg-green-300 transition transform ${
+              className={`block w-6 h-0.5 rounded-full bg-brand-500 dark:bg-brand-300 transition transform ${
                 isMenuOpen ? "-translate-y-1.5 -rotate-45" : ""
               }`}
             />
           </button>
 
           {isMenuOpen && (
-            <div className="mt-3 w-64 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl border border-green-100 dark:border-gray-700 p-3 space-y-2">
-              <p className="text-xs uppercase tracking-widest text-gray-500 dark:text-gray-400 px-2">
+            <div className="mt-3 w-64 card card-elevated p-3 space-y-1">
+              <p className="text-xs uppercase tracking-widest text-[var(--text-muted)] px-2 py-1">
                 Quick actions
               </p>
               {quickActions.map((action) => (
                 <button
                   key={action.title}
                   onClick={action.onClick}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-green-50 dark:hover:bg-green-900/20 text-left text-gray-800 dark:text-gray-100 transition"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-brand-500/10 text-left text-[var(--text-strong)] transition"
                 >
                   <span
-                    className={`w-9 h-9 rounded-2xl flex items-center justify-center ${action.iconClass}`}
+                    className={`icon-tile w-9 h-9 ${action.iconClass}`}
                   >
                     {action.icon}
                   </span>
                   <div>
-                    <p className="font-semibold">{action.title}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="font-semibold text-sm">{action.title}</p>
+                    <p className="text-xs text-[var(--text-muted)]">
                       {action.description}
                     </p>
                   </div>
@@ -680,10 +690,10 @@ export default function Dashboard() {
           )}
         </div>
 
-        <section className="mobile-card p-6 text-center space-y-4">
+        <section className="panel-brand p-6 text-center space-y-4">
           <button
             onClick={() => setShowProfileModal(true)}
-            className="mx-auto w-24 h-24 rounded-3xl overflow-hidden border-4 border-green-300 dark:border-green-500 shadow-xl hover:shadow-2xl transition-all duration-200 group"
+            className="mx-auto w-24 h-24 rounded-3xl overflow-hidden border-4 border-brand-400/70 shadow-xl hover:shadow-2xl transition-all duration-200 group block"
           >
             {user?.profilePictureUrl ? (
               <img
@@ -692,24 +702,24 @@ export default function Dashboard() {
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-green-400 to-green-600 dark:from-green-500 dark:to-green-700 flex items-center justify-center group-hover:from-green-500 group-hover:to-green-700 dark:group-hover:from-green-600 dark:group-hover:to-green-800 transition-all duration-200">
-                <span className="text-3xl text-white font-bold">
+              <div className="w-full h-full bg-gradient-to-br from-brand-400 to-brand-700 flex items-center justify-center transition-all duration-200">
+                <span className="text-3xl text-[#03150d] font-black">
                   {user?.displayName?.charAt(0) || "?"}
                 </span>
               </div>
             )}
           </button>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-3 text-gray-600 dark:text-gray-300">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-3 text-[var(--text-muted)]">
             <div>
               <p className="text-xs uppercase tracking-wide">Handicap</p>
-              <p className="text-3xl font-semibold text-green-600 dark:text-green-400">
+              <p className="text-3xl font-black text-brand-600 dark:text-brand-300">
                 {user?.handicap || "—"}
               </p>
             </div>
             {tournamentName && (
-              <div className="sm:border-l sm:border-gray-200/70 dark:sm:border-gray-700/70 sm:pl-4">
+              <div className="sm:border-l sm:border-[var(--surface-card-border)] sm:pl-4">
                 <p className="text-xs uppercase tracking-wide">Current tournament</p>
-                <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
+                <p className="text-base font-semibold text-[var(--text-strong)]">
                   {tournamentName}
                 </p>
               </div>
@@ -718,7 +728,7 @@ export default function Dashboard() {
           <div className="mt-4">
             <button
               onClick={() => setShowTournamentModal(true)}
-              className="inline-flex items-center gap-2 rounded-2xl border border-yellow-300/70 dark:border-yellow-500/60 bg-yellow-500/90 dark:bg-yellow-500/30 px-4 py-2 text-sm font-semibold text-gray-900 dark:text-yellow-100 shadow-sm hover:bg-yellow-500 dark:hover:bg-yellow-500/40 transition"
+              className="btn btn-accent btn-sm"
             >
               Manage tournaments
             </button>
@@ -728,12 +738,12 @@ export default function Dashboard() {
         {tournaments.length > 0 && (
           <section className="mobile-card p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-base font-bold text-[var(--text-strong)]">
                 Your tournaments
               </h3>
               <button
                 onClick={() => setShowTournamentModal(true)}
-                className="text-sm font-semibold text-green-600 dark:text-green-300"
+                className="text-sm font-semibold text-brand-600 dark:text-brand-300"
               >
                 Manage
               </button>
@@ -742,21 +752,19 @@ export default function Dashboard() {
               {tournamentsToDisplay.map((tournament) => (
                 <li
                   key={tournament.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-gray-100/60 dark:border-gray-800 px-4 py-3"
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] px-4 py-3"
                 >
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-white">
+                    <p className="font-semibold text-[var(--text-strong)]">
                       {tournament.name || "Untitled tournament"}
                     </p>
                   </div>
                   {currentTournament === tournament.id ? (
-                    <span className="text-xs font-semibold text-green-600 dark:text-green-400">
-                      Active
-                    </span>
+                    <span className="badge badge-brand">Active</span>
                   ) : (
                     <button
                       onClick={() => setTournament(tournament.id)}
-                      className="px-3 py-1 text-xs font-semibold rounded-xl border border-green-200 text-green-600 dark:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/10"
+                      className="btn btn-secondary btn-sm"
                     >
                       Set active
                     </button>
@@ -765,7 +773,7 @@ export default function Dashboard() {
               ))}
             </ul>
             {tournaments.length > tournamentsToDisplay.length && (
-              <p className="text-xs text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-[var(--text-muted)]">
                 Showing your 3 last visited tournaments
               </p>
             )}
@@ -773,35 +781,36 @@ export default function Dashboard() {
         )}
 
         <section className="mobile-card p-5 space-y-4">
-          <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+          <h3 className="text-base font-bold text-[var(--text-strong)]">
             Navigate the app
           </h3>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             {navCards.map((card) => (
               <button
                 key={card.title}
                 onClick={card.onClick}
-                className="w-full flex items-center gap-4 rounded-2xl px-3 py-4 text-left hover:bg-gray-50 dark:hover:bg-gray-800/70 transition"
+                className="w-full flex items-center gap-4 rounded-2xl px-3 py-3.5 text-left hover:bg-brand-500/10 transition group"
               >
-                <span
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center ${card.iconClass}`}
-                >
+                <span className={`icon-tile ${card.iconClass}`}>
                   {card.icon}
                 </span>
-                <div>
-                  <p className="font-semibold text-gray-900 dark:text-white">
+                <div className="min-w-0">
+                  <p className="font-semibold text-[var(--text-strong)]">
                     {card.title}
                   </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <p className="text-sm text-[var(--text-muted)]">
                     {card.description}
                   </p>
                 </div>
+                <svg className="w-5 h-5 ml-auto text-[var(--text-muted)] opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </button>
             ))}
           </div>
         </section>
 
-        <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
+        <p className="text-center text-[var(--text-muted)] text-sm">
           Golf Trip Leaderboard
         </p>
       </PageShell>

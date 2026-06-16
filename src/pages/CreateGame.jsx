@@ -112,6 +112,17 @@ export default function CreateGame({ userId, user, courses = [] }) {
     [editingGameId, userGames]
   );
 
+  // Once any score has been entered, changing the course / format / hole count
+  // would desync the stored score arrays — lock those structural fields.
+  const editHasScores = useMemo(
+    () =>
+      (editingGame?.players || []).some((p) =>
+        (p.scores || []).some((s) => s?.gross != null)
+      ),
+    [editingGame]
+  );
+  const structuralLocked = Boolean(editingGameId && editHasScores);
+
   const initialScores = useMemo(() => {
     if (!selectedCourse) return [];
     return selectedCourse.holes.map(() => ({
@@ -388,19 +399,30 @@ export default function CreateGame({ userId, user, courses = [] }) {
     try {
       if (editingGameId) {
         const gameRef = doc(db, "games", editingGameId);
-        await updateDoc(gameRef, {
+        // Always safe to edit: name, fun-game flag, starting tee.
+        const updatePayload = {
           name: gameName.trim(),
-          courseId: selectedCourse?.id,
-          course: selectedCourse,
-          matchFormat,
-          holeCount,
-          nineType,
           startingHole,
           isFunGame,
           updatedAt: serverTimestamp(),
-        });
+        };
+        // Only change structural fields when no scores exist yet, otherwise the
+        // stored per-hole score arrays would no longer match the course/format.
+        if (!structuralLocked) {
+          updatePayload.courseId = selectedCourse?.id;
+          updatePayload.course = selectedCourse;
+          updatePayload.matchFormat = matchFormat;
+          updatePayload.holeCount = holeCount;
+          updatePayload.nineType = nineType;
+        }
+        await updateDoc(gameRef, updatePayload);
 
-        showSuccess("Game details updated.", "Game Updated");
+        showSuccess(
+          structuralLocked
+            ? "Game updated. Course, format and hole count stay locked because scores have already been entered."
+            : "Game details updated.",
+          "Game Updated"
+        );
         resetForm();
         await fetchUserGames();
         await refetchIncompleteGame();
@@ -449,7 +471,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
   const renderIncompleteBanner = () => {
     if (isChecking) {
       return (
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-4 text-center text-gray-700 dark:text-gray-300">
+        <div className="rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] p-4 text-center text-[var(--text-muted)]">
           Checking for in-progress games...
         </div>
       );
@@ -497,10 +519,17 @@ export default function CreateGame({ userId, user, courses = [] }) {
             <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-200">
               Update the details below, then save your changes or cancel if you want to start fresh.
             </p>
+            {structuralLocked && (
+              <p className="text-xs sm:text-sm font-semibold text-blue-900 dark:text-blue-100">
+                Scores have already been entered, so the course, match format, and
+                hole count are locked. You can still rename the game or toggle Fun
+                Game.
+              </p>
+            )}
             <button
               type="button"
               onClick={handleCancelEdit}
-              className="inline-flex items-center justify-center rounded-xl border border-blue-200 dark:border-blue-600 px-4 py-2 text-sm font-semibold text-blue-700 dark:text-blue-100 hover:bg-blue-100 dark:hover:bg-blue-800/40 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900 transition"
+              className="btn btn-secondary btn-sm"
             >
               Cancel Editing
             </button>
@@ -514,7 +543,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
             onCourseSelect={handleCourseSelect}
             placeholder="Select a course"
             label=""
-            disabled={isFormLocked}
+            disabled={isFormLocked || structuralLocked}
             error={errors.selectedCourse}
           />
 
@@ -525,19 +554,17 @@ export default function CreateGame({ userId, user, courses = [] }) {
               setGameName(e.target.value);
               setErrors((prev) => ({ ...prev, gameName: false }));
             }}
-            className={`w-full rounded-2xl border ${
-              errors.gameName ? "border-red-500" : "border-gray-200 dark:border-gray-600"
-            } bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:py-4 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
+            className={`input ${errors.gameName ? "border-red-500" : ""}`}
             disabled={isFormLocked}
           />
 
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <label className="block text-gray-900 dark:text-white font-medium">Match Format</label>
+              <label className="field-label mb-0">Match Format</label>
               <button
                 type="button"
                 onClick={() => setShowFormatHelp(true)}
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                className="text-[var(--text-muted)] hover:text-[var(--text-strong)] transition-colors"
                 title="Learn about match formats"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -555,10 +582,8 @@ export default function CreateGame({ userId, user, courses = [] }) {
                 setMatchFormat(e.target.value);
                 setErrors((prev) => ({ ...prev, matchFormat: false }));
               }}
-              className={`w-full rounded-2xl border ${
-                errors.matchFormat ? "border-red-500" : "border-gray-200 dark:border-gray-600"
-              } bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:py-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-              disabled={isFormLocked}
+              className={`select ${errors.matchFormat ? "border-red-500" : ""}`}
+              disabled={isFormLocked || structuralLocked}
             >
               <option value="" disabled>
                 Select Match Format
@@ -572,7 +597,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
           </div>
 
           <div className="space-y-2">
-            <label className="block text-gray-900 dark:text-white font-medium">Number of Holes</label>
+            <label className="field-label">Number of Holes</label>
             <select
               value={holeCount || ""}
               onChange={(e) => {
@@ -584,10 +609,8 @@ export default function CreateGame({ userId, user, courses = [] }) {
                   setStartingHole(1);
                 }
               }}
-              className={`w-full rounded-2xl border ${
-                errors.holeCount ? "border-red-500" : "border-gray-200 dark:border-gray-600"
-              } bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:py-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-              disabled={isFormLocked}
+              className={`select ${errors.holeCount ? "border-red-500" : ""}`}
+              disabled={isFormLocked || structuralLocked}
             >
               <option value="" disabled>
                 Select Number of Holes
@@ -599,13 +622,13 @@ export default function CreateGame({ userId, user, courses = [] }) {
 
           {holeCount === 18 && (
             <div className="space-y-2">
-              <label className="block text-gray-900 dark:text-white font-medium">
+              <label className="field-label">
                 Starting Tee
               </label>
               <select
                 value={startingHole}
                 onChange={(e) => setStartingHole(Number(e.target.value))}
-                className="w-full rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:py-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                className="select"
                 disabled={isFormLocked}
               >
                 <option value={1}>Start on Hole 1</option>
@@ -616,17 +639,15 @@ export default function CreateGame({ userId, user, courses = [] }) {
 
           {holeCount === 9 && (
             <div className="space-y-2">
-              <label className="block text-gray-900 dark:text-white font-medium">Select 9 Holes</label>
+              <label className="field-label">Select 9 Holes</label>
               <select
                 value={nineType || ""}
                 onChange={(e) => {
                   setNineType(e.target.value);
                   setErrors((prev) => ({ ...prev, nineType: false }));
                 }}
-                className={`w-full rounded-2xl border ${
-                  errors.nineType ? "border-red-500" : "border-gray-200 dark:border-gray-600"
-                } bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:py-4 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800`}
-                disabled={isFormLocked}
+                className={`select ${errors.nineType ? "border-red-500" : ""}`}
+                disabled={isFormLocked || structuralLocked}
               >
                 <option value="" disabled>
                   Select 9 Holes
@@ -637,17 +658,17 @@ export default function CreateGame({ userId, user, courses = [] }) {
             </div>
           )}
 
-          <label className="flex items-start gap-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 px-4 py-3">
+          <label className="flex items-start gap-3 rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] px-4 py-3">
             <input
               type="checkbox"
               checked={isFunGame}
               onChange={(e) => setIsFunGame(e.target.checked)}
               disabled={isFormLocked}
-              className="mt-1 w-5 h-5 text-green-600 dark:text-green-400 bg-white dark:bg-gray-900 border-green-400 rounded focus:ring-2 focus:ring-green-500 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="mt-1 w-5 h-5 text-brand-600 dark:text-brand-500 border-brand-500/40 rounded focus:ring-2 focus:ring-brand-500 disabled:opacity-60 disabled:cursor-not-allowed"
             />
-            <div className="text-sm text-gray-900 dark:text-white space-y-1">
+            <div className="text-sm text-[var(--text-strong)] space-y-1">
               <div className="font-semibold">Fun Game</div>
-              <p className="text-gray-600 dark:text-gray-300">
+              <p className="text-[var(--text-muted)]">
                 When enabled, this round is for fun only—scores from this game will not count toward any
                 player stats.
               </p>
@@ -657,16 +678,16 @@ export default function CreateGame({ userId, user, courses = [] }) {
           <button
             type="button"
             onClick={createGame}
-            className="w-full rounded-2xl bg-green-600 dark:bg-green-500 px-6 py-3 text-white font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-60"
+            className="btn btn-primary btn-block"
             disabled={isFormLocked || !userId}
           >
             {editingGameId ? "Save Changes" : "Create Game"}
           </button>
 
-          <p className="text-sm text-gray-600 dark:text-gray-300 text-center">
+          <p className="text-sm text-[var(--text-muted)] text-center">
             Ready to play?{" "}
             <button
-              className="text-green-600 dark:text-green-400 font-semibold hover:underline"
+              className="text-brand-600 dark:text-brand-300 font-semibold hover:underline"
               onClick={() => navigate("/scores")}
             >
               Enter scores for an existing game
@@ -676,29 +697,29 @@ export default function CreateGame({ userId, user, courses = [] }) {
 
         <section className="mobile-card p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-strong)]">
               Manage Your Games
             </h2>
             <button
               type="button"
               onClick={() => fetchUserGames()}
               disabled={!currentTournament || isLoadingUserGames}
-              className="inline-flex items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-600 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed transition"
+              className="btn btn-secondary btn-sm"
             >
               {isLoadingUserGames ? "Refreshing..." : "Refresh"}
             </button>
           </div>
 
           {!currentTournament ? (
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 text-sm text-gray-700 dark:text-gray-300">
+            <div className="rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--text-muted)]">
               Select a tournament to see the games you've created.
             </div>
           ) : isLoadingUserGames ? (
-            <div className="text-center py-6 text-gray-600 dark:text-gray-300">
+            <div className="text-center py-6 text-[var(--text-muted)]">
               Loading your games...
             </div>
           ) : userGames.length === 0 ? (
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 p-4 text-sm text-gray-700 dark:text-gray-300">
+            <div className="rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] p-4 text-sm text-[var(--text-muted)]">
               No editable games yet. Create a game and you'll be able to edit or delete it here while it's still in progress.
             </div>
           ) : (
@@ -706,10 +727,10 @@ export default function CreateGame({ userId, user, courses = [] }) {
               {userGames.map((game) => (
                 <div
                   key={game.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/70 p-3"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] p-3"
                 >
                   <div className="flex-1">
-                    <p className="text-gray-900 dark:text-white font-semibold">
+                    <p className="text-[var(--text-strong)] font-semibold">
                       {game.name || "Untitled Game"}
                       {game.isFunGame && (
                         <span className="ml-2 text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/40 px-2 py-1 rounded-full">
@@ -718,14 +739,14 @@ export default function CreateGame({ userId, user, courses = [] }) {
                       )}
                     </p>
                     {game.course?.name && (
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                      <p className="text-sm text-[var(--text-muted)]">
                         Course: {game.course.name}
                       </p>
                     )}
-                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                    <p className="text-sm text-[var(--text-muted)]">
                       Format: {getMatchFormatLabel(game.matchFormat)}
                     </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                    <p className="text-xs text-[var(--text-muted)]">
                       Last updated: {formatUpdatedAt(game.updatedAt)}
                     </p>
                   </div>
@@ -733,10 +754,8 @@ export default function CreateGame({ userId, user, courses = [] }) {
                     <button
                       type="button"
                       onClick={() => handleEditGame(game)}
-                      className={`flex-1 sm:flex-none rounded-xl px-4 py-2 font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 ${
-                        editingGameId === game.id
-                          ? "bg-blue-200 dark:bg-blue-800 text-blue-900 dark:text-blue-100 border border-blue-400 dark:border-blue-600 focus:ring-blue-400 dark:focus:ring-blue-300"
-                          : "bg-blue-600 dark:bg-blue-500 text-white focus:ring-blue-500 dark:focus:ring-blue-400"
+                      className={`btn btn-sm flex-1 sm:flex-none ${
+                        editingGameId === game.id ? "btn-secondary" : "btn-primary"
                       }`}
                     >
                       {editingGameId === game.id ? "Editing" : "Edit"}
@@ -744,7 +763,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
                     <button
                       type="button"
                       onClick={() => handleDeleteGame(game)}
-                      className="flex-1 sm:flex-none rounded-xl bg-red-600 dark:bg-red-500 px-4 py-2 text-white font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-red-400"
+                      className="btn btn-danger btn-sm flex-1 sm:flex-none"
                     >
                       Delete
                     </button>
@@ -782,7 +801,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
                   <button
                     type="button"
                     onClick={() => handleClaimLegacyGame(game)}
-                    className="w-full sm:w-auto rounded-xl bg-yellow-600 dark:bg-yellow-500 px-4 py-2 text-white font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 dark:focus:ring-yellow-400"
+                    className="btn btn-accent btn-sm w-full sm:w-auto"
                   >
                     Claim
                   </button>
@@ -797,29 +816,29 @@ export default function CreateGame({ userId, user, courses = [] }) {
 
       {/* Format Help Modal */}
       {showFormatHelp && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="card card-elevated max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-2xl font-bold text-[var(--text-strong)]">
                 Match Format Guide
               </h2>
               <button
                 onClick={() => setShowFormatHelp(false)}
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-3xl leading-none"
+                className="text-[var(--text-muted)] hover:text-[var(--text-strong)] text-3xl leading-none"
               >
                 ×
               </button>
             </div>
 
             <div className="space-y-6">
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   Stableford Points
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300">
+                <p className="text-[var(--text-muted)]">
                   Players compete based on points earned per hole using their With handicaps score (with handicaps score minus handicap strokes). Points are awarded as follows:
                 </p>
-                <ul className="list-disc list-inside mt-2 space-y-1 text-gray-600 dark:text-gray-300">
+                <ul className="list-disc list-inside mt-2 space-y-1 text-[var(--text-muted)]">
                   <li>With Handicaps Albatross or better: 5 points</li>
                   <li>With Handicaps Eagle (-2): 4 points</li>
                   <li>With Handicaps Birdie (-1): 3 points</li>
@@ -829,44 +848,44 @@ export default function CreateGame({ userId, user, courses = [] }) {
                 </ul>
               </div>
 
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   1v1 Match Play
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                <p className="text-[var(--text-muted)] mb-2">
                   Two players compete hole-by-hole. Each hole is won by the player with the lower With handicaps score (with handicaps minus handicap strokes). The match is won by the player who wins more holes. Uses handicaps to level the playing field.
                 </p>
                 <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <p className="text-sm text-[var(--text-muted)]">
                     <span className="font-semibold">No Handicaps Version:</span> Also available as "1v1 Match Play (No Handicaps)" which uses with handicaps scores instead of With handicaps scores.
                   </p>
                 </div>
               </div>
 
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   2v2 Match Play
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                <p className="text-[var(--text-muted)] mb-2">
                   Two teams of two players compete against each other. Each team uses their best ball (best With handicaps score) on each hole. The team with the better ball wins the hole. Teams compete head-to-head to win the most holes.
                 </p>
                 <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <p className="text-sm text-[var(--text-muted)]">
                     <span className="font-semibold">No Handicaps Version:</span> Also available as "2v2 Match Play (No handicaps)" which uses with handicaps scores instead of With handicaps scores.
                   </p>
                 </div>
               </div>
 
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   American Scoring
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-3">
+                <p className="text-[var(--text-muted)] mb-3">
                   For 3 or 4 players competing against each other using <span className="font-semibold">with handicaps scores</span> (no handicaps). Points are awarded based on finishing position on each hole. Lower with handicaps score wins the hole. All tied players receive equal points.
                 </p>
                 
-                <div className="mt-3 text-gray-600 dark:text-gray-300">
-                  <p className="font-semibold mb-2 text-green-600 dark:text-green-400">3 Players (6 points per hole)</p>
+                <div className="mt-3 text-[var(--text-muted)]">
+                  <p className="font-semibold mb-2 text-brand-600 dark:text-brand-300">3 Players (6 points per hole)</p>
                   <div className="ml-2 space-y-1">
                     <p>• All tie: 2-2-2 (2 points each)</p>
                     <p>• Clear winner, two tie for second: 4-1-1</p>
@@ -875,8 +894,8 @@ export default function CreateGame({ userId, user, courses = [] }) {
                   </div>
                 </div>
                 
-                <div className="mt-4 text-gray-600 dark:text-gray-300">
-                  <p className="font-semibold mb-2 text-green-600 dark:text-green-400">4 Players (20 points per hole)</p>
+                <div className="mt-4 text-[var(--text-muted)]">
+                  <p className="font-semibold mb-2 text-brand-600 dark:text-brand-300">4 Players (20 points per hole)</p>
                   <div className="ml-2 space-y-1">
                     <p>• All tie: 5-5-5-5 (5 points each)</p>
                     <p>• Clear 1st, 2nd, 3rd, 4th (all different): 8-6-4-2</p>
@@ -889,20 +908,20 @@ export default function CreateGame({ userId, user, courses = [] }) {
                 </div>
                 
                 <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <p className="text-sm text-[var(--text-muted)]">
                     <span className="font-semibold">Important:</span> This format uses <span className="font-semibold">with handicaps scores</span> (actual strokes, no handicap adjustments). All tied players receive equal points. The scoring system automatically handles all tie scenarios to ensure fair point distribution.
                   </p>
                 </div>
               </div>
 
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   Wolf (3 Players)
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                <p className="text-[var(--text-muted)] mb-2">
                   Exactly 3 players. A rotating <span className="font-semibold">Wolf</span> is assigned each hole in a fixed order (randomized at game start). The Wolf must choose to <span className="font-semibold">team up</span> or go <span className="font-semibold">Lone Wolf</span> <span className="italic">(before the wolf tees off)</span>. Uses <span className="font-semibold">gross scores</span> (no handicaps).
                 </p>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-300">
+                <ul className="list-disc list-inside space-y-1 text-[var(--text-muted)]">
                   <li>
                     <span className="font-semibold">Partnered (2v1)</span>: Wolf + partner best ball vs solo player’s gross.
                     <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
@@ -924,21 +943,21 @@ export default function CreateGame({ userId, user, courses = [] }) {
                     <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
                       <li>Wolf wins: Wolf <span className="font-semibold">+6</span></li>
                       <li>Opponents win: Each opponent <span className="font-semibold">+2</span></li>
-                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+2</span></li>
                     </ul>
                   </li>
                 </ul>
               </div>
 
               {/* Wolf (With Handicaps) */}
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   Wolf (3 Players, With Handicaps)
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                <p className="text-[var(--text-muted)] mb-2">
                   Same as Wolf (3 Players) but uses <span className="font-semibold">net scores</span> (with handicaps). All scoring rules are identical, but comparisons are made using net scores instead of gross scores. Perfect for groups with varying skill levels.
                 </p>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-300">
+                <ul className="list-disc list-inside space-y-1 text-[var(--text-muted)]">
                   <li>
                     <span className="font-semibold">Partnered (2v1)</span>: Wolf + partner best ball (lowest net) vs solo player's net.
                     <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
@@ -960,26 +979,26 @@ export default function CreateGame({ userId, user, courses = [] }) {
                     <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
                       <li>Wolf wins: Wolf <span className="font-semibold">+6</span></li>
                       <li>Opponents win: Each opponent <span className="font-semibold">+2</span></li>
-                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+2</span></li>
                     </ul>
                   </li>
                 </ul>
               </div>
 
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   Stroke Play
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300">
+                <p className="text-[var(--text-muted)]">
                   Two players compete in a 1v1 format to get the lowest gross score (no handicaps). Simple stroke scoring where the player with the lowest total strokes wins.
                 </p>
               </div>
 
               <div className="pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   Scorecard
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300">
+                <p className="text-[var(--text-muted)]">
                   Just track your scores without any competition or point system. Perfect for solo rounds or when you just want to record your round without comparing to others.
                 </p>
               </div>
@@ -988,7 +1007,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
             <div className="mt-6 flex justify-center">
               <button
                 onClick={() => setShowFormatHelp(false)}
-                className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="btn btn-primary"
               >
                 Got it
               </button>

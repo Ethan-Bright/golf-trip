@@ -107,51 +107,51 @@ export default function InviteFriend() {
         <div className="flex gap-2">
           <button
             onClick={() => navigate(-1)}
-            className="px-4 py-2 rounded-2xl border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+            className="btn btn-secondary btn-sm"
           >
             Back
           </button>
           <button
             onClick={() => navigate("/dashboard")}
-            className="px-5 py-2 rounded-2xl bg-green-600 text-white font-semibold shadow-lg hover:bg-green-700 transition"
+            className="btn btn-primary btn-sm"
           >
             Dashboard
           </button>
         </div>
       }
     >
-      <section className="mobile-card space-y-4 p-6 border border-green-100/80 dark:border-gray-800">
+      <section className="mobile-card space-y-4 p-6">
         <div className="flex flex-col gap-2">
-          <span className="text-sm font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide">
+          <span className="eyebrow">
             Current tournament
           </span>
-          <p className="text-2xl font-bold text-gray-900 dark:text-white">
+          <p className="text-2xl font-bold text-[var(--text-strong)]">
             {tournamentName || "Select a tournament on the dashboard first"}
           </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-[var(--text-muted)]">
             We include the tournament id in the invite link so friends land in the right place automatically.
           </p>
         </div>
         <div className="flex flex-col lg:flex-row lg:items-center gap-3">
           <div className="flex-1">
-            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-[0.3em]">
+            <label className="field-label">
               Invite link
             </label>
-            <div className="mt-2 px-4 py-3 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-100 text-sm break-all">
+            <div className="input break-all">
               {inviteLink || "Link available after the page loads in the browser."}
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
             <button
               onClick={handleCopy}
-              className="flex-1 px-4 py-3 rounded-2xl bg-green-600 text-white font-semibold shadow hover:bg-green-700 transition disabled:opacity-50"
+              className="btn btn-primary flex-1"
               disabled={!inviteLink}
             >
               {copyState}
             </button>
             <button
               onClick={handleShare}
-              className="flex-1 px-4 py-3 rounded-2xl border border-green-500 text-green-600 dark:text-green-300 font-semibold hover:bg-green-50 dark:hover:bg-green-900/20 transition disabled:opacity-50"
+              className="btn btn-secondary flex-1"
               disabled={!inviteLink}
             >
               Share
@@ -164,22 +164,22 @@ export default function InviteFriend() {
         {shareSteps.map((step, index) => (
           <article
             key={step.title}
-            className="mobile-card p-6 border border-gray-200/70 dark:border-gray-700 flex gap-4"
+            className="mobile-card p-6 flex gap-4"
           >
-            <div className="w-12 h-12 rounded-2xl bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-black text-lg flex items-center justify-center">
+            <div className="icon-tile bg-brand-500/15 text-brand-600 dark:text-brand-300 font-black text-lg">
               {index + 1}
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{step.title}</h2>
-              <p className="text-gray-600 dark:text-gray-300 mt-2">{step.detail}</p>
+              <h2 className="text-xl font-semibold text-[var(--text-strong)]">{step.title}</h2>
+              <p className="text-[var(--text-muted)] mt-2">{step.detail}</p>
             </div>
           </article>
         ))}
       </section>
 
-      <section className="mobile-card p-6 border border-yellow-200/70 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Quick reminders</h3>
-        <ul className="mt-3 text-gray-700 dark:text-gray-200 space-y-2 list-disc pl-6">
+      <section className="mobile-card p-6">
+        <h3 className="text-lg font-semibold text-[var(--text-strong)]">Quick reminders</h3>
+        <ul className="mt-3 text-[var(--text-muted)] space-y-2 list-disc pl-6">
           {reminders.map((item) => (
             <li key={item}>{item}</li>
           ))}

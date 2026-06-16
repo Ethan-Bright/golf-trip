@@ -8,7 +8,7 @@ import bcrypt from "bcryptjs";
 import SearchableTournamentDropdown from "./SearchableTournamentDropdown";
 
 export default function TournamentModal({ isOpen, onClose }) {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const navigate = useNavigate();
   const { currentTournament, setTournament } = useTournament();
   const [tournaments, setTournaments] = useState([]);
@@ -170,8 +170,8 @@ export default function TournamentModal({ isOpen, onClose }) {
 
       // Set as current tournament
       setTournament(tournamentId);
+      await refreshUser();
       onClose();
-      window.location.reload(); // Reload to update tournament context
     } catch (err) {
       console.error("Error creating tournament:", err);
       setError(err.message || "Failed to create tournament");
@@ -256,8 +256,8 @@ export default function TournamentModal({ isOpen, onClose }) {
 
       // Set as current tournament
       setTournament(tournamentId);
+      await refreshUser();
       onClose();
-      window.location.reload(); // Reload to update tournament context
     } catch (err) {
       console.error("Error joining tournament:", err);
       setError(err.message || "Failed to join tournament");
@@ -392,10 +392,11 @@ export default function TournamentModal({ isOpen, onClose }) {
           const nextTournamentId =
             updatedUserTournamentIds[updatedUserTournamentIds.length - 1];
           setTournament(nextTournamentId);
+          await refreshUser();
           onClose();
-          window.location.reload();
         } else {
           setTournament(null);
+          await refreshUser();
           onClose();
           navigate("/tournament-select");
         }
@@ -453,17 +454,18 @@ export default function TournamentModal({ isOpen, onClose }) {
       if (tournamentId === currentTournament) {
         if (remaining.length > 0) {
           setTournament(remaining[remaining.length - 1]);
+          await refreshUser();
           onClose();
-          window.location.reload();
         } else {
           // This was the last tournament, redirect to tournament select page
           setTournament(null);
+          await refreshUser();
           onClose();
           navigate("/tournament-select");
         }
       } else {
+        await refreshUser();
         onClose();
-        window.location.reload();
       }
     } catch (err) {
       console.error("Error leaving tournament:", err);
@@ -474,11 +476,11 @@ export default function TournamentModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="card card-elevated max-w-md w-full max-h-[90vh] overflow-y-auto overflow-hidden">
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+        <div className="flex justify-between items-center p-6 border-b border-[var(--surface-card-border)]">
+          <h3 className="text-xl font-bold text-[var(--text-strong)]">
             Tournament Manager
           </h3>
           <button
@@ -492,7 +494,8 @@ export default function TournamentModal({ isOpen, onClose }) {
               setTournamentToDelete(null);
               onClose();
             }}
-            className="text-gray-500 dark:text-gray-400 text-2xl focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl p-1"
+            aria-label="Close"
+            className="btn btn-ghost btn-sm px-3 text-xl leading-none"
           >
             ×
           </button>
@@ -501,7 +504,7 @@ export default function TournamentModal({ isOpen, onClose }) {
         {/* Content */}
         <div className="p-6">
           {error && (
-            <div className="mb-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-xl text-sm">
+            <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 text-red-500 dark:text-red-300 rounded-xl text-sm">
               {error}
             </div>
           )}
@@ -510,50 +513,48 @@ export default function TournamentModal({ isOpen, onClose }) {
             <div className="space-y-4">
               {loading && (
                 <div className="text-center py-8">
-                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">Loading tournaments...</p>
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-brand-500/30 border-t-brand-500"></div>
+                  <p className="text-sm text-[var(--text-muted)] mt-2">Loading tournaments...</p>
                 </div>
               )}
               
               {!loading && tournaments.length > 0 && (
                 <>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-                      Your Tournaments
-                    </h4>
+                    <h4 className="field-label">Your Tournaments</h4>
                     <div className="space-y-2">
                       {tournaments.map((tournament) => (
                         <div
                           key={tournament.id}
-                          className={`p-4 rounded-xl border-2 ${
+                          className={`p-4 rounded-2xl border ${
                             tournament.id === currentTournament
-                              ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                              : "border-gray-200 dark:border-gray-600"
+                              ? "border-brand-500/60 bg-brand-500/10"
+                              : "border-[var(--surface-card-border)] bg-[var(--surface-muted)]"
                           }`}
                         >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <div className="font-semibold text-gray-900 dark:text-white">
+                          <div className="flex justify-between items-center gap-3">
+                            <div className="min-w-0">
+                              <div className="font-semibold text-[var(--text-strong)] truncate">
                                 {tournament.name}
                                 {tournament.id === currentTournament && (
-                                  <span className="ml-2 text-xs text-green-600 dark:text-green-400">
+                                  <span className="ml-2 text-xs text-brand-600 dark:text-brand-300">
                                     (Current)
                                   </span>
                                 )}
                               </div>
-                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                              <div className="text-xs text-[var(--text-muted)]">
                                 {tournament.memberCount || 0} members
                               </div>
                             </div>
                         <div className="flex flex-wrap gap-2 justify-end">
                               {tournament.id !== currentTournament && (
                                 <button
-                                  onClick={() => {
+                                  onClick={async () => {
                                     setTournament(tournament.id);
+                                    await refreshUser();
                                     onClose();
-                                    window.location.reload();
                                   }}
-                                  className="px-3 py-1 bg-blue-500 text-white text-xs rounded-lg hover:bg-blue-600"
+                                  className="btn btn-secondary btn-sm"
                                 >
                                   Switch
                                 </button>
@@ -568,7 +569,7 @@ export default function TournamentModal({ isOpen, onClose }) {
                                   setTournamentToEdit(tournament);
                                   setMode("edit");
                                 }}
-                                className="px-3 py-1 bg-purple-500 text-white text-xs rounded-lg hover:bg-purple-600"
+                                className="btn btn-secondary btn-sm"
                               >
                                 Edit
                               </button>
@@ -580,7 +581,7 @@ export default function TournamentModal({ isOpen, onClose }) {
                                   setTournamentToDelete(tournament);
                                   setShowDeleteConfirm(true);
                                 }}
-                                className="px-3 py-1 bg-red-700 text-white text-xs rounded-lg hover:bg-red-800"
+                                className="btn btn-danger btn-sm"
                               >
                                 Delete
                               </button>
@@ -593,7 +594,7 @@ export default function TournamentModal({ isOpen, onClose }) {
                                   setTournamentToLeave(tournament);
                                   setShowLeaveConfirm(true);
                                 }}
-                                className="px-3 py-1 bg-red-500 text-white text-xs rounded-lg hover:bg-red-600"
+                                className="btn btn-secondary btn-sm"
                               >
                                 Leave
                               </button>
@@ -610,13 +611,13 @@ export default function TournamentModal({ isOpen, onClose }) {
                 <div className="pt-4 space-y-3">
                   <button
                     onClick={handleCreateTournament}
-                    className="w-full py-3 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold shadow-lg hover:bg-green-700 dark:hover:bg-green-600"
+                    className="btn btn-primary btn-block"
                   >
                     Create Tournament
                   </button>
                   <button
                     onClick={handleJoinTournament}
-                    className="w-full py-3 bg-blue-600 dark:bg-blue-500 text-white rounded-xl font-semibold shadow-lg hover:bg-blue-700 dark:hover:bg-blue-600"
+                    className="btn btn-secondary btn-block"
                   >
                     Join Tournament
                   </button>
@@ -661,13 +662,13 @@ export default function TournamentModal({ isOpen, onClose }) {
 
       {/* Leave Confirmation Modal */}
       {showLeaveConfirm && tournamentToLeave && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="card card-elevated max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-[var(--text-strong)] mb-2">
               Leave Tournament?
             </h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Are you sure you want to leave <strong>{tournamentToLeave.name}</strong>? You can join or create a new tournament after leaving.
+            <p className="text-[var(--text-muted)] mb-6">
+              Are you sure you want to leave <strong className="text-[var(--text-strong)]">{tournamentToLeave.name}</strong>? You can join or create a new tournament after leaving.
             </p>
             <div className="flex gap-3">
               <button
@@ -675,7 +676,7 @@ export default function TournamentModal({ isOpen, onClose }) {
                   setShowLeaveConfirm(false);
                   setTournamentToLeave(null);
                 }}
-                className="flex-1 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600"
+                className="btn btn-secondary flex-1"
               >
                 Cancel
               </button>
@@ -685,7 +686,7 @@ export default function TournamentModal({ isOpen, onClose }) {
                   setShowLeaveConfirm(false);
                   setTournamentToLeave(null);
                 }}
-                className="flex-1 py-2 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600"
+                className="btn btn-danger flex-1"
               >
                 Leave Tournament
               </button>
@@ -696,13 +697,13 @@ export default function TournamentModal({ isOpen, onClose }) {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && tournamentToDelete && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
+          <div className="card card-elevated max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-[var(--text-strong)] mb-2">
               Delete Tournament?
             </h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              This will permanently remove <strong>{tournamentToDelete.name}</strong>, including its teams, games, and scores. Everyone will lose access to it.
+            <p className="text-[var(--text-muted)] mb-6">
+              This will permanently remove <strong className="text-[var(--text-strong)]">{tournamentToDelete.name}</strong>, including its teams, games, and scores. Everyone will lose access to it.
             </p>
             <div className="flex gap-3">
               <button
@@ -711,14 +712,14 @@ export default function TournamentModal({ isOpen, onClose }) {
                   setShowDeleteConfirm(false);
                   setTournamentToDelete(null);
                 }}
-                className="flex-1 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-60"
+                className="btn btn-secondary flex-1"
                 disabled={isDeletingTournament}
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteTournament}
-                className="flex-1 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 disabled:opacity-60"
+                className="btn btn-danger flex-1"
                 disabled={isDeletingTournament}
               >
                 {isDeletingTournament ? "Deleting..." : "Delete Tournament"}
@@ -743,47 +744,36 @@ function CreateTournamentForm({ onSubmit, onBack, error }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          Tournament Name:
-        </label>
+        <label className="field-label">Tournament Name</label>
         <input
           type="text"
           value={tournamentName}
           onChange={(e) => setTournamentName(e.target.value)}
           placeholder="Enter tournament name..."
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="input"
           required
         />
       </div>
       <div>
-        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          Password:
-        </label>
+        <label className="field-label">Password</label>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter tournament password..."
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="input"
           required
           minLength={4}
         />
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-xs text-[var(--text-muted)] mt-1.5">
           Must be at least 4 characters
         </p>
       </div>
       <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex-1 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600"
-        >
+        <button type="button" onClick={onBack} className="btn btn-secondary flex-1">
           Back
         </button>
-        <button
-          type="submit"
-          className="flex-1 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl font-semibold hover:bg-green-700 dark:hover:bg-green-600"
-        >
+        <button type="submit" className="btn btn-primary flex-1">
           Create
         </button>
       </div>
@@ -811,49 +801,36 @@ function EditTournamentForm({ tournament, onSubmit, onBack, loading }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          Tournament Name:
-        </label>
+        <label className="field-label">Tournament Name</label>
         <input
           type="text"
           value={tournamentName}
           onChange={(e) => setTournamentName(e.target.value)}
           placeholder="Enter tournament name..."
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="input"
           required
           disabled={loading}
         />
       </div>
       <div>
-        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          New Password (optional):
-        </label>
+        <label className="field-label">New Password (optional)</label>
         <input
           type="password"
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           placeholder="Leave blank to keep current password"
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="input"
           disabled={loading}
         />
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-xs text-[var(--text-muted)] mt-1.5">
           Enter a new password if you want to reset it. Leave blank to keep the existing password.
         </p>
       </div>
       <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex-1 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600"
-          disabled={loading}
-        >
+        <button type="button" onClick={onBack} className="btn btn-secondary flex-1" disabled={loading}>
           Back
         </button>
-        <button
-          type="submit"
-          className="flex-1 py-2 bg-purple-600 dark:bg-purple-500 text-white rounded-xl font-semibold hover:bg-purple-700 dark:hover:bg-purple-600 disabled:opacity-60"
-          disabled={loading}
-        >
+        <button type="submit" className="btn btn-primary flex-1" disabled={loading}>
           {loading ? "Saving..." : "Save Changes"}
         </button>
       </div>
@@ -873,13 +850,10 @@ function JoinTournamentForm({ tournaments, onSubmit, onBack, error }) {
   if (tournaments.length === 0) {
     return (
       <div>
-        <p className="text-center text-gray-600 dark:text-gray-400 mb-4">
+        <p className="text-center text-[var(--text-muted)] mb-4">
           No tournaments available to join.
         </p>
-        <button
-          onClick={onBack}
-          className="w-full py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600"
-        >
+        <button onClick={onBack} className="btn btn-secondary btn-block">
           Back
         </button>
       </div>
@@ -900,30 +874,21 @@ function JoinTournamentForm({ tournaments, onSubmit, onBack, error }) {
         />
       </div>
       <div>
-        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-          Password:
-        </label>
+        <label className="field-label">Password</label>
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Enter tournament password..."
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="input"
           required
         />
       </div>
       <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex-1 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600"
-        >
+        <button type="button" onClick={onBack} className="btn btn-secondary flex-1">
           Back
         </button>
-        <button
-          type="submit"
-          className="flex-1 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-xl font-semibold hover:bg-blue-700 dark:hover:bg-blue-600"
-        >
+        <button type="submit" className="btn btn-primary flex-1">
           Join
         </button>
       </div>

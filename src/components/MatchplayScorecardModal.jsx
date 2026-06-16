@@ -56,18 +56,18 @@ export default function MatchplayScorecardModal({
     allDisplayPlayers.length === 0
   ) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl shadow-2xl border border-blue-500 dark:border-blue-400 max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
+        <div className="card card-elevated max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
+          <h2 className="text-xl font-bold text-[var(--text-strong)] mb-4 text-center">
             {game.name}
           </h2>
-          <p className="text-center text-gray-600 dark:text-gray-300 mb-4">
+          <p className="text-center text-[var(--text-muted)] mb-4">
             No players found for this game.
           </p>
           <div className="mt-6 flex justify-center">
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+              className="btn btn-secondary btn-sm"
             >
               Close
             </button>
@@ -241,17 +241,17 @@ export default function MatchplayScorecardModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
-      <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-blue-500 dark:border-blue-400 max-w-4xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
+      <div className="card card-elevated max-w-4xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white pr-3">
+          <h2 className="text-base sm:text-xl font-bold text-[var(--text-strong)] pr-3">
             {game.name}
           </h2>
           <div className="flex items-center gap-2">
             <button
               onClick={handleShare}
               disabled={isSharing}
-              className="px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              className="btn btn-primary btn-sm"
               title="Share scorecard"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -266,7 +266,7 @@ export default function MatchplayScorecardModal({
             </button>
             <button
               onClick={onClose}
-              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl sm:text-3xl leading-none flex-shrink-0"
+              className="text-[var(--text-muted)] hover:text-[var(--text-strong)] text-2xl sm:text-3xl leading-none flex-shrink-0"
             >
               ×
             </button>
@@ -275,11 +275,11 @@ export default function MatchplayScorecardModal({
 
         {/* Responsive Table */}
         <div className="overflow-x-auto -mx-3 sm:mx-0" ref={scorecardRef}>
-          <table className="w-full border-collapse text-xs sm:text-sm min-w-[500px]">
+          <table className="w-full border-collapse text-xs sm:text-sm min-w-[500px] bg-gray-900 text-white tabular-nums">
             <thead>
               <tr>
                 <th
-                  className="px-2 py-1 text-left align-bottom border-2 border-solid border-blue-500 dark:border-blue-400 rounded-tl-lg"
+                  className="px-2 py-1 text-left align-bottom border-2 border-solid border-gray-700 rounded-tl-lg bg-gray-800 text-gray-300"
                   rowSpan={hasTeamGrouping ? 2 : 1}
                 >
                   Hole
@@ -288,18 +288,18 @@ export default function MatchplayScorecardModal({
                   <>
                     <th
                       colSpan={leftGroup.length}
-                      className={`px-2 py-1 text-center font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 rounded-tl-lg border-2 border-b-0 ${TEAM_BORDER_COLOR}`}
+                      className={`px-2 py-1 text-center font-semibold text-gray-100 bg-gray-800 rounded-tl-lg border-2 border-b-0 ${TEAM_BORDER_COLOR}`}
                     >
                       {teamDisplayName}
                     </th>
                     <th
                       colSpan={rightGroup.length}
-                      className={`px-2 py-1 text-center font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 rounded-tr-lg border-2 border-b-0 ${OPPONENT_BORDER_COLOR}`}
+                      className={`px-2 py-1 text-center font-semibold text-gray-100 bg-gray-800 rounded-tr-lg border-2 border-b-0 ${OPPONENT_BORDER_COLOR}`}
                     >
                       {opponentDisplayName}
                     </th>
                     <th
-                      className="px-2 py-1 text-center font-semibold text-gray-900 dark:text-white align-bottom border-2 border-solid border-blue-500 dark:border-blue-400 rounded-tr-lg"
+                      className="px-2 py-1 text-center font-semibold text-gray-100 align-bottom border-2 border-solid border-gray-700 rounded-tr-lg bg-gray-800"
                       rowSpan={2}
                     >
                       Match Status
@@ -310,8 +310,8 @@ export default function MatchplayScorecardModal({
                     {allDisplayPlayers.map((p, idx) => (
                       <th
                         key={p.userId}
-                        className={`px-2 py-1 text-center font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                          "border-blue-500 dark:border-blue-400 border-solid",
+                        className={`px-2 py-1 text-center font-semibold text-gray-100 bg-gray-800 ${buildColumnBorderClasses(
+                          "border-gray-700 border-solid",
                           idx,
                           allDisplayPlayers.length,
                           {
@@ -325,7 +325,7 @@ export default function MatchplayScorecardModal({
                         {p.displayLabel || p.name}
                   </th>
                 ))}
-                    <th className="px-2 py-1 text-center font-semibold text-gray-900 dark:text-white border-2 border-solid border-blue-500 dark:border-blue-400 rounded-tr-lg">
+                    <th className="px-2 py-1 text-center font-semibold text-gray-100 border-2 border-solid border-gray-700 rounded-tr-lg bg-gray-800">
                     Match Status
                   </th>
                   </>
@@ -336,7 +336,7 @@ export default function MatchplayScorecardModal({
                   {leftGroup.map((p, idx) => (
                     <th
                       key={`team-${p.userId}`}
-                      className={`px-2 py-1 text-center font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
+                      className={`px-2 py-1 text-center font-semibold text-gray-100 bg-gray-800 ${buildColumnBorderClasses(
                         TEAM_BORDER_COLOR,
                         idx,
                         leftGroup.length,
@@ -349,7 +349,7 @@ export default function MatchplayScorecardModal({
                   {rightGroup.map((p, idx) => (
                     <th
                       key={`opponent-${p.userId}`}
-                      className={`px-2 py-1 text-center font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
+                      className={`px-2 py-1 text-center font-semibold text-gray-100 bg-gray-800 ${buildColumnBorderClasses(
                         OPPONENT_BORDER_COLOR,
                         idx,
                         rightGroup.length,
@@ -372,11 +372,11 @@ export default function MatchplayScorecardModal({
                 return (
                   <tr
                     key={displayIndex}
-                    className="border-t border-blue-500 dark:border-blue-400"
+                    className="border-t border-gray-700"
                   >
                     <td
-                      className={`px-2 py-1 font-medium text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                        "border-blue-500 dark:border-blue-400 border-solid",
+                      className={`px-2 py-1 font-medium text-gray-100 ${buildColumnBorderClasses(
+                        "border-gray-700 border-solid",
                         0,
                         1,
                         {
@@ -388,7 +388,7 @@ export default function MatchplayScorecardModal({
                     >
                       <div>
                         <span className="font-bold">{holeIndex + 1}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                        <span className="text-xs text-gray-400 ml-1">
                           Par {par}
                           {showNetDetails && hole?.strokeIndex && (
                             <span className="ml-1">SI {hole.strokeIndex}</span>
@@ -425,10 +425,10 @@ export default function MatchplayScorecardModal({
                         highlightInfo?.tiedIds?.has(p.userId);
 
                       const highlightClass = isWinner
-                        ? "bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200 font-bold rounded-lg"
+                        ? "bg-emerald-500/20 text-emerald-400 font-bold rounded-lg"
                         : isTie
-                        ? "bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold rounded-lg"
-                        : "text-gray-900 dark:text-white";
+                        ? "bg-gray-700 text-gray-200 font-bold rounded-lg"
+                        : "text-gray-100";
 
                       const borderClasses =
                         hasTeamGrouping && groupLength > 0
@@ -450,7 +450,7 @@ export default function MatchplayScorecardModal({
                               }
                             )
                           : buildColumnBorderClasses(
-                              "border-blue-500 dark:border-blue-400 border-solid",
+                              "border-gray-700 border-solid",
                               idx,
                               allDisplayPlayers.length,
                               {
@@ -464,7 +464,7 @@ export default function MatchplayScorecardModal({
                       return (
                         <td
                           key={`${p.userId}-${displayIndex}`}
-                          className={`px-2 py-1 text-center ${highlightClass} ${borderClasses} ${!hasTeamGrouping && idx === 0 && allDisplayPlayers.length === 2 ? "border-r-2 border-blue-500 dark:border-blue-400" : ""}`}
+                          className={`px-2 py-1 text-center ${highlightClass} ${borderClasses} ${!hasTeamGrouping && idx === 0 && allDisplayPlayers.length === 2 ? "border-r-2 border-gray-700" : ""}`}
                         >
                           {displayScore ?? "-"}
                         </td>
@@ -472,7 +472,7 @@ export default function MatchplayScorecardModal({
                     })}
                     <td
                       className={`px-2 py-1 text-center ${buildColumnBorderClasses(
-                        "border-blue-500 dark:border-blue-400 border-solid",
+                        "border-gray-700 border-solid",
                         0,
                         1,
                         {
@@ -486,10 +486,10 @@ export default function MatchplayScorecardModal({
                         const matchData = getMatchStatus(displayIndex);
                         const baseClass =
                           matchData.variant === "leader"
-                            ? "px-2 py-1 rounded-lg text-sm font-semibold bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200"
+                            ? "px-2 py-1 rounded-lg text-sm font-semibold bg-emerald-500/20 text-emerald-400"
                             : matchData.variant === "even"
-                            ? "px-2 py-1 rounded-lg text-sm font-medium bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200"
-                            : "px-2 py-1 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400";
+                            ? "px-2 py-1 rounded-lg text-sm font-medium bg-gray-700 text-gray-200"
+                            : "px-2 py-1 rounded-lg text-sm font-medium bg-gray-800 text-gray-400";
                         return <span className={baseClass}>{matchData.label}</span>;
                       })()}
                     </td>
@@ -498,10 +498,10 @@ export default function MatchplayScorecardModal({
               })}
             </tbody>
             <tfoot>
-              <tr className="bg-blue-50 dark:bg-blue-900/10 border-t-2 border-blue-500 dark:border-blue-400">
+              <tr className="bg-gray-800 border-t-2 border-gray-700">
                 <th
-                  className={`px-2 py-2 text-left font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                    "border-blue-500 dark:border-blue-400 border-solid",
+                  className={`px-2 py-2 text-left font-semibold text-gray-100 ${buildColumnBorderClasses(
+                    "border-gray-700 border-solid",
                     0,
                     1,
                     { top: true, bottom: true, roundBottomLeft: true }
@@ -528,7 +528,7 @@ export default function MatchplayScorecardModal({
                         }
                       )
                     : buildColumnBorderClasses(
-                        "border-blue-500 dark:border-blue-400 border-solid",
+                        "border-gray-700 border-solid",
                         idx,
                         allDisplayPlayers.length,
                         {
@@ -562,12 +562,12 @@ export default function MatchplayScorecardModal({
                   return (
                     <td
                       key={`total-${player?.userId ?? idx}`}
-                      className={`px-2 py-2 text-center font-semibold text-blue-800 dark:text-blue-200 ${borderClasses}`}
+                      className={`px-2 py-2 text-center font-semibold text-emerald-400 ${borderClasses}`}
                     >
                       <div className="space-y-0.5">
                         <div className="text-sm">{primaryText}</div>
                         {secondaryText && (
-                          <div className="text-[10px] text-blue-700 dark:text-blue-300">
+                          <div className="text-[10px] text-emerald-300">
                             {secondaryText}
                           </div>
                         )}
@@ -576,8 +576,8 @@ export default function MatchplayScorecardModal({
                   );
                 })}
                 <td
-                  className={`px-2 py-2 text-center font-semibold text-blue-800 dark:text-blue-200 ${buildColumnBorderClasses(
-                    "border-blue-500 dark:border-blue-400 border-solid",
+                  className={`px-2 py-2 text-center font-semibold text-emerald-400 ${buildColumnBorderClasses(
+                    "border-gray-700 border-solid",
                     0,
                     1,
                     { top: true, bottom: true, roundBottomRight: true }
@@ -590,7 +590,7 @@ export default function MatchplayScorecardModal({
           </table>
         </div>
 
-        <div className="mt-3 text-sm text-blue-800 dark:text-blue-200 space-y-1">
+        <div className="mt-3 text-sm text-[var(--text-muted)] space-y-1">
           {totalSummary.map((entry, idx) => (
             <div key={`summary-${idx}`}>
               {entry.label}: {entry.value}
@@ -604,7 +604,7 @@ export default function MatchplayScorecardModal({
         <div className="mt-4 sm:mt-6 flex justify-center px-3 sm:px-0">
           <button
             onClick={onClose}
-            className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl sm:rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 min-h-[44px]"
+            className="btn btn-secondary w-full sm:w-auto"
           >
             Close
           </button>

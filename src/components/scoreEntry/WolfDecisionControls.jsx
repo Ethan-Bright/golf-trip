@@ -42,7 +42,7 @@ export default function WolfDecisionControls({
     }
 
     return (
-      <div className="text-xs sm:text-sm text-purple-700 dark:text-purple-300 text-center">
+      <div className="text-xs sm:text-sm text-[var(--text-muted)] text-center">
         {wolfName} choice: {choiceText}
       </div>
     );
@@ -69,9 +69,11 @@ export default function WolfDecisionControls({
     return (
       <label
         key={value || label}
-        className={`flex items-center gap-2 text-sm ${
-          disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"
-        } ${highlight ? "font-bold" : ""}`}
+        className={`btn btn-sm btn-block justify-start ${
+          current === value ? "btn-primary" : "btn-secondary"
+        } ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"} ${
+          highlight ? "font-bold" : ""
+        }`}
       >
         <input
           type="radio"
@@ -83,16 +85,16 @@ export default function WolfDecisionControls({
             }
           }}
           disabled={disabled}
-          className="w-4 h-4 text-purple-600"
+          className="sr-only"
         />
-        <span className="text-gray-700 dark:text-gray-200">{label}</span>
+        <span>{label}</span>
       </label>
     );
   };
 
   return (
     <div className="mt-2 space-y-2">
-      <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1 text-center">
+      <div className="text-[10px] text-[var(--text-muted)] mb-1 text-center">
         Choose before you tee off
       </div>
       {renderOption(
@@ -111,7 +113,7 @@ export default function WolfDecisionControls({
         highlight: true,
       })}
       {allScoresEntered && current && (
-        <div className="text-[10px] text-gray-500 dark:text-gray-400 text-center mt-1">
+        <div className="text-[10px] text-[var(--text-muted)] text-center mt-1">
           Decision locked
         </div>
       )}

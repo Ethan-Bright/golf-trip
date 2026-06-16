@@ -102,7 +102,7 @@ export default function ScorecardLeaderboard({ game }) {
 
   if (!game || !game.players || game.players.length === 0) {
     return (
-      <p className="text-center text-gray-600 dark:text-gray-300">
+      <p className="text-center text-[var(--text-muted)]">
         No players found.
       </p>
     );
@@ -110,7 +110,7 @@ export default function ScorecardLeaderboard({ game }) {
 
   return (
     <div>
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white text-center mb-4 sm:mb-6">
+      <h2 className="text-xl sm:text-2xl font-bold text-[var(--text-strong)] text-center mb-4 sm:mb-6">
         Scorecard
       </h2>
       <div className="space-y-4">
@@ -128,11 +128,11 @@ export default function ScorecardLeaderboard({ game }) {
                   delete cardRefs.current[player.userId];
                 }
               }}
-              className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
+              className="p-3 sm:p-4 bg-[var(--surface-muted)] rounded-2xl border border-[var(--surface-card-border)]"
             >
               <div className="flex items-start gap-3 sm:gap-4 mb-3 sm:mb-4">
                 {/* Profile Picture */}
-                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 flex-shrink-0">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full overflow-hidden bg-[var(--surface-muted)] flex-shrink-0">
                   {player.profilePictureUrl ? (
                     <img
                       src={player.profilePictureUrl}
@@ -140,7 +140,7 @@ export default function ScorecardLeaderboard({ game }) {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-600 dark:text-gray-300 text-lg font-medium">
+                    <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-lg font-medium">
                       {player.name.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -150,19 +150,19 @@ export default function ScorecardLeaderboard({ game }) {
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
                     <div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white text-base sm:text-lg truncate">
+                      <h3 className="font-semibold text-[var(--text-strong)] text-base sm:text-lg truncate">
                         {player.name}
                       </h3>
                     </div>
                     <div className="flex items-center gap-3 text-xs sm:text-sm flex-wrap justify-end">
-                      <p className="text-gray-600 dark:text-gray-400">
+                      <p className="text-[var(--text-muted)]">
                         {player.isRoundComplete ? "Completed Match" : `Thru ${player.holesPlayed}`}
                       </p>
                       <p
                         className={`px-2 py-1 rounded-full text-xs font-medium ${
                           player.isRoundComplete
-                            ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
-                            : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300"
+                            ? "bg-brand-500/15 text-brand-600 dark:text-brand-300"
+                            : "bg-yellow-500/15 text-yellow-600 dark:text-yellow-300"
                         }`}
                       >
                         {player.isRoundComplete ? "Complete" : "In Progress"}
@@ -170,7 +170,7 @@ export default function ScorecardLeaderboard({ game }) {
                       <button
                         onClick={() => handleShareScorecard(player)}
                         disabled={sharingPlayerId === player.userId}
-                        className="px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white rounded-lg text-xs sm:text-sm font-medium hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="btn btn-primary btn-sm"
                       >
                         {sharingPlayerId === player.userId ? "Sharing..." : "Share"}
                       </button>
@@ -191,24 +191,24 @@ export default function ScorecardLeaderboard({ game }) {
                       key={localHoleIndex}
                       className={`p-2 sm:p-2.5 rounded-lg border-2 transition-all ${
                         hasScore
-                          ? "bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700"
-                          : "bg-gray-100 dark:bg-gray-600 border-gray-200 dark:border-gray-500"
+                          ? "bg-brand-500/10 border-brand-500/40"
+                          : "bg-[var(--surface-muted)] border-[var(--surface-card-border)]"
                       }`}
                     >
                       {/* Hole Number */}
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-gray-700 dark:text-gray-400">
+                        <span className="text-xs font-bold text-[var(--text-muted)]">
                           #{actualHoleNumber}
                         </span>
                         {hasScore && (
-                          <span className="text-xs sm:text-sm font-bold text-green-600 dark:text-green-400">
+                          <span className="text-xs sm:text-sm font-bold text-brand-600 dark:text-brand-300 tabular-nums">
                             {score.gross}
                           </span>
                         )}
                       </div>
 
                       {/* Par and SI */}
-                      <div className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                      <div className="text-xs text-[var(--text-muted)] space-y-0.5">
                         <div>Par {hole.par}</div>
                         <div>SI {hole.strokeIndex}</div>
                       </div>
@@ -218,13 +218,13 @@ export default function ScorecardLeaderboard({ game }) {
               </div>
 
               {/* Totals */}
-              <div className="pt-3 border-t border-gray-200 dark:border-gray-600">
+              <div className="pt-3 border-t border-[var(--surface-card-border)]">
                 <div className="flex items-center justify-center">
                   <div className="text-center">
-                    <p className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                    <p className="text-xs sm:text-sm font-semibold text-[var(--text-muted)] mb-1">
                       Total Strokes
                     </p>
-                    <p className="text-xl sm:text-2xl font-bold text-green-600 dark:text-green-400">
+                    <p className="text-xl sm:text-2xl font-bold text-brand-600 dark:text-brand-300 tabular-nums">
                       {player.totalGross}
                     </p>
                   </div>

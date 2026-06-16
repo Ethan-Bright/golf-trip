@@ -14,7 +14,7 @@ export default function PageShell({
   showBackButton = true,
   actions,
   maxWidthClass = "",
-  backgroundClass = "bg-gradient-to-b from-green-50 via-white to-green-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-900",
+  backgroundClass = "",
   bodyClassName = "mobile-section",
   className = "",
   contentClassName = "",
@@ -50,7 +50,7 @@ export default function PageShell({
               <button
                 type="button"
                 onClick={handleBack}
-                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200/80 dark:border-gray-700/80 bg-white/80 dark:bg-gray-900/60 px-4 py-2 text-sm font-semibold text-gray-700 dark:text-gray-100 shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                className="btn btn-secondary btn-sm"
               >
                 <svg
                   className="h-4 w-4"
@@ -77,18 +77,14 @@ export default function PageShell({
 
         {(eyebrow || title || description) && (
           <div className={join("space-y-2", headerClassName)}>
-            {eyebrow && (
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-green-500">
-                {eyebrow}
-              </p>
-            )}
+            {eyebrow && <p className="eyebrow">{eyebrow}</p>}
             {title && (
-              <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white">
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-[var(--text-strong)] text-balance">
                 {title}
               </h1>
             )}
             {description && (
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
+              <p className="text-sm sm:text-base text-[var(--text-muted)] text-balance">
                 {description}
               </p>
             )}

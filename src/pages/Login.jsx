@@ -46,72 +46,71 @@ export default function Login() {
       actions={
         <button
           onClick={() => navigate("/register")}
-          className="px-4 py-2 rounded-2xl border border-green-500 text-green-600 dark:text-green-300 font-semibold hover:bg-green-50 dark:hover:bg-green-900/20 transition"
+          className="btn btn-secondary btn-sm"
         >
           Create account
         </button>
       }
     >
       <div className="w-full max-w-md mx-auto">
-        <section className="mobile-card p-8 space-y-6 border border-gray-200/70 dark:border-gray-700">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <input
-              type="text"
-              placeholder="Display Name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              required
-              className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            />
+        <section className="card p-6 sm:p-8 space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="field-label">Display name</label>
+              <input
+                type="text"
+                placeholder="e.g. Tiger"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                className="input"
+              />
+            </div>
 
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            />
+            <div>
+              <label className="field-label">Password</label>
+              <input
+                type="password"
+                placeholder="Your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="input"
+              />
+            </div>
 
-            <label className="flex items-center text-sm text-gray-700 dark:text-gray-300 gap-2">
+            <label className="flex items-center text-sm text-[var(--text-muted)] gap-2.5 cursor-pointer">
               <input
                 id="rememberMe"
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
+                className="w-4 h-4 accent-brand-500 rounded"
               />
               Remember me
             </label>
 
-            <button
-              type="submit"
-              className="w-full py-4 bg-green-600 dark:bg-green-500 text-white font-semibold rounded-2xl shadow-lg hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 transition-all duration-200"
-            >
+            <button type="submit" className="btn btn-primary btn-block">
               Sign In
             </button>
           </form>
 
           {error && (
-            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-2xl text-sm">
+            <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-500 dark:text-red-300 rounded-2xl text-sm">
               {error}
             </div>
           )}
 
-          <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
+          <p className="text-center text-[var(--text-muted)] text-sm">
             Need an account?{" "}
             <button
               onClick={() => navigate("/register")}
-              className="text-green-600 dark:text-green-400 font-semibold"
+              className="text-brand-600 dark:text-brand-300 font-semibold"
             >
               Create one
             </button>
           </p>
         </section>
-
-        <p className="mt-6 text-center text-gray-500 dark:text-gray-400 text-sm">
-          Golf Trip Leaderboard
-        </p>
       </div>
     </PageShell>
   );

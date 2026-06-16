@@ -38,21 +38,21 @@ export default function ScorecardGrid({
           <div
             key={hole.holeNumber ?? absIndex}
             id={`hole-card-${absIndex}`}
-            className={`flex flex-col items-center bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-600 p-3 sm:p-4 w-full ${
+            className={`card flex flex-col items-center p-3 sm:p-4 w-full ${
               trackStats ? "min-h-[280px]" : "min-h-[160px]"
-            } ${isCurrent ? "ring-2 ring-green-400" : ""}`}
+            } ${isCurrent ? "ring-2 ring-brand-500 border-brand-500/50" : ""}`}
           >
             <div className="text-center mb-2 sm:mb-3">
-              <div className="text-sm sm:text-base font-bold text-gray-900 dark:text-white">
+              <div className="text-sm sm:text-base font-bold text-[var(--text-strong)]">
                 Hole {absIndex + 1}
               </div>
 
-              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+              <div className="text-xs sm:text-sm text-[var(--text-muted)]">
                 Par {hole.par} • S.I. {hole.strokeIndex}
               </div>
 
               {isWolfFormat && wolfOrder && wolfOrder.length === 3 && (
-                <div className="mt-1 text-xs sm:text-sm text-purple-700 dark:text-purple-300 font-medium">
+                <div className="mt-1 text-xs sm:text-sm text-brand-600 dark:text-brand-300 font-medium">
                   Wolf: {getPlayerById(getWolfForHole(absIndex))?.name || "-"}
                 </div>
               )}
@@ -68,7 +68,7 @@ export default function ScorecardGrid({
                   }
                 }}
                 disabled={locked}
-                className={`w-10 h-10 sm:w-8 sm:h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-xl sm:text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${
+                className={`w-11 h-11 sm:w-10 sm:h-10 bg-[var(--surface-muted)] text-[var(--text-strong)] border border-[var(--surface-card-border)] rounded-lg flex items-center justify-center font-bold text-xl hover:bg-brand-500/10 transition-colors ${
                   locked ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
@@ -83,7 +83,7 @@ export default function ScorecardGrid({
                 onChange={(event) => onScoreChange(absIndex, event.target.value)}
                 disabled={locked}
                 id={`hole-input-${absIndex}`}
-                className={`w-20 h-10 sm:w-16 sm:h-8 text-center border-2 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-200 font-bold text-lg sm:text-base rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                className={`input min-h-0 h-11 w-16 text-center text-lg font-bold bg-brand-500/15 border-brand-500/40 text-brand-600 dark:text-brand-300 focus:ring-2 focus:ring-brand-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                   locked ? "opacity-60 cursor-not-allowed" : ""
                 }`}
                 placeholder="-"
@@ -98,7 +98,7 @@ export default function ScorecardGrid({
                   }
                 }}
                 disabled={locked}
-                className={`w-10 h-10 sm:w-8 sm:h-8 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg flex items-center justify-center font-bold text-xl sm:text-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors ${
+                className={`w-11 h-11 sm:w-10 sm:h-10 bg-[var(--surface-muted)] text-[var(--text-strong)] border border-[var(--surface-card-border)] rounded-lg flex items-center justify-center font-bold text-xl hover:bg-brand-500/10 transition-colors ${
                   locked ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
@@ -113,7 +113,7 @@ export default function ScorecardGrid({
             )}
 
             {!isWolfFormat && (
-              <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 text-center leading-tight">
+              <div className="text-xs sm:text-sm text-[var(--text-muted)] text-center leading-tight">
                 <div>With Handicap: {holeScores.netScore ?? "-"}</div>
                 <div>Points: {holeScores.net ?? "-"}</div>
               </div>
@@ -139,7 +139,7 @@ export default function ScorecardGrid({
               <div className="mt-3 space-y-3 w-full">
                 {hole.par !== 3 && (
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-600 dark:text-gray-400 font-medium">
+                    <span className="text-[var(--text-muted)] font-medium">
                       FIR:
                     </span>
                     <input
@@ -149,14 +149,14 @@ export default function ScorecardGrid({
                         onStatsChange(absIndex, "fir", event.target.checked)
                       }
                     disabled={locked}
-                    className={`w-7 h-7 text-green-600 dark:text-green-500 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-green-500 cursor-pointer ${
+                    className={`w-7 h-7 text-brand-600 dark:text-brand-500 bg-[var(--surface-muted)] border-[var(--surface-card-border)] rounded focus:ring-2 focus:ring-brand-500 cursor-pointer ${
                       locked ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                     />
                   </div>
                 )}
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
+                  <span className="text-[var(--text-muted)] font-medium">
                     GIR:
                   </span>
                   <input
@@ -166,13 +166,13 @@ export default function ScorecardGrid({
                       onStatsChange(absIndex, "gir", event.target.checked)
                     }
                     disabled={locked}
-                    className={`w-7 h-7 text-green-600 dark:text-green-500 bg-gray-50 dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-2 focus:ring-green-500 cursor-pointer ${
+                    className={`w-7 h-7 text-brand-600 dark:text-brand-500 bg-[var(--surface-muted)] border-[var(--surface-card-border)] rounded focus:ring-2 focus:ring-brand-500 cursor-pointer ${
                       locked ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                   />
                 </div>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
+                  <span className="text-[var(--text-muted)] font-medium">
                     Putts:
                   </span>
                   <div className="flex items-center gap-2">
@@ -185,7 +185,7 @@ export default function ScorecardGrid({
                         }
                       }}
                       disabled={locked}
-                      className={`w-10 h-10 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-base font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center ${
+                      className={`w-11 h-11 bg-[var(--surface-muted)] text-[var(--text-strong)] border border-[var(--surface-card-border)] rounded-lg text-base font-bold hover:bg-brand-500/10 transition-colors flex items-center justify-center ${
                         locked ? "opacity-50 cursor-not-allowed" : ""
                       }`}
                     >
@@ -200,7 +200,7 @@ export default function ScorecardGrid({
                         onStatsChange(absIndex, "putts", event.target.value)
                       }
                       disabled={locked}
-                      className={`w-16 h-10 text-center border-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white text-base font-semibold rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                      className={`input min-h-0 w-16 h-11 text-center text-base font-semibold focus:ring-2 focus:ring-brand-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                         locked ? "opacity-60 cursor-not-allowed" : ""
                       }`}
                       placeholder="0"
@@ -214,7 +214,7 @@ export default function ScorecardGrid({
                         }
                       }}
                       disabled={locked}
-                      className={`w-10 h-10 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg text-base font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center ${
+                      className={`w-11 h-11 bg-[var(--surface-muted)] text-[var(--text-strong)] border border-[var(--surface-card-border)] rounded-lg text-base font-bold hover:bg-brand-500/10 transition-colors flex items-center justify-center ${
                         locked ? "opacity-50 cursor-not-allowed" : ""
                       }`}
                     >

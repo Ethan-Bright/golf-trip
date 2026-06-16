@@ -129,12 +129,15 @@ export default function MobileNav() {
   if (HIDDEN_PATHS.has(pathname)) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-3 z-40 md:hidden pointer-events-none">
+    <div
+      className="fixed inset-x-0 z-40 md:hidden pointer-events-none"
+      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 0.75rem)" }}
+    >
       <div
         className="w-full px-4 pointer-events-auto"
         style={{ maxWidth: "var(--page-shell-max)" }}
       >
-        <nav className="floating-nav mx-auto flex items-center justify-between px-3 py-2">
+        <nav className="floating-nav mx-auto flex items-stretch justify-between gap-1 p-1.5">
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.path);
 
@@ -143,15 +146,20 @@ export default function MobileNav() {
                 key={item.path}
                 type="button"
                 onClick={() => navigate(item.path)}
-                className={`
-                  flex flex-col items-center gap-1 rounded-2xl px-2 py-1 text-[11px] font-semibold transition
-                  ${isActive ? "text-green-600 dark:text-green-400" : "text-gray-500 dark:text-gray-300"}
-                `}
+                aria-current={isActive ? "page" : undefined}
+                className={`relative flex flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-[10.5px] font-semibold transition ${
+                  isActive
+                    ? "bg-brand-500/15 text-brand-600 dark:text-brand-300"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-strong)]"
+                }`}
               >
-                <span className={`transition ${isActive ? "text-green-500" : ""}`}>
+                {isActive && (
+                  <span className="absolute -top-px left-1/2 h-1 w-8 -translate-x-1/2 rounded-full bg-gradient-to-r from-brand-400 to-accent-400" />
+                )}
+                <span className={isActive ? "text-brand-500 dark:text-brand-300" : ""}>
                   {item.icon(isActive)}
                 </span>
-                <span>{item.label}</span>
+                <span className="leading-none">{item.label}</span>
               </button>
             );
           })}

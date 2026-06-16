@@ -46,18 +46,18 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
 
   if (!players || players.length === 0 || soloPlayers.length === 0) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl shadow-2xl border border-blue-500 dark:border-blue-400 max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
+        <div className="card card-elevated max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
+          <h2 className="text-xl font-bold text-[var(--text-strong)] mb-4 text-center">
             {game.name}
           </h2>
-          <p className="text-center text-gray-600 dark:text-gray-300 mb-4">
+          <p className="text-center text-[var(--text-muted)] mb-4">
             {soloPlayers.length === 0 ? "No solo players found for this game." : "No players found for this game."}
           </p>
           <div className="mt-6 flex justify-center">
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+              className="btn btn-secondary btn-sm"
             >
               Close
             </button>
@@ -127,17 +127,17 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
-      <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-blue-500 dark:border-blue-400 max-w-6xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
+      <div className="card card-elevated max-w-6xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white pr-3">
+          <h2 className="text-base sm:text-xl font-bold text-[var(--text-strong)] pr-3">
             {game.name}
           </h2>
           <div className="flex items-center gap-2">
             <button
               onClick={handleShare}
               disabled={isSharing}
-              className="px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              className="btn btn-primary btn-sm"
               title="Share scorecard"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,7 +147,7 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
             </button>
             <button
               onClick={onClose}
-              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl sm:text-3xl leading-none flex-shrink-0"
+              className="text-[var(--text-muted)] hover:text-[var(--text-strong)] text-2xl sm:text-3xl leading-none flex-shrink-0"
             >
               ×
             </button>
@@ -156,19 +156,19 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
 
         {/* Responsive Table */}
         <div className="overflow-x-auto -mx-3 sm:mx-0" ref={scorecardRef}>
-          <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
+          <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px] bg-gray-900 text-white tabular-nums">
             <thead>
               <tr>
                 <th
-                  className="px-2 py-1 text-left align-bottom border-2 border-solid border-blue-500 dark:border-blue-400 rounded-tl-lg"
+                  className="px-2 py-1 text-left align-bottom border-2 border-solid border-gray-700 rounded-tl-lg bg-gray-800 text-gray-300"
                 >
                   Hole
                 </th>
                 {soloPlayers.map((player, idx) => (
                   <th
                     key={player.id}
-                    className={`px-2 py-1 text-center font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                      "border-blue-500 dark:border-blue-400 border-solid",
+                    className={`px-2 py-1 text-center font-semibold text-gray-100 bg-gray-800 ${buildColumnBorderClasses(
+                      "border-gray-700 border-solid",
                       idx,
                       soloPlayers.length,
                       {
@@ -193,11 +193,11 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
                 return (
                   <tr
                     key={displayIndex}
-                    className="border-t border-blue-500 dark:border-blue-400"
+                    className="border-t border-gray-700"
                   >
                     <td
-                      className={`px-2 py-1 font-medium text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                        "border-blue-500 dark:border-blue-400 border-solid",
+                      className={`px-2 py-1 font-medium text-gray-100 ${buildColumnBorderClasses(
+                        "border-gray-700 border-solid",
                         0,
                         1,
                         {
@@ -209,7 +209,7 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
                     >
                       <div>
                         <span className="font-bold">{holeIndex + 1}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                        <span className="text-xs text-gray-400 ml-1">
                           Par {par}
                         </span>
                       </div>
@@ -222,8 +222,8 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
                       return (
                         <td
                           key={`${player.id}-${displayIndex}`}
-                          className={`px-2 py-1 text-center text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                            "border-blue-500 dark:border-blue-400 border-solid",
+                          className={`px-2 py-1 text-center text-gray-100 ${buildColumnBorderClasses(
+                            "border-gray-700 border-solid",
                             idx,
                             soloPlayers.length,
                             {
@@ -237,10 +237,10 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
                             {gross !== null && gross > 0 ? (
                               <div className="text-sm font-semibold">{gross}</div>
                             ) : (
-                              <div className="text-sm text-gray-400 dark:text-gray-500">—</div>
+                              <div className="text-sm text-gray-500">—</div>
                             )}
                             {points !== null && (
-                              <div className="text-[10px] font-bold text-green-600 dark:text-green-400">
+                              <div className="text-[10px] font-bold text-emerald-400">
                                 {points} pts
                               </div>
                             )}
@@ -253,10 +253,10 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-blue-500 dark:border-blue-400 bg-gray-100 dark:bg-gray-800">
+              <tr className="border-t-2 border-gray-700 bg-gray-800">
                 <td
-                  className={`px-2 py-3 font-bold text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                    "border-blue-500 dark:border-blue-400 border-solid",
+                  className={`px-2 py-3 font-bold text-gray-100 ${buildColumnBorderClasses(
+                    "border-gray-700 border-solid",
                     0,
                     1,
                     {
@@ -273,8 +273,8 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
                   return (
                     <td
                       key={`total-${player.id}`}
-                      className={`px-2 py-3 text-center font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                        "border-blue-500 dark:border-blue-400 border-solid",
+                      className={`px-2 py-3 text-center font-semibold text-gray-100 ${buildColumnBorderClasses(
+                        "border-gray-700 border-solid",
                         idx,
                         soloPlayers.length,
                         {
@@ -286,7 +286,7 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
                     >
                       <div className="space-y-0.5">
                         <div className="text-sm">{totals.grossTotal}</div>
-                        <div className="text-xs font-bold text-green-600 dark:text-green-400">
+                        <div className="text-xs font-bold text-emerald-400">
                           {totals.pointsTotal} pts
                         </div>
                       </div>
@@ -301,7 +301,7 @@ export default function AmericanScorecardModal({ game, selectedPlayer, onClose }
         <div className="mt-4 sm:mt-6 flex justify-center px-3 sm:px-0">
           <button
             onClick={onClose}
-            className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl sm:rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 min-h-[44px]"
+            className="btn btn-secondary w-full sm:w-auto"
           >
             Close
           </button>

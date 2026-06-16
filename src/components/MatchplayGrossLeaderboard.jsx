@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import MatchplayGrossScorecardModal from "./MatchplayGrossScorecardModal";
 
 export default function MatchplayGrossLeaderboard({ game }) {
@@ -12,11 +12,15 @@ export default function MatchplayGrossLeaderboard({ game }) {
     const fetchLeaderboard = async () => {
       if (!game?.players || game.players.length === 0) return;
 
-      const usersSnap = await getDocs(collection(db, "users"));
-      const users = usersSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const playerIds = Array.from(
+        new Set((game?.players || []).map((p) => p.userId).filter(Boolean))
+      );
+      const userDocs = await Promise.all(
+        playerIds.map((id) => getDoc(doc(db, "users", id)))
+      );
+      const users = userDocs
+        .filter((snap) => snap.exists())
+        .map((snap) => ({ id: snap.id, ...snap.data() }));
 
       const gamePlayersMap = {};
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
@@ -133,11 +137,11 @@ export default function MatchplayGrossLeaderboard({ game }) {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
+      <h1 className="text-2xl font-bold text-[var(--text-strong)] text-center mb-6">
         Matchplay Leaderboard (Without Handicaps)
       </h1>
       {leaderboard.length === 0 ? (
-        <p className="text-center text-gray-600 dark:text-gray-300">
+        <p className="text-center text-[var(--text-muted)]">
           There needs to be 2 players for the matchplay format
         </p>
       ) : (
@@ -145,17 +149,21 @@ export default function MatchplayGrossLeaderboard({ game }) {
           {leaderboard.map((team, index) => (
             <div
               key={index}
-              className="p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
+              className={`p-4 rounded-2xl border transition-colors hover:bg-brand-500/5 ${
+                index === 0
+                  ? "bg-brand-500/10 border-brand-500/40"
+                  : "bg-[var(--surface-muted)] border-[var(--surface-card-border)]"
+              }`}
             >
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-3">
                   {/* Position Number */}
-                  <div className="w-8 h-8 bg-green-600 dark:bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                  <div className="w-8 h-8 bg-brand-500 text-white rounded-full flex items-center justify-center font-bold text-sm tabular-nums">
                     {index + 1}
                   </div>
                   
                   {/* Profile Picture */}
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-[var(--surface-muted)] flex-shrink-0">
                     {team.players[0]?.profilePictureUrl ? (
                       <img 
                         src={team.players[0].profilePictureUrl} 
@@ -163,7 +171,7 @@ export default function MatchplayGrossLeaderboard({ game }) {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-600 dark:text-gray-300 text-sm font-medium">
+                      <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-sm font-medium">
                         {team.displayName.charAt(0).toUpperCase()}
                       </div>
                     )}
@@ -171,25 +179,25 @@ export default function MatchplayGrossLeaderboard({ game }) {
                   
                   {/* Player Info */}
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                    <h3 className="font-semibold text-[var(--text-strong)]">
                       {team.displayName}
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-[var(--text-muted)]">
                       {team.isRoundComplete ? 'Total strokes' : 'Current strokes'}: {team.totalStrokes}
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-[var(--text-muted)]">
                       {team.isRoundComplete ? "Completed Match" : `Thru ${team.thru}`}
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-3">
-                  <span className="text-green-600 dark:text-green-400 font-bold text-xl">
+                  <span className="text-brand-600 dark:text-brand-300 font-bold text-xl">
                     {team.matchStatus}
                   </span>
                   <button
                     onClick={() => openModal(team)}
-                    className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl"
+                    className="btn btn-primary btn-sm"
                   >
                     View Scores
                   </button>

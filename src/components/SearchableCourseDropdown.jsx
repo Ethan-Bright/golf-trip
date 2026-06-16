@@ -57,7 +57,7 @@ export default function SearchableCourseDropdown({
       ref={dropdownRef}
     >
       {label && (
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label className="field-label">
           {label}
         </label>
       )}
@@ -71,15 +71,13 @@ export default function SearchableCourseDropdown({
             }
           }}
           disabled={disabled}
-          className={`w-full p-3 sm:p-4 rounded-2xl border ${
-            error
-              ? "border-red-500"
-              : "border-gray-200 dark:border-gray-600"
-          } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 text-left flex items-center justify-between ${
+          className={`input text-left flex items-center justify-between ${
+            error ? "border-red-500" : ""
+          } ${
             disabled ? "opacity-60 cursor-not-allowed" : ""
           }`}
         >
-          <span className={selectedCourseId ? "" : "text-gray-500 dark:text-gray-400"}>
+          <span className={selectedCourseId ? "" : "text-[var(--text-muted)]"}>
             {displayText}
           </span>
           <svg
@@ -100,15 +98,15 @@ export default function SearchableCourseDropdown({
         </button>
 
         {isDropdownOpen && !disabled && (
-          <div className="absolute z-30 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg">
+          <div className="card card-elevated absolute z-30 w-full mt-1 overflow-hidden">
             {/* Search Input inside Dropdown */}
-            <div className="p-2 border-b border-gray-200 dark:border-gray-600">
+            <div className="p-2 border-b border-[var(--surface-card-border)]">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Type to search courses..."
-                className="w-full p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-700"
+                className="input"
                 autoFocus
               />
             </div>
@@ -116,7 +114,7 @@ export default function SearchableCourseDropdown({
             {/* Course List */}
             <div className="max-h-60 overflow-y-auto">
               {filteredCourses.length === 0 ? (
-                <div className="p-3 text-gray-500 dark:text-gray-400 text-center">
+                <div className="p-3 text-[var(--text-muted)] text-center">
                   No courses found matching "{searchTerm}"
                 </div>
               ) : (
@@ -124,10 +122,10 @@ export default function SearchableCourseDropdown({
                   <button
                     key={course.id}
                     onClick={() => handleCourseSelect(course.id)}
-                    className={`w-full p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors ${
+                    className={`w-full p-3 text-left hover:bg-brand-500/10 transition-colors ${
                       selectedCourseId === course.id
-                        ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                        : "text-gray-900 dark:text-white"
+                        ? "bg-brand-500/15 text-brand-600 dark:text-brand-300"
+                        : "text-[var(--text-strong)]"
                     }`}
                   >
                     <div className="font-medium">{course.name}</div>

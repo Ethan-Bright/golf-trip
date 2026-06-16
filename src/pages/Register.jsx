@@ -32,71 +32,73 @@ export default function Register() {
       actions={
         <button
           onClick={() => navigate("/login")}
-          className="px-4 py-2 rounded-2xl border border-green-500 text-green-600 dark:text-green-300 font-semibold hover:bg-green-50 dark:hover:bg-green-900/20 transition"
+          className="btn btn-secondary btn-sm"
         >
           Sign in
         </button>
       }
     >
       <div className="w-full max-w-md mx-auto">
-        <section className="mobile-card p-8 space-y-6 border border-gray-200/70 dark:border-gray-700">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <input
-              type="text"
-              placeholder="Display Name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              required
-              className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            />
+        <section className="card p-6 sm:p-8 space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="field-label">Display name</label>
+              <input
+                type="text"
+                placeholder="Pick a name your group will recognise"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+                className="input"
+              />
+            </div>
 
-            <input
-              type="number"
-              step="0.1"
-              placeholder="Handicap"
-              value={handicap}
-              onChange={(e) => setHandicap(e.target.value)}
-              required
-              className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            />
+            <div>
+              <label className="field-label">Handicap</label>
+              <input
+                type="number"
+                step="0.1"
+                placeholder="e.g. 12.4"
+                value={handicap}
+                onChange={(e) => setHandicap(e.target.value)}
+                required
+                className="input"
+              />
+            </div>
 
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-4 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-2xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-            />
+            <div>
+              <label className="field-label">Password</label>
+              <input
+                type="password"
+                placeholder="Create a password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="input"
+              />
+            </div>
 
-            <button
-              type="submit"
-              className="w-full py-4 bg-yellow-500 dark:bg-yellow-400 text-gray-900 dark:text-gray-900 font-semibold rounded-2xl shadow-lg hover:bg-yellow-600 dark:hover:bg-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-yellow-400 dark:focus:ring-offset-gray-800 transition-all duration-200"
-            >
+            <button type="submit" className="btn btn-primary btn-block">
               Create Account
             </button>
           </form>
 
           {error && (
-            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-2xl text-sm">
+            <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-500 dark:text-red-300 rounded-2xl text-sm">
               {error}
             </div>
           )}
 
-          <p className="text-center text-gray-500 dark:text-gray-400 text-sm">
+          <p className="text-center text-[var(--text-muted)] text-sm">
             Already have an account?{" "}
             <button
               onClick={() => navigate("/login")}
-              className="text-green-600 dark:text-green-400 font-semibold"
+              className="text-brand-600 dark:text-brand-300 font-semibold"
             >
               Sign in
             </button>
           </p>
         </section>
-
-        <p className="mt-6 text-center text-gray-500 dark:text-gray-400 text-sm">
-          Golf Trip Leaderboard
-        </p>
       </div>
     </PageShell>
   );

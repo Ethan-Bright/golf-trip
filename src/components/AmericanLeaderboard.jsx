@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import AmericanScorecardModal from "./AmericanScorecardModal";
 
 export default function AmericanLeaderboard({ game }) {
@@ -14,11 +14,15 @@ export default function AmericanLeaderboard({ game }) {
     const fetchLeaderboard = async () => {
       if (!game?.players || game.players.length === 0) return;
 
-      const usersSnap = await getDocs(collection(db, "users"));
-      const users = usersSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const playerIds = Array.from(
+        new Set((game?.players || []).map((p) => p.userId).filter(Boolean))
+      );
+      const userDocs = await Promise.all(
+        playerIds.map((id) => getDoc(doc(db, "users", id)))
+      );
+      const users = userDocs
+        .filter((snap) => snap.exists())
+        .map((snap) => ({ id: snap.id, ...snap.data() }));
 
       const gamePlayersMap = {};
       game.players.forEach((p) => (gamePlayersMap[p.userId] = p));
@@ -49,7 +53,7 @@ export default function AmericanLeaderboard({ game }) {
           const playerScore = scores[i];
           const playerGross = playerScore?.gross ?? null;
 
-          if (playerGross !== null && playerGross > 0) {
+          if (playerGross !== null) {
             holesThru++;
             totalStrokes += playerGross;
           } else {
@@ -57,7 +61,7 @@ export default function AmericanLeaderboard({ game }) {
           }
 
           // Calculate points using gross scores
-          if (playerGross !== null && playerGross > 0) {
+          if (playerGross !== null) {
             // Get all solo players' gross scores for this hole
             const allScores = soloPlayers.map((p) => {
               const pScores = gamePlayersMap[p.id]?.scores ?? [];
@@ -66,7 +70,7 @@ export default function AmericanLeaderboard({ game }) {
                 userId: p.id,
                 gross: pScore?.gross ?? null,
               };
-            }).filter(s => s.gross !== null && s.gross > 0);
+            }).filter(s => s.gross !== null);
 
             // Only calculate if at least 2 players have scores (for fair comparison)
             if (allScores.length >= 2) {
@@ -114,16 +118,16 @@ export default function AmericanLeaderboard({ game }) {
 
   return (
     <div>
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white text-center mb-2">
+      <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-strong)] text-center mb-2">
         American Scoring Leaderboard
       </h1>
       {pointsFormat && (
-        <p className="text-center text-sm sm:text-base text-gray-600 dark:text-gray-400 mb-6">
+        <p className="text-center text-sm sm:text-base text-[var(--text-muted)] mb-6">
           {pointsFormat}
         </p>
       )}
       {leaderboard.length === 0 ? (
-        <p className="text-center text-gray-600 dark:text-gray-300 text-sm sm:text-base">
+        <p className="text-center text-[var(--text-muted)] text-sm sm:text-base">
           No players found for this game.
         </p>
       ) : (
@@ -131,17 +135,21 @@ export default function AmericanLeaderboard({ game }) {
           {leaderboard.map((playerData, index) => (
             <div
               key={playerData.players[0].id}
-              className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
+              className={`p-3 sm:p-4 rounded-2xl border transition-colors hover:bg-brand-500/5 ${
+                index === 0
+                  ? "bg-brand-500/10 border-brand-500/40"
+                  : "bg-[var(--surface-muted)] border-[var(--surface-card-border)]"
+              }`}
             >
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
                   {/* Position Number */}
-                  <div className="w-8 h-8 bg-green-600 dark:bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  <div className="w-8 h-8 bg-brand-500 text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 tabular-nums">
                     {index + 1}
                   </div>
                   
                   {/* Profile Picture */}
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-[var(--surface-muted)] flex-shrink-0">
                     {playerData.players[0]?.profilePictureUrl ? (
                       <img 
                         src={playerData.players[0].profilePictureUrl} 
@@ -149,7 +157,7 @@ export default function AmericanLeaderboard({ game }) {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-600 dark:text-gray-300 text-sm font-medium">
+                      <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-sm font-medium">
                         {playerData.displayName.charAt(0).toUpperCase()}
                       </div>
                     )}
@@ -157,13 +165,13 @@ export default function AmericanLeaderboard({ game }) {
                   
                   {/* Player Info */}
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                    <h3 className="font-semibold text-[var(--text-strong)] text-sm sm:text-base truncate">
                       {playerData.displayName}
                     </h3>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-xs sm:text-sm text-[var(--text-muted)]">
                       {playerData.isRoundComplete ? 'Total strokes' : 'Current strokes'}: {playerData.totalStrokes}
                     </p>
-                    <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-xs sm:text-sm text-[var(--text-muted)]">
                       {playerData.isRoundComplete ? "Completed Match" : `Thru ${playerData.thru}`}
                     </p>
                   </div>
@@ -171,19 +179,19 @@ export default function AmericanLeaderboard({ game }) {
                 
                 <div className="flex items-center space-x-3 w-full sm:w-auto">
                   {numSoloPlayers < 3 ? (
-                    <span className="text-gray-600 dark:text-gray-400 font-semibold text-sm sm:text-base">
+                    <span className="text-[var(--text-muted)] font-semibold text-sm sm:text-base">
                       {numSoloPlayers === 1 
                         ? "Waiting for 2 more players" 
                         : "Waiting for 1 more player"}
                     </span>
                   ) : (
                     <>
-                      <span className="text-green-600 dark:text-green-400 font-bold text-lg sm:text-xl">
+                      <span className="text-brand-600 dark:text-brand-300 font-bold text-lg sm:text-xl tabular-nums">
                         {playerData.totalPoints} pts
                       </span>
                       <button
                         onClick={() => openModal(playerData)}
-                        className="px-3 py-2 text-sm bg-green-600 dark:bg-green-500 text-white rounded-xl flex-1 sm:flex-none whitespace-nowrap"
+                        className="btn btn-primary btn-sm flex-1 sm:flex-none whitespace-nowrap"
                       >
                         View Scores
                       </button>

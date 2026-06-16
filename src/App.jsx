@@ -29,6 +29,7 @@ import SubmitSuggestion from "./pages/SubmitSuggestion";
 import InviteFriend from "./pages/InviteFriend";
 import MobileNav from "./components/layout/MobileNav";
 import PWARefreshControl from "./components/PWARefreshControl";
+import InstallPrompt from "./components/InstallPrompt";
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -143,6 +144,7 @@ function App() {
                 </Routes>
                 <MobileNav />
                 <PWARefreshControl />
+                <InstallPrompt />
               </>
             </ErrorBoundary>
           </Router>

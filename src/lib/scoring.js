@@ -12,8 +12,9 @@ export function strokesReceivedForHole(handicap, holeStrokeIndex) {
   const extra = holeStrokeIndex <= remainder ? 1 : 0;
   const adjustment = base + extra;
 
-  // Positive handicaps receive strokes; plus handicaps (negative) give strokes
-  return numericHandicap > 0 ? adjustment : -adjustment;
+  // Positive handicaps receive strokes; plus handicaps (negative) give strokes.
+  // `|| 0` normalizes -0 to 0 so callers/tests get a clean signed integer.
+  return (numericHandicap > 0 ? adjustment : -adjustment) || 0;
 }
 
 export function netScore(grossScore, strokesReceived) {

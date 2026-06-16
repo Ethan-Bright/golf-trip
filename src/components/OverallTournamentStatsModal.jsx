@@ -617,14 +617,14 @@ export default function OverallTournamentStatsModal({
     : "No team stats recorded yet. Have team members enter rounds with stats to populate this leaderboard.";
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 w-full max-w-5xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex items-center justify-between gap-4">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="card card-elevated w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-[var(--surface-card)] backdrop-blur border-b border-[var(--surface-card-border)] p-6 flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-2xl font-bold text-[var(--text-strong)]">
               Overall Tournament Leaderboard
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-[var(--text-muted)]">
               {tournamentId
                 ? `${totalGames} game${
                     totalGames === 1 ? "" : "s"
@@ -634,7 +634,7 @@ export default function OverallTournamentStatsModal({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-3xl leading-none focus:outline-none focus:ring-2 focus:ring-green-500 rounded-lg px-2"
+            className="text-[var(--text-muted)] hover:text-[var(--text-strong)] text-3xl leading-none focus:outline-none rounded-lg px-2"
             aria-label="Close overall leaderboard modal"
           >
             ×
@@ -643,7 +643,7 @@ export default function OverallTournamentStatsModal({
 
         <div className="p-6 space-y-4">
           {!tournamentId && (
-            <div className="text-center text-gray-600 dark:text-gray-300 py-12">
+            <div className="text-center text-[var(--text-muted)] py-12">
               Choose a tournament first to see the combined stats.
             </div>
           )}
@@ -651,15 +651,15 @@ export default function OverallTournamentStatsModal({
           {tournamentId && (
             <>
               <div className="flex justify-center">
-                <div className="inline-flex rounded-full bg-gray-100 dark:bg-gray-900/40 p-1">
+                <div className="inline-flex rounded-full bg-[var(--surface-muted)] p-1">
                   {tabs.map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
                       className={`px-4 py-2 text-sm font-semibold rounded-full transition-colors ${
                         activeTab === tab.id
-                          ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow"
-                          : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                          ? "bg-[var(--surface-card)] text-[var(--text-strong)] shadow"
+                          : "text-[var(--text-muted)] hover:text-[var(--text-strong)]"
                       }`}
                     >
                       {tab.label}
@@ -681,8 +681,8 @@ export default function OverallTournamentStatsModal({
               )}
 
               {isTabLoading && (
-                <div className="py-12 flex flex-col items-center justify-center text-gray-600 dark:text-gray-300">
-                  <div className="h-10 w-10 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mb-4" />
+                <div className="py-12 flex flex-col items-center justify-center text-[var(--text-muted)]">
+                  <div className="h-10 w-10 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mb-4" />
                   <p>
                     {isPlayersTab
                       ? "Crunching tournament-wide stats..."
@@ -692,7 +692,7 @@ export default function OverallTournamentStatsModal({
               )}
 
               {!isTabLoading && !hasCategoryEntries && (
-                <div className="py-12 text-center text-gray-600 dark:text-gray-300">
+                <div className="py-12 text-center text-[var(--text-muted)]">
                   {noDataMessage}
                 </div>
               )}
@@ -713,21 +713,21 @@ export default function OverallTournamentStatsModal({
                       return (
                         <div
                           key={category.key}
-                          className="p-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/30"
+                          className="p-4 rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)]"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div>
-                              <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+                              <h3 className="text-base font-semibold text-[var(--text-strong)]">
                                 {category.title}
                               </h3>
-                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                              <p className="text-xs text-[var(--text-muted)]">
                                 {category.subtitle}
                               </p>
                             </div>
                             {canExpand && (
                               <button
                                 onClick={() => toggleCategory(category.key)}
-                                className="text-xs font-semibold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+                                className="text-xs font-semibold text-brand-600 dark:text-brand-300 hover:text-brand-700 dark:hover:text-brand-200"
                               >
                                 {isExpanded
                                   ? "Hide full list"
@@ -737,35 +737,35 @@ export default function OverallTournamentStatsModal({
                           </div>
 
                           {!hasEntries ? (
-                            <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                            <p className="mt-4 text-sm text-[var(--text-muted)]">
                               Not enough tracked data yet.
                             </p>
                           ) : (
                             <>
                               <div className="mt-4">
-                                <p className="text-3xl font-bold text-gray-900 dark:text-white">
+                                <p className="text-3xl font-black text-brand-600 dark:text-brand-300">
                                   {displayEntries[0].value}
                                 </p>
-                                <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                <p className="text-sm font-medium text-[var(--text-strong)]">
                                   {displayEntries[0].player.name}
                                 </p>
                                 {displayEntries[0].player.memberNames &&
                                   displayEntries[0].player.memberNames.length >
                                     0 && (
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    <p className="text-xs text-[var(--text-muted)]">
                                       {displayEntries[0].player.memberNames.join(
                                         " • "
                                       )}
                                     </p>
                                   )}
                                 {displayEntries[0].detail && (
-                                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  <p className="text-xs text-[var(--text-muted)] mt-1">
                                     {displayEntries[0].detail}
                                   </p>
                                 )}
                               </div>
                               {secondaryEntries.length > 0 && (
-                                <div className="mt-4 border-t border-dashed border-gray-200 dark:border-gray-700 pt-3 space-y-2 max-h-60 overflow-y-auto pr-1">
+                                <div className="mt-4 border-t border-dashed border-[var(--surface-card-border)] pt-3 space-y-2 max-h-60 overflow-y-auto pr-1">
                                   {secondaryEntries.map((entry, idx) => (
                                     <div
                                       key={`${category.key}-${
@@ -773,7 +773,7 @@ export default function OverallTournamentStatsModal({
                                         entry.player.teamId ||
                                         entry.player.name
                                       }`}
-                                      className="flex items-center justify-between text-sm text-gray-700 dark:text-gray-300"
+                                      className="flex items-center justify-between text-sm text-[var(--text-muted)]"
                                     >
                                       <div className="flex flex-col">
                                         <span className="font-medium">
@@ -782,19 +782,19 @@ export default function OverallTournamentStatsModal({
                                         {entry.player.memberNames &&
                                           entry.player.memberNames.length >
                                             0 && (
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                            <span className="text-xs text-[var(--text-muted)]">
                                               {entry.player.memberNames.join(
                                                 " • "
                                               )}
                                             </span>
                                           )}
                                         {entry.detail && (
-                                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                                          <span className="text-xs text-[var(--text-muted)]">
                                             {entry.detail}
                                           </span>
                                         )}
                                       </div>
-                                      <span className="font-semibold text-gray-900 dark:text-white">
+                                      <span className="font-semibold text-[var(--text-strong)]">
                                         {entry.value}
                                       </span>
                                     </div>
@@ -807,7 +807,7 @@ export default function OverallTournamentStatsModal({
                       );
                     })}
                   </div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-[var(--text-muted)]">
                     *GIR/FIR percentages require at least{" "}
                     {MIN_PERCENTAGE_SAMPLES} tracked holes. Putting averages
                     require at least {MIN_PUTTS_SAMPLES} holes with recorded

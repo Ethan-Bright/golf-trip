@@ -42,7 +42,7 @@ export default function ViewTeams() {
         backHref="/dashboard"
       >
         <div className="mobile-card p-8 text-center">
-          <p className="text-gray-700 dark:text-gray-200">
+          <p className="text-[var(--text-muted)]">
             Select a tournament first to view its teams.
           </p>
         </div>
@@ -62,7 +62,7 @@ export default function ViewTeams() {
             items={3}
             lines={3}
             showAvatar
-            cardClassName="bg-gray-50 dark:bg-gray-700/60"
+            cardClassName="bg-[var(--surface-muted)]"
           />
         </div>
       </PageShell>
@@ -76,9 +76,9 @@ export default function ViewTeams() {
       backHref="/dashboard"
       bodyClassName="mobile-section"
     >
-      <section className="mobile-card p-6 border border-gray-200/70 dark:border-gray-700">
+      <section className="mobile-card p-6">
         {teams.length === 0 ? (
-          <p className="text-center text-gray-600 dark:text-gray-300">
+          <p className="text-center text-[var(--text-muted)]">
             No teams have been created yet.
           </p>
         ) : (
@@ -95,12 +95,12 @@ export default function ViewTeams() {
               return (
                 <div
                   key={team.id}
-                  className="p-4 sm:p-6 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
+                  className="p-4 sm:p-6 rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)]"
                 >
-                  <h3 className="text-center text-gray-900 dark:text-white font-bold text-lg sm:text-xl mb-3 sm:mb-4">
+                  <h3 className="text-center text-[var(--text-strong)] font-bold text-lg sm:text-xl mb-3 sm:mb-4">
                     {team.name || "Unnamed Team"}
                   </h3>
-                  <p className="text-center text-sm text-gray-500 dark:text-gray-300 mb-4">
+                  <p className="text-center text-sm text-[var(--text-muted)] mb-4">
                     {roster.length} / {MAX_TEAM_SIZE} players
                   </p>
                   <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
@@ -112,7 +112,7 @@ export default function ViewTeams() {
                         />
                       ))
                     ) : (
-                      <span className="text-gray-500 dark:text-gray-400 font-semibold text-sm sm:text-base">
+                      <span className="text-[var(--text-muted)] font-semibold text-sm sm:text-base">
                         Waiting for team members
                       </span>
                     )}
@@ -120,7 +120,7 @@ export default function ViewTeams() {
                       Array.from({ length: openSlots }).map((_, idx) => (
                         <div
                           key={`open-${team.id}-${idx}`}
-                          className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-500 flex items-center justify-center text-xs sm:text-sm text-gray-500 dark:text-gray-300 font-semibold"
+                          className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-2 border-dashed border-[var(--surface-card-border)] flex items-center justify-center text-xs sm:text-sm text-[var(--text-muted)] font-semibold"
                         >
                           Open slot
                         </div>
@@ -140,7 +140,7 @@ function PlayerCard({ player }) {
   if (!player) return null;
 
   return (
-    <div className="flex flex-col items-center text-center bg-white dark:bg-gray-800 px-4 py-3 rounded-2xl shadow">
+    <div className="flex flex-col items-center text-center rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-card)] px-4 py-3">
       {player.profilePictureUrl ? (
         <img
           src={player.profilePictureUrl}
@@ -148,14 +148,14 @@ function PlayerCard({ player }) {
           className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl object-cover"
         />
       ) : (
-        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 font-bold text-lg sm:text-xl">
+        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl bg-brand-500/15 flex items-center justify-center text-brand-600 dark:text-brand-300 font-bold text-lg sm:text-xl">
           {player.displayName?.charAt(0) || "?"}
         </div>
       )}
-      <span className="font-medium text-gray-900 dark:text-white mt-2 text-sm sm:text-base">
+      <span className="font-medium text-[var(--text-strong)] mt-2 text-sm sm:text-base">
         {player.displayName || "Unknown"}
       </span>
-      <span className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm">
+      <span className="text-[var(--text-muted)] text-xs sm:text-sm">
         HCP: {player.handicap ?? "—"}
       </span>
     </div>

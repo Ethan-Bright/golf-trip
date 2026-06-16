@@ -50,7 +50,7 @@ export default function SearchableTournamentDropdown({
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
       {label && (
-        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+        <label className="field-label">
           {label}
         </label>
       )}
@@ -64,15 +64,13 @@ export default function SearchableTournamentDropdown({
             }
           }}
           disabled={disabled}
-          className={`w-full px-3 py-2 rounded-xl border ${
-            error
-              ? "border-red-500"
-              : "border-gray-300 dark:border-gray-700"
-          } bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-800 text-left flex items-center justify-between ${
+          className={`input text-left flex items-center justify-between ${
+            error ? "border-red-500" : ""
+          } ${
             disabled ? "opacity-60 cursor-not-allowed" : ""
           }`}
         >
-          <span className={selectedTournamentId ? "" : "text-gray-500 dark:text-gray-400"}>
+          <span className={selectedTournamentId ? "" : "text-[var(--text-muted)]"}>
             {displayText}
           </span>
           <svg
@@ -93,15 +91,15 @@ export default function SearchableTournamentDropdown({
         </button>
 
         {isDropdownOpen && !disabled && (
-          <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg">
+          <div className="card card-elevated absolute z-10 w-full mt-1 overflow-hidden">
             {/* Search Input inside Dropdown */}
-            <div className="p-2 border-b border-gray-200 dark:border-gray-600">
+            <div className="p-2 border-b border-[var(--surface-card-border)]">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Type to search tournaments..."
-                className="w-full p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-blue-400 dark:focus:ring-offset-gray-700"
+                className="input"
                 autoFocus
               />
             </div>
@@ -109,7 +107,7 @@ export default function SearchableTournamentDropdown({
             {/* Tournament List */}
             <div className="max-h-60 overflow-y-auto">
               {filteredTournaments.length === 0 ? (
-                <div className="p-3 text-gray-500 dark:text-gray-400 text-center">
+                <div className="p-3 text-[var(--text-muted)] text-center">
                   No tournaments found matching "{searchTerm}"
                 </div>
               ) : (
@@ -117,15 +115,15 @@ export default function SearchableTournamentDropdown({
                   <button
                     key={tournament.id}
                     onClick={() => handleTournamentSelect(tournament.id)}
-                    className={`w-full p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors ${
+                    className={`w-full p-3 text-left hover:bg-brand-500/10 transition-colors ${
                       selectedTournamentId === tournament.id
-                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                        : "text-gray-900 dark:text-white"
+                        ? "bg-brand-500/15 text-brand-600 dark:text-brand-300"
+                        : "text-[var(--text-strong)]"
                     }`}
                   >
                     <div className="font-medium">{tournament.name}</div>
                     {showMemberCount && (
-                      <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                      <div className="text-xs text-[var(--text-muted)] mt-1">
                         {tournament.memberCount || 0} members
                       </div>
                     )}

@@ -14,16 +14,16 @@ export default function LoadingSkeleton({
       {Array.from({ length: items }).map((_, itemIndex) => (
         <div
           key={itemIndex}
-          className={`flex items-center gap-4 p-4 border border-gray-200 dark:border-gray-700 rounded-2xl bg-white dark:bg-gray-800 animate-pulse ${cardClassName}`}
+          className={`card flex items-center gap-4 p-4 animate-pulse ${cardClassName}`}
         >
           {showAvatar && (
-            <div className="w-12 h-12 rounded-2xl bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+            <div className="w-12 h-12 rounded-2xl bg-[var(--surface-muted)] flex-shrink-0" />
           )}
           <div className="flex-1 space-y-2">
             {Array.from({ length: lines }).map((_, lineIndex) => (
               <div
                 key={lineIndex}
-                className={`h-3 rounded-full bg-gray-200 dark:bg-gray-700 ${
+                className={`h-3 rounded-full bg-[var(--surface-muted)] ${
                   widthOptions[(lineIndex + itemIndex) % widthOptions.length]
                 }`}
               />

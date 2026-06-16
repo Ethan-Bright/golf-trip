@@ -59,7 +59,7 @@ export default function PWARefreshControl() {
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className={`mt-2 inline-flex items-center gap-2 rounded-full bg-gray-900/80 px-4 py-2 text-xs font-semibold text-white shadow-lg pointer-events-auto transition ${
+          className={`btn btn-primary btn-sm mt-2 pointer-events-auto ${
             showHint ? "opacity-100" : "opacity-60"
           }`}
         >

@@ -1,9 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   doc,
   updateDoc,
   serverTimestamp,
-  getDoc,
+  onSnapshot,
+  runTransaction,
   arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
@@ -47,6 +48,13 @@ export default function EnterScore({ userId, user }) {
   const [wolfDecisions, setWolfDecisions] = useState([]); // per-hole: 'lone' | partnerUserId | null
   const [wolfHoles, setWolfHoles] = useState(null); // per-hole: { wolfId, decision } | null
   const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
+
+  // Concurrency / live-sync guards.
+  const seededGameIdRef = useRef(null); // which gameId's score buffer we've seeded
+  const isDirtyRef = useRef(false); // true once the user edits, gates auto-save
+  const saveInFlightRef = useRef(false); // a save is currently writing
+  const pendingSaveRef = useRef(null); // queued save (auto flag) while one is in flight
+  const wolfOrderWriteRef = useRef(false); // prevents duplicate wolfOrder writes
 
   const sanitizeWolfDecisions = useCallback(
     (decisions, length) => {
@@ -129,87 +137,123 @@ export default function EnterScore({ userId, user }) {
     });
   }, []);
 
-  // --- Check for incomplete games and fetch games in progress ---
-  // --- Fetch scores for current game ---
+  // --- Live sync of the current game ---
+  // Subscribe to the game doc so other players' scores, wolf decisions, and
+  // roster changes appear in real time. We only seed THIS user's editable score
+  // buffer once per game so incoming snapshots never clobber active edits.
   useEffect(() => {
-    const fetchScores = async () => {
-      if (!gameId) return;
-      const gameRef = doc(db, "games", gameId);
-      const gameSnap = await getDoc(gameRef);
-      if (gameSnap.exists()) {
-        const gameData = gameSnap.data();
-        setGamePlayers(gameData.players || []);
-        const player = gameData.players.find((p) => p.userId === userId);
-        if (player) {
-          // Normalize scores to ensure they have stats fields
-          const normalizedScores = (player.scores || []).map((score) => ({
-            ...score,
-            fir: score.fir ?? null,
-            gir: score.gir ?? null,
-            putts: score.putts ?? null,
-          }));
-          setScores(normalizedScores);
-          // Determine if front/back 9 based on holeCount stored in game or default
-          const totalHoles = gameData.holeCount || 18;
-          setHoleCount(totalHoles);
-          setNineType(
-            totalHoles === 9 && gameData.nineType ? gameData.nineType : "front"
-          );
-          setStartingHole(gameData.startingHole || 1);
-          setTrackStats(deriveTrackStatsPreference(player, gameData));
-          setTrackStatsLocked(deriveTrackStatsLockState(player, gameData));
-          setWolfOrder(gameData.wolfOrder || null);
-          setWolfHoles(
-            gameData.wolfHoles && Array.isArray(gameData.wolfHoles)
-              ? gameData.wolfHoles
-              : null
-          );
-          setWolfDecisions(
-            sanitizeWolfDecisions(
-              gameData.wolfDecisions && Array.isArray(gameData.wolfDecisions)
-                ? gameData.wolfDecisions
-                : Array(totalHoles).fill(null),
-              totalHoles
-            )
-          );
-          const totalPoints = normalizedScores.reduce(
-            (sum, s) => sum + (s.net ?? 0),
-            0
-          );
-          setPoints(totalPoints);
-          setIsFunGame(Boolean(gameData.isFunGame));
+    if (!gameId) return undefined;
+    const gameRef = doc(db, "games", gameId);
 
-          // Ensure wolf order exists for wolf format with exactly 3 players
-          const normalizedGameFormat = normalizeMatchFormat(gameData.matchFormat || "");
-          if (
-            (normalizedGameFormat === "wolf" || normalizedGameFormat === "wolf-handicap") &&
-            (!gameData.wolfOrder || gameData.wolfOrder.length !== 3) &&
-            (gameData.players || []).length === 3
-          ) {
-            const ids = gameData.players.map((p) => p.userId);
-            // randomize order once
-            const randomized = [...ids].sort(() => Math.random() - 0.5);
-            try {
-              await updateDoc(gameRef, {
-                wolfOrder: randomized,
-                updatedAt: serverTimestamp(),
-              });
-              setWolfOrder(randomized);
-            } catch (e) {
-              console.error("Failed to set wolfOrder:", e);
-            }
+    const unsub = onSnapshot(
+      gameRef,
+      (gameSnap) => {
+        if (!gameSnap.exists()) return;
+        const gameData = gameSnap.data();
+        const remotePlayers = gameData.players || [];
+        const totalHoles = gameData.holeCount || 18;
+
+        setGamePlayers(remotePlayers);
+        setWolfOrder(gameData.wolfOrder || null);
+        setWolfHoles(
+          Array.isArray(gameData.wolfHoles) ? gameData.wolfHoles : null
+        );
+        setIsFunGame(Boolean(gameData.isFunGame));
+
+        // Sanitize wolf decisions against the live roster (avoids a stale-closure
+        // dependency on gamePlayers, which would force a resubscribe each change).
+        const allowedIds = new Set(remotePlayers.map((p) => p.userId));
+        const liveDecisions = Array.isArray(gameData.wolfDecisions)
+          ? gameData.wolfDecisions
+          : [];
+        setWolfDecisions(
+          Array.from({ length: totalHoles }, (_, i) => {
+            const v = liveDecisions[i];
+            if (v === "lone" || v === "blind") return v;
+            if (typeof v === "string" && allowedIds.has(v)) return v;
+            return null;
+          })
+        );
+
+        // Seed the editable buffer + per-round prefs only on the first snapshot
+        // for this game (or after a fresh join), never on subsequent updates.
+        if (seededGameIdRef.current !== gameId) {
+          const me = remotePlayers.find((p) => p.userId === userId);
+          if (me) {
+            const normalizedScores = (me.scores || []).map((score) => ({
+              ...score,
+              fir: score.fir ?? null,
+              gir: score.gir ?? null,
+              putts: score.putts ?? null,
+            }));
+            setScores(normalizedScores);
+            setHoleCount(totalHoles);
+            setNineType(
+              totalHoles === 9 && gameData.nineType ? gameData.nineType : "front"
+            );
+            setStartingHole(gameData.startingHole || 1);
+            setTrackStats(deriveTrackStatsPreference(me, gameData));
+            setTrackStatsLocked(deriveTrackStatsLockState(me, gameData));
+            setPoints(
+              normalizedScores.reduce((sum, s) => sum + (s.net ?? 0), 0)
+            );
+            isDirtyRef.current = false;
+            seededGameIdRef.current = gameId;
           }
         }
+      },
+      (error) => {
+        console.error("Error syncing game:", error);
       }
-    };
-    fetchScores();
+    );
+
+    return () => unsub();
   }, [gameId, userId, deriveTrackStatsPreference, deriveTrackStatsLockState]);
+
+  // Ensure a wolf order exists once a wolf game has exactly 3 players. Guarded by
+  // a transaction so concurrent clients can't each randomize a different order.
+  useEffect(() => {
+    if (!gameId || !isWolfFormat) return;
+    if ((gamePlayers || []).length !== 3) return;
+    if (Array.isArray(wolfOrder) && wolfOrder.length === 3) return;
+    if (wolfOrderWriteRef.current) return;
+    wolfOrderWriteRef.current = true;
+
+    (async () => {
+      try {
+        const gameRef = doc(db, "games", gameId);
+        await runTransaction(db, async (tx) => {
+          const snap = await tx.get(gameRef);
+          if (!snap.exists()) return;
+          const data = snap.data();
+          if (Array.isArray(data.wolfOrder) && data.wolfOrder.length === 3) return;
+          const ids = (data.players || []).map((p) => p.userId);
+          if (ids.length !== 3) return;
+          const randomized = [...ids].sort(() => Math.random() - 0.5);
+          tx.update(gameRef, {
+            wolfOrder: randomized,
+            updatedAt: serverTimestamp(),
+          });
+        });
+      } catch (e) {
+        console.error("Failed to set wolfOrder:", e);
+      } finally {
+        wolfOrderWriteRef.current = false;
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId, isWolfFormat, gamePlayers, wolfOrder]);
 
   // --- Join existing game ---
   const joinGame = useCallback(async (game) => {
+    if (!game?.course?.holes) {
+      showError("This game is missing course data and can't be joined.", "Error");
+      return;
+    }
     const initialScores = game.course.holes.map(() => ({
       gross: null,
       net: null,
+      netScore: null,
       fir: null,
       gir: null,
       putts: null,
@@ -217,106 +261,88 @@ export default function EnterScore({ userId, user }) {
 
     try {
       const gameRef = doc(db, "games", game.id);
-      const gameSnap = await getDoc(gameRef);
+      const holeLen = (game.course?.holes || []).length || 18;
 
-      if (gameSnap.exists()) {
-        const gameData = gameSnap.data();
-        const existingPlayer = gameData.players.find(
-          (p) => p.userId === userId
-        );
-
-        setHoleCount(gameData.holeCount || 18);
-        setNineType(gameData.nineType || "front");
-        setStartingHole(gameData.startingHole || 1);
-        setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
-        setGamePlayers(gameData.players || []);
-        setWolfOrder(gameData.wolfOrder || null);
-        setWolfHoles(
-          gameData.wolfHoles && Array.isArray(gameData.wolfHoles)
-            ? gameData.wolfHoles
-            : null
-        );
-        setWolfDecisions(
-          sanitizeWolfDecisions(
-            gameData.wolfDecisions && Array.isArray(gameData.wolfDecisions)
-              ? gameData.wolfDecisions
-              : Array((game.course?.holes || []).length || 18).fill(null),
-            (game.course?.holes || []).length || 18
-          )
-        );
-        setIsFunGame(Boolean(gameData.isFunGame));
-
-        if (existingPlayer) {
-          setGameId(game.id);
-          setSelectedCourse(game.course);
-          setGameName(game.name || "");
-          // Normalize scores to ensure they have stats fields
-          const playerScores = (existingPlayer.scores || initialScores).map((score) => ({
-            ...score,
-            fir: score.fir ?? null,
-            gir: score.gir ?? null,
-            putts: score.putts ?? null,
-          }));
-          setScores(playerScores);
-          const totalPoints = playerScores.reduce(
-            (sum, s) => sum + (s.net ?? 0),
-            0
-          );
-          setPoints(totalPoints);
-          setTrackStats(deriveTrackStatsPreference(existingPlayer, gameData));
-          setTrackStatsLocked(deriveTrackStatsLockState(existingPlayer, gameData));
-        } else {
+      // Re-read inside a transaction and append atomically so two players
+      // joining at once can't drop each other from the roster.
+      const { gameData, joinedPlayer, isExisting } = await runTransaction(
+        db,
+        async (tx) => {
+          const snap = await tx.get(gameRef);
+          if (!snap.exists()) throw new Error("Game not found");
+          const data = snap.data();
+          const players = Array.isArray(data.players) ? data.players : [];
+          const existing = players.find((p) => p.userId === userId);
+          if (existing) {
+            return { gameData: data, joinedPlayer: existing, isExisting: true };
+          }
           const newPlayer = {
             userId,
             name: user?.displayName || "Unknown Player",
-            handicap: user?.handicap || 0,
+            handicap: user?.handicap ?? 0,
             scores: initialScores,
             trackStats: false,
             trackStatsLocked: false,
           };
-          const updatedPlayers = [
-            ...gameData.players,
-            newPlayer,
-          ];
-
-          // When a new player joins, ensure game is inProgress (new player has no scores yet)
-          await updateDoc(gameRef, {
-            players: updatedPlayers,
+          tx.update(gameRef, {
+            players: [...players, newPlayer],
             status: "inProgress",
             updatedAt: serverTimestamp(),
             playerIds: arrayUnion(userId),
           });
-          setGameId(game.id);
-          setSelectedCourse(game.course);
-          setGameName(game.name || "");
-          setScores(initialScores);
-          setPoints(0);
-          setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
-          setGamePlayers(updatedPlayers);
-          setTrackStats(false);
-          setTrackStatsLocked(false);
+          return {
+            gameData: { ...data, players: [...players, newPlayer] },
+            joinedPlayer: newPlayer,
+            isExisting: false,
+          };
         }
+      );
 
-        // If wolf format and exactly 3 players but no wolfOrder, set it
-        const normalizedGameFormat = normalizeMatchFormat(gameData.matchFormat || "");
-        if (
-          (normalizedGameFormat === "wolf" || normalizedGameFormat === "wolf-handicap") &&
-          (!gameData.wolfOrder || gameData.wolfOrder.length !== 3) &&
-          (gameData.players || []).length === 3
-        ) {
-          const ids = (gameData.players || []).map((p) => p.userId);
-          const randomized = [...ids].sort(() => Math.random() - 0.5);
-          try {
-            await updateDoc(gameRef, {
-              wolfOrder: randomized,
-              updatedAt: serverTimestamp(),
-            });
-            setWolfOrder(randomized);
-          } catch (e) {
-            console.error("Failed to set wolfOrder on join:", e);
-          }
-        }
-      }
+      const totalHoles = gameData.holeCount || holeLen;
+
+      setHoleCount(totalHoles);
+      setNineType(gameData.nineType || "front");
+      setStartingHole(gameData.startingHole || 1);
+      setMatchFormat(normalizeMatchFormat(gameData.matchFormat || ""));
+      setGamePlayers(gameData.players || []);
+      setWolfOrder(gameData.wolfOrder || null);
+      setWolfHoles(
+        Array.isArray(gameData.wolfHoles) ? gameData.wolfHoles : null
+      );
+      setWolfDecisions(
+        sanitizeWolfDecisions(
+          Array.isArray(gameData.wolfDecisions)
+            ? gameData.wolfDecisions
+            : Array(holeLen).fill(null),
+          holeLen
+        )
+      );
+      setIsFunGame(Boolean(gameData.isFunGame));
+      setSelectedCourse(game.course);
+      setGameName(game.name || "");
+
+      const playerScores = (joinedPlayer.scores || initialScores).map(
+        (score) => ({
+          ...score,
+          fir: score.fir ?? null,
+          gir: score.gir ?? null,
+          putts: score.putts ?? null,
+        })
+      );
+      setScores(playerScores);
+      setPoints(playerScores.reduce((sum, s) => sum + (s.net ?? 0), 0));
+      setTrackStats(
+        isExisting ? deriveTrackStatsPreference(joinedPlayer, gameData) : false
+      );
+      setTrackStatsLocked(
+        isExisting ? deriveTrackStatsLockState(joinedPlayer, gameData) : false
+      );
+
+      // Mark this game's buffer as seeded so the live snapshot won't overwrite
+      // the scores we just set, then activate the game.
+      isDirtyRef.current = false;
+      seededGameIdRef.current = game.id;
+      setGameId(game.id);
     } catch (error) {
       console.error("Error joining game:", error);
       showError("Failed to join game", "Error");
@@ -522,136 +548,69 @@ export default function EnterScore({ userId, user }) {
     if (!gameId) return;
     try {
       const gameRef = doc(db, "games", gameId);
-      // Read latest from Firestore and MERGE to avoid truncating other holes
-      const snap = await getDoc(gameRef);
-      const data = snap.exists() ? snap.data() : {};
-      const courseLen =
-        (data?.course?.holes && Array.isArray(data.course.holes)
-          ? data.course.holes.length
-          : selectedCourse?.holes?.length) || 18;
-      const finalLen = Math.max(courseLen, lengthHint);
+      // Read + merge + write atomically so concurrent decisions on different
+      // holes can't truncate or clobber each other.
+      const { mergedDecisions, mergedWolfHoles } = await runTransaction(
+        db,
+        async (tx) => {
+          const snap = await tx.get(gameRef);
+          const data = snap.exists() ? snap.data() : {};
+          const courseLen =
+            (data?.course?.holes && Array.isArray(data.course.holes)
+              ? data.course.holes.length
+              : selectedCourse?.holes?.length) || 18;
+          const finalLen = Math.max(courseLen, lengthHint);
 
-      // Merge wolfDecisions
-      const existingDecisions = Array.isArray(data?.wolfDecisions)
-        ? [...data.wolfDecisions]
-        : [];
-      // Ensure dense array with nulls
-      const mergedDecisions = Array.from({ length: finalLen }, (_, i) => {
-        const val = existingDecisions[i];
-        return val === undefined ? null : val;
-      });
-      mergedDecisions[absHoleIndex] = normalizedDecision;
+          const existingDecisions = Array.isArray(data?.wolfDecisions)
+            ? [...data.wolfDecisions]
+            : [];
+          const nextDecisions = Array.from({ length: finalLen }, (_, i) => {
+            const val = existingDecisions[i];
+            return val === undefined ? null : val;
+          });
+          nextDecisions[absHoleIndex] = normalizedDecision;
 
-      // Merge wolfHoles (explicit objects)
-      const existingWolfHoles = Array.isArray(data?.wolfHoles)
-        ? [...data.wolfHoles]
-        : [];
-      const mergedWolfHoles = Array.from({ length: finalLen }, (_, i) => {
-        const current = existingWolfHoles[i];
-        if (i === absHoleIndex) {
-          const wid = getWolfForHole(i);
-          return wid ? { wolfId: wid, decision: normalizedDecision } : null;
+          const existingWolfHoles = Array.isArray(data?.wolfHoles)
+            ? [...data.wolfHoles]
+            : [];
+          const nextWolfHoles = Array.from({ length: finalLen }, (_, i) => {
+            const current = existingWolfHoles[i];
+            if (i === absHoleIndex) {
+              const wid = getWolfForHole(i);
+              return wid ? { wolfId: wid, decision: normalizedDecision } : null;
+            }
+            if (current && typeof current === "object") {
+              return {
+                wolfId: current.wolfId ?? getWolfForHole(i),
+                decision:
+                  current.decision === undefined
+                    ? (nextDecisions[i] ?? null)
+                    : current.decision,
+              };
+            }
+            const wid = getWolfForHole(i);
+            return wid
+              ? { wolfId: wid, decision: nextDecisions[i] ?? null }
+              : null;
+          });
+
+          tx.update(gameRef, {
+            wolfDecisions: nextDecisions,
+            wolfHoles: nextWolfHoles,
+            updatedAt: serverTimestamp(),
+          });
+
+          return { mergedDecisions: nextDecisions, mergedWolfHoles: nextWolfHoles };
         }
-        if (current && typeof current === "object") {
-          // Preserve existing entry
-          return {
-            wolfId: current.wolfId ?? getWolfForHole(i),
-            decision:
-              current.decision === undefined
-                ? (mergedDecisions[i] ?? null)
-                : current.decision,
-          };
-        }
-        const wid = getWolfForHole(i);
-        return wid ? { wolfId: wid, decision: mergedDecisions[i] ?? null } : null;
-      });
+      );
 
-      // Update local state and persist
       setWolfDecisions(mergedDecisions);
       setWolfHoles(mergedWolfHoles);
-      await updateDoc(gameRef, {
-        wolfDecisions: mergedDecisions,
-        wolfHoles: mergedWolfHoles,
-        updatedAt: serverTimestamp(),
-      });
     } catch (e) {
       console.error("Failed to save wolf decision:", e);
       showError("Failed to save wolf decision", "Error");
     }
   };
-
-  // Compute Wolf points for current user based on available scores/decisions
-  const computeWolfTotalForUser = useCallback(
-    (uid) => {
-      if (!isWolfFormat || !Array.isArray(gamePlayers) || gamePlayers.length !== 3) return 0;
-      let total = 0;
-      for (let i = 0; i < totalHolesInGame; i++) {
-        // Check wolfHoles first (preferred), then fallback to wolfDecisions
-        const holeInfo = wolfHoles?.[i];
-        const wolfId = holeInfo?.wolfId ?? getWolfForHole(i);
-        if (!wolfId) continue;
-        const decision = holeInfo && "decision" in holeInfo
-          ? holeInfo.decision
-          : wolfDecisions?.[i] ?? null;
-        if (!decision) continue;
-        const wolfPlayer = getPlayerById(wolfId);
-        const others = getNonWolfPlayers(wolfId);
-        if (others.length !== 2) continue;
-        const [pA, pB] = others;
-        const wolfScore = getScoreFor(wolfPlayer, i);
-        const aScore = getScoreFor(pA, i);
-        const bScore = getScoreFor(pB, i);
-        if (
-          wolfScore == null ||
-          aScore == null ||
-          bScore == null
-        ) {
-          continue; // need all three scores to evaluate
-        }
-
-        if (decision === "blind") {
-          // Blind Lone Wolf: 6 points if win, 2 points if tie, each opponent gets 2 if lose
-          const teamBest = Math.min(aScore, bScore);
-          if (wolfScore < teamBest) {
-            if (uid === wolfId) total += 6;
-          } else if (wolfScore > teamBest) {
-            // each opponent gets 2 points (higher penalty for Blind Lone Wolf loss)
-            if (uid === pA.userId || uid === pB.userId) total += 2;
-          } else {
-            // Tie: Wolf gets 2 points
-            if (uid === wolfId) total += 2;
-          }
-        } else if (decision === "lone") {
-          const teamBest = Math.min(aScore, bScore);
-          if (wolfScore < teamBest) {
-            if (uid === wolfId) total += 3;
-          } else if (wolfScore > teamBest) {
-            // each opponent gets 1
-            if (uid === pA.userId || uid === pB.userId) total += 1;
-          } else {
-            // Tie: Wolf gets 1 point
-            if (uid === wolfId) total += 1;
-          }
-        } else {
-          // partner scenario
-          const partnerId = decision;
-          const partner =
-            partnerId === pA.userId ? pA : partnerId === pB.userId ? pB : null;
-          const solo = partner && partner.userId === pA.userId ? pB : pA;
-          if (!partner || !solo) continue;
-          const teamBest = Math.min(wolfScore, getScoreFor(partner, i) ?? Infinity);
-          const soloScore = getScoreFor(solo, i);
-          if (teamBest < soloScore) {
-            if (uid === wolfId || uid === partner.userId) total += 1;
-          } else if (teamBest > soloScore) {
-            if (uid === solo.userId) total += 1;
-          } // ties => 0
-        }
-      }
-      return total;
-    },
-    [isWolfFormat, gamePlayers, wolfHoles, wolfDecisions, totalHolesInGame, wolfOrder, isWolfHandicapFormat, selectedCourse]
-  );
 
   // --- Handle score changes ---
   const handleScoreChange = (holeIndex, value) => {
@@ -670,10 +629,14 @@ export default function EnterScore({ userId, user }) {
       };
     }
 
-    const numericValue =
+    let numericValue =
       value === "" || value === null || Number.isNaN(Number(value))
         ? null
-        : Number(value);
+        : Math.round(Number(value));
+    // Clamp typed values to a sane gross-score range (1 = hole-in-one).
+    if (numericValue != null) {
+      numericValue = Math.min(20, Math.max(1, numericValue));
+    }
     updated[holeIndex].gross = numericValue;
 
     if (
@@ -699,6 +662,7 @@ export default function EnterScore({ userId, user }) {
     }
 
     const totalPoints = updated.reduce((sum, s) => sum + (s.net ?? 0), 0);
+    isDirtyRef.current = true;
     setPoints(totalPoints);
     setScores(updated);
   };
@@ -710,13 +674,14 @@ export default function EnterScore({ userId, user }) {
 
     const updated = [...scores];
     if (!updated[holeIndex]) return;
+    isDirtyRef.current = true;
     if (statType === "fir" || statType === "gir") {
       updated[holeIndex][statType] = Boolean(value);
     } else if (statType === "putts") {
       if (value === "" || value === null || Number.isNaN(Number(value))) {
         updated[holeIndex].putts = null;
       } else {
-        updated[holeIndex].putts = Number(value);
+        updated[holeIndex].putts = Math.min(20, Math.max(0, Math.round(Number(value))));
       }
     }
     setScores(updated);
@@ -750,21 +715,22 @@ export default function EnterScore({ userId, user }) {
 
     try {
       const gameRef = doc(db, "games", gameId);
-      const gameSnap = await getDoc(gameRef);
-      if (!gameSnap.exists()) {
-        throw new Error("Game not found");
-      }
-      const gameData = gameSnap.data();
-      const updatedPlayers = (gameData.players || []).map((p) =>
-        p.userId === userId
-          ? { ...p, trackStats: value, trackStatsLocked: nextLocked }
-          : p
-      );
-      await updateDoc(gameRef, {
-        players: updatedPlayers,
-        updatedAt: serverTimestamp(),
+      // Transaction so toggling stats only rewrites this user's slot and can't
+      // overwrite another player's concurrently-saved scores.
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(gameRef);
+        if (!snap.exists()) throw new Error("Game not found");
+        const gameData = snap.data();
+        const updatedPlayers = (gameData.players || []).map((p) =>
+          p.userId === userId
+            ? { ...p, trackStats: value, trackStatsLocked: nextLocked }
+            : p
+        );
+        tx.update(gameRef, {
+          players: updatedPlayers,
+          updatedAt: serverTimestamp(),
+        });
       });
-      setGamePlayers(updatedPlayers);
     } catch (error) {
       console.error("Failed to update track stats preference:", error);
       setTrackStats(previousState.trackStats);
@@ -779,19 +745,25 @@ export default function EnterScore({ userId, user }) {
     
     try {
       const gameRef = doc(db, "games", gameId);
-      const gameSnap = await getDoc(gameRef);
-      
-      if (gameSnap.exists()) {
-        const gameData = gameSnap.data();
-        const updatedPlayers = gameData.players.filter(p => p.userId !== userId);
-        
-        await updateDoc(gameRef, {
+      // Transaction so a leave can't race with another player's score save.
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(gameRef);
+        if (!snap.exists()) return;
+        const gameData = snap.data();
+        const updatedPlayers = (gameData.players || []).filter(
+          (p) => p.userId !== userId
+        );
+        tx.update(gameRef, {
           players: updatedPlayers,
           updatedAt: serverTimestamp(),
           playerIds: arrayRemove(userId),
         });
-        
+      });
+
+      {
         // Reset all state
+        seededGameIdRef.current = null;
+        isDirtyRef.current = false;
         setGameId(null);
         setSelectedCourse(null);
         setGameName("");
@@ -814,115 +786,135 @@ export default function EnterScore({ userId, user }) {
     }
   };
 
-  // --- Auto-save scores ---
+  // --- Save scores ---
+  // Uses a transaction so only THIS user's score slot is updated (never
+  // overwriting another player's concurrent save). An in-flight guard serializes
+  // overlapping saves so a slow write can't land after a newer one.
   const saveScores = async (auto = false) => {
     if (!gameId || !userId) return;
+
+    if (saveInFlightRef.current) {
+      // Queue the latest save; keep a manual save sticky over an auto one.
+      pendingSaveRef.current = pendingSaveRef.current === false ? false : auto;
+      return;
+    }
+    saveInFlightRef.current = true;
+
+    const scoresSnapshot = scores;
     try {
       const gameRef = doc(db, "games", gameId);
-      const gameSnap = await getDoc(gameRef);
-      if (!gameSnap.exists()) return;
 
-      const gameData = gameSnap.data();
-      const updatedPlayers = gameData.players.map((p) =>
-        p.userId === userId ? { ...p, scores } : p
-      );
+      let gameIsComplete = false;
+      let completedContext = null;
 
-      // Create updated game object to check completion
-      const updatedGame = {
-        ...gameData,
-        players: updatedPlayers,
-      };
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(gameRef);
+        if (!snap.exists()) return;
+        const gameData = snap.data();
+        const updatedPlayers = (gameData.players || []).map((p) =>
+          p.userId === userId ? { ...p, scores: scoresSnapshot } : p
+        );
 
-      // Check if all players have completed all their scores
-      const gameIsComplete = isGameComplete(updatedGame);
+        gameIsComplete = isGameComplete({
+          ...gameData,
+          players: updatedPlayers,
+        });
 
-      let finalizedTeams = gameData.finalizedTeams || null;
-      if (
-        gameIsComplete &&
-        !finalizedTeams &&
-        gameData?.tournamentId
-      ) {
+        tx.update(gameRef, {
+          players: updatedPlayers,
+          status: gameIsComplete ? "complete" : "inProgress",
+          updatedAt: serverTimestamp(),
+        });
+
+        if (
+          gameIsComplete &&
+          !gameData.finalizedTeams &&
+          gameData?.tournamentId
+        ) {
+          completedContext = {
+            tournamentId: gameData.tournamentId,
+            playerIds: updatedPlayers.map((p) => p.userId),
+            hasFinalizedAt: Boolean(gameData.finalizedAt),
+          };
+        }
+      });
+
+      // Snapshot finalized teams AFTER the transaction (it reads another
+      // collection, which isn't allowed inside a Firestore transaction).
+      if (completedContext) {
         try {
           const tournamentTeams = await fetchTeamsForTournament(
-            gameData.tournamentId
+            completedContext.tournamentId
           );
-          const playerIdsInGame = new Set(
-            updatedPlayers.map((p) => p.userId)
-          );
-          finalizedTeams = tournamentTeams
-            .map((team) => ({
-              ...team,
-              players: normalizeTeamPlayers(team),
-            }))
+          const playerIdsInGame = new Set(completedContext.playerIds);
+          const finalizedTeams = tournamentTeams
+            .map((team) => ({ ...team, players: normalizeTeamPlayers(team) }))
             .filter((team) =>
               (team.players || []).some((player) =>
-                playerIdsInGame.has(
-                  player.uid || player.userId || player.id
-                )
+                playerIdsInGame.has(player.uid || player.userId || player.id)
               )
             );
+          const finalizePayload = { finalizedTeams };
+          if (!completedContext.hasFinalizedAt) {
+            finalizePayload.finalizedAt = serverTimestamp();
+          }
+          await updateDoc(gameRef, finalizePayload);
         } catch (err) {
           console.warn("Failed to snapshot teams for completed game:", err);
         }
       }
 
-      const updatePayload = {
-        players: updatedPlayers,
-        status: gameIsComplete ? "complete" : "inProgress",
-        updatedAt: serverTimestamp(),
-      };
-
-      if (gameIsComplete && finalizedTeams) {
-        updatePayload.finalizedTeams = finalizedTeams;
-        if (!gameData.finalizedAt) {
-          updatePayload.finalizedAt = serverTimestamp();
-        }
-      }
-
-      await updateDoc(gameRef, updatePayload);
-
       if (!auto) showSuccess("Scores saved successfully!", "Success");
     } catch (error) {
       console.error("Error saving scores:", error);
       if (!auto) showError("Failed to save scores", "Error");
+    } finally {
+      saveInFlightRef.current = false;
+      if (pendingSaveRef.current !== null) {
+        const nextAuto = pendingSaveRef.current;
+        pendingSaveRef.current = null;
+        // Run the queued save with the freshest scores.
+        saveScores(nextAuto);
+      }
     }
   };
 
   useEffect(() => {
     if (!gameId || !userId) return;
+    // Only auto-save after the user has actually edited (not on initial seed).
+    if (!isDirtyRef.current) return;
     const timeout = setTimeout(() => {
-      const hasAnyScore = scores.some((s) => s.gross !== null);
-      if (hasAnyScore) saveScores(true);
-    }, 300);
+      saveScores(true);
+    }, 500);
     return () => clearTimeout(timeout);
   }, [scores, gameId, userId]);
 
   return (
-    <div className="min-h-screen bg-gray-900 p-4 sm:p-6 pb-28">
+    <div className="min-h-screen p-4 sm:p-6 pb-28">
       <div className="w-full max-w-4xl mx-auto">
         <button
           onClick={() => navigate("/dashboard")}
-          className="mb-6 sm:mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl w-full sm:w-auto text-center"
+          className="btn btn-ghost mb-6 sm:mb-8 w-full sm:w-auto"
         >
           ← Back to Dashboard
         </button>
 
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 sm:p-6">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6 text-center">
+        <div className="card p-4 sm:p-6">
+          <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-strong)] mb-4 sm:mb-6 text-center">
             Enter Scores
           </h1>
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-3 sm:gap-4 mb-6">
             <button
               onClick={() => navigate("/create-game")}
-              className="w-full sm:w-auto px-6 py-3 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              className="btn btn-primary w-full sm:w-auto"
             >
               Create New Game
             </button>
             <button
               type="button"
               onClick={() => setShowFormatHelp(true)}
-              className="w-full sm:w-auto px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              className="btn btn-secondary w-full sm:w-auto"
             >
               Match Format Guide
             </button>
@@ -930,8 +922,8 @@ export default function EnterScore({ userId, user }) {
 
           {isLoadingGames && (
             <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-              <p className="mt-2 text-gray-600 dark:text-gray-300">Loading games...</p>
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-brand-500/30 border-t-brand-500"></div>
+              <p className="mt-2 text-[var(--text-muted)]">Loading games...</p>
             </div>
           )}
 
@@ -947,15 +939,15 @@ export default function EnterScore({ userId, user }) {
           )}
 
           {resumedGame && gameId && (
-            <div className="mb-4 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl">
+            <div className="mb-4 p-4 bg-brand-500/15 border border-brand-500/40 rounded-xl">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                  <svg className="h-5 w-5 text-brand-500" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                  <p className="text-sm font-medium text-brand-600 dark:text-brand-300">
                     Resumed your incomplete game! Continue entering your scores below before you can create or join a new game. You may also leave this game at the bottom of the page.
                   </p>
                 </div>
@@ -965,7 +957,7 @@ export default function EnterScore({ userId, user }) {
 
           {!isLoadingGames && currentTournament && !gameId && (
             <div className="space-y-4 sm:space-y-6">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white text-center">
+              <h2 className="text-lg sm:text-xl font-semibold text-[var(--text-strong)] text-center">
                 Games In Progress
               </h2>
               <InProgressGamesList
@@ -978,7 +970,7 @@ export default function EnterScore({ userId, user }) {
 
           {gameId && selectedCourse && (
             <div className="mt-4 sm:mt-6">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 text-center">
+              <h3 className="text-lg sm:text-xl font-bold text-[var(--text-strong)] mb-3 sm:mb-4 text-center">
                 Enter Scores
               </h3>
               {isFunGame && (
@@ -995,20 +987,20 @@ export default function EnterScore({ userId, user }) {
                     disabled={trackStatsLocked}
                     className="w-5 h-5 text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 border-blue-400 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
                   />
-                  <span className="text-gray-900 dark:text-white font-semibold">
+                  <span className="text-[var(--text-strong)] font-semibold">
                     Track my stats this round
                   </span>
                   {trackStatsLocked && (
-                    <span className="text-xs font-semibold text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                    <span className="text-xs font-semibold text-brand-600 dark:text-brand-300 bg-brand-500/15 px-2 py-0.5 rounded-full">
                       Locked
                     </span>
                   )}
                 </label>
-                <p className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                <p className="text-sm text-[var(--text-muted)] space-y-1">
                   <span className="block">
                     When enabled, you'll enter FIR, GIR, and putts just for your scorecard.
                   </span>
-                  <span className="block text-gray-900 dark:text-white font-medium">
+                  <span className="block text-[var(--text-strong)] font-medium">
                     Once you turn this on for a game it stays on for the round.
                   </span>
                   {isFunGame && (
@@ -1017,13 +1009,13 @@ export default function EnterScore({ userId, user }) {
                     </span>
                   )}
                   {trackStatsLocked && (
-                    <span className="block text-green-700 dark:text-green-400 font-semibold">
+                    <span className="block text-brand-600 dark:text-brand-300 font-semibold">
                       Tracking locked for this round.
                     </span>
                   )}
                 </p>
               </div>
-              <div className="text-center text-green-600 mb-4 sm:mb-6">
+              <div className="text-center text-brand-600 dark:text-brand-300 mb-4 sm:mb-6">
                 Game:{" "}
                 <span className="font-semibold">
                   {gameName || "Untitled Game"}
@@ -1073,7 +1065,7 @@ export default function EnterScore({ userId, user }) {
                 firstUnenteredHoleIndex={firstUnenteredHoleIndex}
               />
 
-              <div className="mt-4 sm:mt-6 text-center font-semibold text-lg sm:text-xl text-green-700 dark:text-green-400">
+              <div className="mt-4 sm:mt-6 text-center font-semibold text-lg sm:text-xl text-brand-600 dark:text-brand-300">
                 Current Strokes: {displayedScores.reduce((sum, s) => sum + (s.gross ?? 0), 0)}
               </div>
 
@@ -1081,7 +1073,7 @@ export default function EnterScore({ userId, user }) {
                 <button
                   type="button"
                   onClick={() => saveScores(false)}
-                  className="w-full sm:w-auto px-6 py-3 bg-green-600 text-white rounded-xl shadow-md hover:bg-green-700 transition"
+                  className="btn btn-primary btn-block"
                   disabled={!gameId}
                 >
                   Finished Game
@@ -1089,7 +1081,7 @@ export default function EnterScore({ userId, user }) {
                 <button
                   type="button"
                   onClick={leaveGame}
-                  className="w-full sm:w-auto px-6 py-3 bg-red-500 text-white rounded-xl shadow-md hover:bg-red-600 transition"
+                  className="btn btn-danger btn-block"
                 >
                   Leave Game
                 </button>
@@ -1103,15 +1095,15 @@ export default function EnterScore({ userId, user }) {
 
       {/* Format Help Modal */}
       {showFormatHelp && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="card card-elevated max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h2 className="text-2xl font-bold text-[var(--text-strong)]">
                 Match Format Guide
               </h2>
               <button
                 onClick={() => setShowFormatHelp(false)}
-                className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-3xl leading-none"
+                className="text-[var(--text-muted)] hover:text-[var(--text-strong)] text-3xl leading-none"
               >
                 ×
               </button>
@@ -1119,14 +1111,14 @@ export default function EnterScore({ userId, user }) {
 
             <div className="space-y-6">
               {/* Stableford */}
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   Stableford Points
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300">
+                <p className="text-[var(--text-muted)]">
                   Players compete based on points earned per hole using their With handicaps score (with handicaps score minus handicap strokes). Points are awarded as follows:
                 </p>
-                <ul className="list-disc list-inside mt-2 space-y-1 text-gray-600 dark:text-gray-300">
+                <ul className="list-disc list-inside mt-2 space-y-1 text-[var(--text-muted)]">
                   <li>With Handicaps Albatross or better: 5 points</li>
                   <li>With Handicaps Eagle (-2): 4 points</li>
                   <li>With Handicaps Birdie (-1): 3 points</li>
@@ -1137,46 +1129,46 @@ export default function EnterScore({ userId, user }) {
               </div>
 
               {/* Match Play */}
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   1v1 Match Play
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                <p className="text-[var(--text-muted)] mb-2">
                   Two players compete hole-by-hole. Each hole is won by the player with the lower With handicaps score (with handicaps minus handicap strokes). The match is won by the player who wins more holes. Uses handicaps to level the playing field.
                 </p>
                 <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <p className="text-sm text-[var(--text-muted)]">
                     <span className="font-semibold">No Handicaps Version:</span> Also available as "1v1 Match Play (No Handicaps)" which uses with handicaps scores instead of With handicaps scores.
                   </p>
                 </div>
               </div>
 
               {/* 2v2 Match Play */}
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   2v2 Match Play
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                <p className="text-[var(--text-muted)] mb-2">
                   Two teams of two players compete against each other. Each team uses their best ball (best With handicaps score) on each hole. The team with the better ball wins the hole. Teams compete head-to-head to win the most holes.
                 </p>
                 <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <p className="text-sm text-[var(--text-muted)]">
                     <span className="font-semibold">No Handicaps Version:</span> Also available as "2v2 Match Play (No handicaps)" which uses with handicaps scores instead of With handicaps scores.
                   </p>
                 </div>
               </div>
 
               {/* American Scoring */}
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   American Scoring
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-3">
+                <p className="text-[var(--text-muted)] mb-3">
                   For 3 or 4 players competing against each other using <span className="font-semibold">with handicaps scores</span> (no handicaps). Points are awarded based on finishing position on each hole. Lower with handicaps score wins the hole. All tied players receive equal points.
                 </p>
                 
-                <div className="mt-3 text-gray-600 dark:text-gray-300">
-                  <p className="font-semibold mb-2 text-green-600 dark:text-green-400">3 Players (6 points per hole)</p>
+                <div className="mt-3 text-[var(--text-muted)]">
+                  <p className="font-semibold mb-2 text-brand-600 dark:text-brand-300">3 Players (6 points per hole)</p>
                   <div className="ml-2 space-y-1">
                     <p>• All tie: 2-2-2 (2 points each)</p>
                     <p>• Clear winner, two tie for second: 4-1-1</p>
@@ -1185,8 +1177,8 @@ export default function EnterScore({ userId, user }) {
                   </div>
                 </div>
                 
-                <div className="mt-4 text-gray-600 dark:text-gray-300">
-                  <p className="font-semibold mb-2 text-green-600 dark:text-green-400">4 Players (20 points per hole)</p>
+                <div className="mt-4 text-[var(--text-muted)]">
+                  <p className="font-semibold mb-2 text-brand-600 dark:text-brand-300">4 Players (20 points per hole)</p>
                   <div className="ml-2 space-y-1">
                     <p>• All tie: 5-5-5-5 (5 points each)</p>
                     <p>• Clear 1st, 2nd, 3rd, 4th (all different): 8-6-4-2</p>
@@ -1199,21 +1191,21 @@ export default function EnterScore({ userId, user }) {
                 </div>
                 
                 <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
-                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                  <p className="text-sm text-[var(--text-muted)]">
                     <span className="font-semibold">Important:</span> This format uses <span className="font-semibold">with handicaps scores</span> (actual strokes, no handicap adjustments). All tied players receive equal points. The scoring system automatically handles all tie scenarios to ensure fair point distribution.
                   </p>
                 </div>
               </div>
 
               {/* Wolf */}
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   Wolf (3 Players)
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                <p className="text-[var(--text-muted)] mb-2">
                   Exactly 3 players. A rotating <span className="font-semibold">Wolf</span> is assigned each hole in a fixed order (randomized at game start). The Wolf must decide to <span className="font-semibold">team up</span> with one player or go <span className="font-semibold">Lone Wolf</span> <span className="italic">(decision must be made before the wolf tees off)</span>. Uses <span className="font-semibold">gross scores</span> (no handicaps).
                 </p>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-300">
+                <ul className="list-disc list-inside space-y-1 text-[var(--text-muted)]">
                   <li>
                     <span className="font-semibold">Partnered (2v1)</span>: Wolf + partner play best ball (lowest of the two gross scores) against the solo player’s gross score.
                     <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
@@ -1235,21 +1227,21 @@ export default function EnterScore({ userId, user }) {
                     <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
                       <li>Wolf &lt; Opponents' best: Wolf <span className="font-semibold">+6</span></li>
                       <li>Opponents' best &lt; Wolf: Each opponent <span className="font-semibold">+2</span></li>
-                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+2</span></li>
                     </ul>
                   </li>
                 </ul>
               </div>
 
               {/* Wolf (With Handicaps) */}
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   Wolf (3 Players, With Handicaps)
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300 mb-2">
+                <p className="text-[var(--text-muted)] mb-2">
                   Same as Wolf (3 Players) but uses <span className="font-semibold">net scores</span> (with handicaps). All scoring rules are identical, but comparisons are made using net scores instead of gross scores. Perfect for groups with varying skill levels.
                 </p>
-                <ul className="list-disc list-inside space-y-1 text-gray-600 dark:text-gray-300">
+                <ul className="list-disc list-inside space-y-1 text-[var(--text-muted)]">
                   <li>
                     <span className="font-semibold">Partnered (2v1)</span>: Wolf + partner best ball (lowest net) vs solo player's net.
                     <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
@@ -1271,28 +1263,28 @@ export default function EnterScore({ userId, user }) {
                     <ul className="list-disc list-inside ml-5 mt-1 space-y-1">
                       <li>Wolf &lt; Opponents' best: Wolf <span className="font-semibold">+6</span></li>
                       <li>Opponents' best &lt; Wolf: Each opponent <span className="font-semibold">+2</span></li>
-                      <li>Tie: Wolf <span className="font-semibold">+1</span></li>
+                      <li>Tie: Wolf <span className="font-semibold">+2</span></li>
                     </ul>
                   </li>
                 </ul>
               </div>
 
               {/* Stroke Play */}
-              <div className="border-b border-gray-200 dark:border-gray-700 pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+              <div className="border-b border-[var(--surface-card-border)] pb-4">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   Stroke Play
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300">
+                <p className="text-[var(--text-muted)]">
                 Two players compete in a 1v1 format to get the lowest gross score (no handicaps). Simple stroke scoring where the player with the lowest total strokes wins.
                 </p>
               </div>
 
               {/* Scorecard */}
               <div className="pb-4">
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                <h3 className="text-xl font-semibold text-[var(--text-strong)] mb-2">
                   Scorecard
                 </h3>
-                <p className="text-gray-600 dark:text-gray-300">
+                <p className="text-[var(--text-muted)]">
                   Just track your scores without any competition or point system. Perfect for solo rounds or when you just want to record your round without comparing to others.
                 </p>
               </div>
@@ -1301,7 +1293,7 @@ export default function EnterScore({ userId, user }) {
             <div className="mt-6 flex justify-center">
               <button
                 onClick={() => setShowFormatHelp(false)}
-                className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="btn btn-primary"
               >
                 Got it
               </button>

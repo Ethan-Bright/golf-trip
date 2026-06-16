@@ -85,15 +85,15 @@ export default function AchievementsModal({ game, onClose }) {
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-2xl w-full p-4 sm:p-6 max-h-[95vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
+      <div className="card card-elevated max-w-2xl w-full p-4 sm:p-6 max-h-[95vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4 sm:mb-6">
-          <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white">
+          <h2 className="text-lg sm:text-2xl font-bold text-[var(--text-strong)]">
             🏆 Game Achievements
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl sm:text-3xl leading-none flex-shrink-0"
+            className="text-[var(--text-muted)] hover:text-[var(--text-strong)] text-2xl sm:text-3xl leading-none flex-shrink-0"
           >
             ×
           </button>
@@ -103,7 +103,7 @@ export default function AchievementsModal({ game, onClose }) {
           if (Object.keys(achievements).length === 0) {
             return (
               <div className="text-center py-8">
-                <p className="text-gray-600 dark:text-gray-300">
+                <p className="text-[var(--text-muted)]">
                   No achievements yet. Scores need to be entered first.
                 </p>
               </div>
@@ -119,7 +119,7 @@ export default function AchievementsModal({ game, onClose }) {
           if (categoriesWithWinners.length === 0) {
             return (
               <div className="text-center py-8">
-                <p className="text-gray-600 dark:text-gray-300">
+                <p className="text-[var(--text-muted)]">
                   No achievements yet. Scores need to be entered first.
                 </p>
               </div>
@@ -136,20 +136,20 @@ export default function AchievementsModal({ game, onClose }) {
                 return (
                   <div
                     key={category.key}
-                    className="bg-gray-50 dark:bg-gray-700 rounded-2xl p-4 border border-gray-200 dark:border-gray-600"
+                    className="rounded-2xl p-4 border border-brand-500/40 bg-brand-500/15"
                   >
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-2xl">{category.emoji}</span>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                      <h3 className="font-semibold text-[var(--text-strong)]">
                         Most {category.label}
                       </h3>
                     </div>
                     {winners.map((winner, idx) => (
                       <div key={idx} className="flex items-center justify-between">
-                        <span className="text-gray-700 dark:text-gray-300">
+                        <span className="text-[var(--text-strong)]">
                           {winner.playerName}
                         </span>
-                        <span className="text-green-600 dark:text-green-400 font-bold">
+                        <span className="badge badge-brand">
                           {winner.count} {category.label}
                         </span>
                       </div>
@@ -164,7 +164,7 @@ export default function AchievementsModal({ game, onClose }) {
         <div className="mt-4 sm:mt-6 flex justify-center">
           <button
             onClick={onClose}
-            className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl sm:rounded-2xl font-semibold hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 min-h-[44px]"
+            className="btn btn-secondary w-full sm:w-auto"
           >
             Close
           </button>

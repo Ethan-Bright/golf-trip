@@ -354,27 +354,23 @@ export default function ViewMembers() {
           <div className="flex gap-2">
             <button
               onClick={() => setMode("tournament")}
-              className={`flex-1 py-2 text-sm font-semibold rounded-xl border ${
-                mode === "tournament"
-                  ? "bg-green-600 text-white border-green-600"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600"
+              className={`btn flex-1 ${
+                mode === "tournament" ? "btn-primary" : "btn-secondary"
               }`}
             >
               Current Tournament
             </button>
             <button
               onClick={() => setMode("search")}
-              className={`flex-1 py-2 text-sm font-semibold rounded-xl border ${
-                mode === "search"
-                  ? "bg-green-600 text-white border-green-600"
-                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600"
+              className={`btn flex-1 ${
+                mode === "search" ? "btn-primary" : "btn-secondary"
               }`}
             >
               Search Users
             </button>
           </div>
 
-          <div className="mobile-card p-4 sm:p-6 border border-gray-200/70 dark:border-gray-700">
+          <div className="mobile-card p-4 sm:p-6">
             {mode === "tournament" ? (
               <>
                 {loading ? (
@@ -382,7 +378,7 @@ export default function ViewMembers() {
                     items={4}
                     lines={3}
                     showAvatar
-                    cardClassName="bg-gray-50 dark:bg-gray-700/60"
+                    cardClassName="bg-[var(--surface-muted)]"
                   />
                 ) : error ? (
                   <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-xl text-center text-sm">
@@ -390,7 +386,7 @@ export default function ViewMembers() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    <div className="text-center text-gray-600 dark:text-gray-300">
+                    <div className="text-center text-[var(--text-muted)]">
                       <span className="text-sm font-semibold">
                         {members.length} member{members.length !== 1 ? "s" : ""} registered
                       </span>
@@ -400,9 +396,9 @@ export default function ViewMembers() {
                       {members.map((member) => (
                         <div
                           key={member.id}
-                          className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow duration-200"
+                          className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] hover:shadow-md transition-shadow duration-200"
                         >
-                          <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-green-200 dark:border-green-700 flex-shrink-0">
+                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-brand-500/40 flex-shrink-0">
                             {member.profilePictureUrl ? (
                               <img
                                 src={member.profilePictureUrl}
@@ -410,8 +406,8 @@ export default function ViewMembers() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-green-400 to-green-600 dark:from-green-500 dark:to-green-700 flex items-center justify-center">
-                                <span className="text-lg text-white font-bold">
+                              <div className="w-full h-full bg-brand-500/15 flex items-center justify-center">
+                                <span className="text-lg text-brand-600 dark:text-brand-300 font-bold">
                                   {member.displayName?.charAt(0) || "?"}
                                 </span>
                               </div>
@@ -419,13 +415,13 @@ export default function ViewMembers() {
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                            <h3 className="font-semibold text-[var(--text-strong)] text-sm truncate">
                               {member.displayName}
                             </h3>
-                            <div className="space-y-1 mt-1 text-xs text-gray-600 dark:text-gray-300">
+                            <div className="space-y-1 mt-1 text-xs text-[var(--text-muted)]">
                               <div>
                                 <span className="font-medium">Handicap:</span>{" "}
-                                <span className="text-green-600 dark:text-green-400 font-semibold">
+                                <span className="text-brand-600 dark:text-brand-300 font-semibold">
                                   {member.handicap || "—"}
                                 </span>
                               </div>
@@ -453,13 +449,13 @@ export default function ViewMembers() {
                           <div className="flex-shrink-0 flex flex-col gap-2">
                             <button
                               onClick={() => fetchMemberRounds(member)}
-                              className="px-3 py-2 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                              className="btn btn-primary btn-sm"
                             >
                               View Scores
                             </button>
                             <button
                               onClick={() => handleViewStats(member)}
-                              className="px-3 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                              className="btn btn-secondary btn-sm"
                             >
                               View Stats
                             </button>
@@ -470,13 +466,13 @@ export default function ViewMembers() {
 
                     {members.length === 0 && (
                       <div className="text-center py-8">
-                        <div className="w-12 h-12 mx-auto mb-2 bg-gray-100 dark:bg-gray-700 rounded-xl flex items-center justify-center">
-                          <svg className="w-6 h-6 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
+                        <div className="icon-tile w-12 h-12 mx-auto mb-2 bg-[var(--surface-muted)] text-[var(--text-muted)]">
+                          <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M16 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-2 14c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm6-8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm-6 0c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2zm0 8c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z" />
                           </svg>
                         </div>
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">No Members Yet</h3>
-                        <p className="text-gray-600 dark:text-gray-300 text-xs">Be the first to register for the tournament!</p>
+                        <h3 className="text-sm font-semibold text-[var(--text-strong)] mb-1">No Members Yet</h3>
+                        <p className="text-[var(--text-muted)] text-xs">Be the first to register for the tournament!</p>
                       </div>
                     )}
                   </div>
@@ -494,11 +490,11 @@ export default function ViewMembers() {
                       searchUsers(value);
                     }}
                     placeholder="Search users by name..."
-                    className="flex-1 px-3 py-2 text-sm rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                    className="input flex-1"
                   />
                   <button
                     type="button"
-                    className="px-4 py-2 text-sm font-semibold rounded-xl bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-60"
+                    className="btn btn-primary"
                     disabled={searchLoading}
                     onClick={() => searchUsers(searchQuery)}
                   >
@@ -514,21 +510,21 @@ export default function ViewMembers() {
 
                 <div className="space-y-3">
                   {searchResults.length > 0 && (
-                    <div className="text-center text-gray-600 dark:text-gray-300 text-xs">
+                    <div className="text-center text-[var(--text-muted)] text-xs">
                       Found {searchResults.length} user{searchResults.length !== 1 ? "s" : ""}
                     </div>
                   )}
 
                   {searchLoading && searchResults.length === 0 ? (
-                    <LoadingSkeleton items={4} lines={2} showAvatar cardClassName="bg-gray-50 dark:bg-gray-700/60" />
+                    <LoadingSkeleton items={4} lines={2} showAvatar cardClassName="bg-[var(--surface-muted)]" />
                   ) : (
                     <div className="flex flex-col gap-3 max-h-96 overflow-y-auto">
                       {searchResults.map((member) => (
                         <div
                           key={member.id}
-                          className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 hover:shadow-md transition-shadow duration-200"
+                          className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] hover:shadow-md transition-shadow duration-200"
                         >
-                          <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-green-200 dark:border-green-700 flex-shrink-0">
+                          <div className="w-12 h-12 rounded-xl overflow-hidden border border-brand-500/40 flex-shrink-0">
                             {member.profilePictureUrl ? (
                               <img
                                 src={member.profilePictureUrl}
@@ -536,8 +532,8 @@ export default function ViewMembers() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-green-400 to-green-600 dark:from-green-500 dark:to-green-700 flex items-center justify-center">
-                                <span className="text-lg text-white font-bold">
+                              <div className="w-full h-full bg-brand-500/15 flex items-center justify-center">
+                                <span className="text-lg text-brand-600 dark:text-brand-300 font-bold">
                                   {member.displayName?.charAt(0) || "?"}
                                 </span>
                               </div>
@@ -545,13 +541,13 @@ export default function ViewMembers() {
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 dark:text-white text-sm truncate">
+                            <h3 className="font-semibold text-[var(--text-strong)] text-sm truncate">
                               {member.displayName}
                             </h3>
-                            <div className="space-y-1 mt-1 text-xs text-gray-600 dark:text-gray-300">
+                            <div className="space-y-1 mt-1 text-xs text-[var(--text-muted)]">
                               <div>
                                 <span className="font-medium">Handicap:</span>{" "}
-                                <span className="text-green-600 dark:text-green-400 font-semibold">
+                                <span className="text-brand-600 dark:text-brand-300 font-semibold">
                                   {member.handicap || "—"}
                                 </span>
                               </div>
@@ -561,13 +557,13 @@ export default function ViewMembers() {
                           <div className="flex-shrink-0 flex flex-col gap-2">
                             <button
                               onClick={() => fetchMemberRounds(member)}
-                              className="px-3 py-2 text-xs font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                              className="btn btn-primary btn-sm"
                             >
                               View Scores
                             </button>
                             <button
                               onClick={() => handleViewStats(member)}
-                              className="px-3 py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                              className="btn btn-secondary btn-sm"
                             >
                               View Stats
                             </button>
@@ -576,13 +572,13 @@ export default function ViewMembers() {
                       ))}
 
                       {!searchLoading && searchResults.length === 0 && searchQuery.trim().length > 0 && (
-                        <div className="text-center py-6 text-xs text-gray-500 dark:text-gray-300">
+                        <div className="text-center py-6 text-xs text-[var(--text-muted)]">
                           No users found matching "{searchQuery.trim()}".
                         </div>
                       )}
 
                       {!searchLoading && searchQuery.trim().length === 0 && (
-                        <div className="text-center py-6 text-xs text-gray-500 dark:text-gray-300">
+                        <div className="text-center py-6 text-xs text-[var(--text-muted)]">
                           Enter a name above to search all users.
                         </div>
                       )}
@@ -597,14 +593,14 @@ export default function ViewMembers() {
 
       {/* Member Scores Modal */}
       {scoresModalOpen && selectedMember && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="card card-elevated max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 sm:p-6 border-b border-[var(--surface-card-border)] flex items-center justify-between">
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                <h3 className="text-lg sm:text-xl font-bold text-[var(--text-strong)]">
                   Previous Scores
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
+                <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">
                   {selectedMember.displayName}
                 </p>
               </div>
@@ -613,7 +609,7 @@ export default function ViewMembers() {
                   setScoresModalOpen(false);
                   setSelectedMember(null);
                 }}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-[var(--text-muted)] hover:text-[var(--text-strong)]"
               >
                 <svg
                   className="w-5 h-5 sm:w-6 sm:h-6"
@@ -634,8 +630,8 @@ export default function ViewMembers() {
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               {memberRoundsLoading ? (
                 <div className="flex flex-col items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mb-2"></div>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-brand-500/30 border-t-brand-500 mb-2"></div>
+                  <p className="text-sm text-[var(--text-muted)]">
                     Loading scores...
                   </p>
                 </div>
@@ -645,7 +641,7 @@ export default function ViewMembers() {
                 </div>
               ) : memberRounds.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <p className="text-sm text-[var(--text-muted)]">
                     No previous scores found for this player.
                   </p>
                 </div>
@@ -654,14 +650,14 @@ export default function ViewMembers() {
                   {memberRounds.map((round) => (
                     <div
                       key={round.gameId}
-                      className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 border border-gray-200 dark:border-gray-600"
+                      className="rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] p-4"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2">
                         <div>
-                          <h4 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">
+                          <h4 className="text-sm sm:text-base font-semibold text-[var(--text-strong)]">
                             {round.gameName}
                           </h4>
-                          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                          <p className="text-xs sm:text-sm text-[var(--text-muted)]">
                             {round.courseName} • {round.date} •{" "}
                             {round.holesPlayed} holes
                           </p>
@@ -669,56 +665,56 @@ export default function ViewMembers() {
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs sm:text-sm">
                         <div>
-                          <div className="text-gray-600 dark:text-gray-400">
+                          <div className="text-[var(--text-muted)]">
                             Total Gross
                           </div>
-                          <div className="text-base font-semibold text-gray-900 dark:text-white">
+                          <div className="text-base font-semibold text-[var(--text-strong)]">
                             {round.totalGross}
                           </div>
                         </div>
                         {round.hasStats ? (
                           <>
                             <div>
-                              <div className="text-gray-600 dark:text-gray-400">
+                              <div className="text-[var(--text-muted)]">
                                 Avg Putts
                               </div>
-                              <div className="text-base font-semibold text-gray-900 dark:text-white">
+                              <div className="text-base font-semibold text-[var(--text-strong)]">
                                 {round.avgPutts}
                               </div>
                             </div>
                             <div>
-                              <div className="text-gray-600 dark:text-gray-400">
+                              <div className="text-[var(--text-muted)]">
                                 FIR%
                               </div>
-                              <div className="text-base font-semibold text-gray-900 dark:text-white">
+                              <div className="text-base font-semibold text-[var(--text-strong)]">
                                 {round.firPercentage}%
                               </div>
-                              <div className="text-[10px] text-gray-500 dark:text-gray-500">
+                              <div className="text-[10px] text-[var(--text-muted)]">
                                 ({round.firCount}/{round.holesPlayed})
                               </div>
                             </div>
                             <div>
-                              <div className="text-gray-600 dark:text-gray-400">
+                              <div className="text-[var(--text-muted)]">
                                 GIR%
                               </div>
-                              <div className="text-base font-semibold text-gray-900 dark:text-white">
+                              <div className="text-base font-semibold text-[var(--text-strong)]">
                                 {round.girPercentage}%
                               </div>
-                              <div className="text-[10px] text-gray-500 dark:text-gray-500">
+                              <div className="text-[10px] text-[var(--text-muted)]">
                                 ({round.girCount}/{round.holesPlayed})
                               </div>
                             </div>
                             <div>
-                              <div className="text-gray-600 dark:text-gray-400">
+                              <div className="text-[var(--text-muted)]">
                                 Total Putts
                               </div>
-                              <div className="text-base font-semibold text-gray-900 dark:text-white">
+                              <div className="text-base font-semibold text-[var(--text-strong)]">
                                 {round.totalPutts}
                               </div>
                             </div>
                           </>
                         ) : (
-                          <div className="col-span-1 sm:col-span-3 text-gray-600 dark:text-gray-400">
+                          <div className="col-span-1 sm:col-span-3 text-[var(--text-muted)]">
                             Stats were not tracked for this round.
                           </div>
                         )}
@@ -730,7 +726,7 @@ export default function ViewMembers() {
                             setSelectedRound(round);
                             setRoundDetailsOpen(true);
                           }}
-                          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                          className="btn btn-secondary btn-sm"
                         >
                           View Details
                         </button>
@@ -741,13 +737,13 @@ export default function ViewMembers() {
               )}
             </div>
 
-            <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="p-4 sm:p-6 border-t border-[var(--surface-card-border)]">
               <button
                 onClick={() => {
                   setScoresModalOpen(false);
                   setSelectedMember(null);
                 }}
-                className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl text-sm sm:text-base transition-colors"
+                className="btn btn-primary btn-block"
               >
                 Close
               </button>
@@ -758,14 +754,14 @@ export default function ViewMembers() {
 
       {/* Round Details Modal (hole-by-hole) */}
       {roundDetailsOpen && selectedRound && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-60">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-            <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-60">
+          <div className="card card-elevated max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="p-4 sm:p-6 border-b border-[var(--surface-card-border)] flex items-center justify-between">
               <div>
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">
+                <h3 className="text-lg sm:text-xl font-bold text-[var(--text-strong)]">
                   Round Details
                 </h3>
-                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-1">
+                <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-1">
                   {selectedRound.gameName} • {selectedRound.courseName} •{" "}
                   {selectedRound.date}
                 </p>
@@ -775,7 +771,7 @@ export default function ViewMembers() {
                   setRoundDetailsOpen(false);
                   setSelectedRound(null);
                 }}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="text-[var(--text-muted)] hover:text-[var(--text-strong)]"
               >
                 <svg
                   className="w-5 h-5 sm:w-6 sm:h-6"
@@ -796,7 +792,7 @@ export default function ViewMembers() {
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               {(!selectedRound.scores || selectedRound.scores.length === 0) ? (
                 <div className="text-center py-8">
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <p className="text-sm text-[var(--text-muted)]">
                     No hole-by-hole data available for this round.
                   </p>
                 </div>
@@ -833,23 +829,23 @@ export default function ViewMembers() {
                     return (
                       <div
                         key={index}
-                        className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 text-xs sm:text-sm"
+                        className="flex items-center justify-between p-3 rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] text-xs sm:text-sm"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center text-xs font-semibold text-green-700 dark:text-green-300">
+                          <div className="w-8 h-8 rounded-full bg-brand-500/15 flex items-center justify-center text-xs font-semibold text-brand-600 dark:text-brand-300">
                             {holeNumber}
                           </div>
                           <div>
-                            <div className="font-semibold text-gray-900 dark:text-white">
+                            <div className="font-semibold text-[var(--text-strong)]">
                               Score: {score.gross}
                             </div>
-                            <div className="text-[11px] text-gray-600 dark:text-gray-300">
+                            <div className="text-[11px] text-[var(--text-muted)]">
                               Putts: {score.putts ?? 0} • FIR:{" "}
                               {score.fir ? "Yes" : "No"} • GIR:{" "}
                               {score.gir ? "Yes" : "No"}
                             </div>
                             {holeInfo && (
-                              <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                              <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
                                 Par {holeInfo.par}
                                 {yardage
                                   ? ` • ${yardage} yds`
@@ -863,7 +859,7 @@ export default function ViewMembers() {
                         </div>
                         {par !== null && (
                           <div className="text-right">
-                            <div className="text-xs font-semibold text-gray-900 dark:text-white">
+                            <div className="text-xs font-semibold text-[var(--text-strong)]">
                               {relation > 0
                                 ? `+${relation}`
                                 : relation === 0
@@ -879,13 +875,13 @@ export default function ViewMembers() {
               )}
             </div>
 
-            <div className="p-4 sm:p-6 border-t border-gray-200 dark:border-gray-700">
+            <div className="p-4 sm:p-6 border-t border-[var(--surface-card-border)]">
               <button
                 onClick={() => {
                   setRoundDetailsOpen(false);
                   setSelectedRound(null);
                 }}
-                className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl text-sm sm:text-base transition-colors"
+                className="btn btn-secondary btn-block"
               >
                 Close
               </button>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext } from "react";
 import { db } from "../firebase";
 import {
   doc,
+  getDoc,
   setDoc,
   collection,
   query,
@@ -13,6 +14,22 @@ import bcrypt from "bcryptjs";
 import { isStandalonePWA } from "../utils/pwa";
 
 const AuthContext = createContext();
+
+// Cloudinary config is environment-driven (falls back to the existing project so
+// uploads keep working if the env vars aren't set yet).
+const CLOUDINARY_CLOUD_NAME =
+  import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "diozpffn6";
+const CLOUDINARY_UPLOAD_PRESET =
+  import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "unsigned_preset";
+const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+
+// Never keep the password hash in client state / localStorage.
+const stripSensitive = (userData) => {
+  if (!userData || typeof userData !== "object") return userData;
+  // eslint-disable-next-line no-unused-vars
+  const { password, ...safe } = userData;
+  return safe;
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -47,14 +64,11 @@ export function AuthProvider({ children }) {
 
       const formData = new FormData();
       formData.append("file", compressedFile);
-      formData.append("upload_preset", "unsigned_preset");
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
       profilePictureUrl = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open(
-          "POST",
-          "https://api.cloudinary.com/v1_1/diozpffn6/image/upload"
-        );
+        xhr.open("POST", CLOUDINARY_UPLOAD_URL);
         xhr.upload.addEventListener("progress", (event) => {
           if (event.lengthComputable && onProgress) {
             const percent = Math.round((event.loaded / event.total) * 100);
@@ -164,7 +178,8 @@ export function AuthProvider({ children }) {
     setLoading(false);
   }, []);
 
-  const setUserAndPersist = (userData, remember = null) => {
+  const setUserAndPersist = (rawUserData, remember = null) => {
+    const userData = stripSensitive(rawUserData);
     setUser(userData);
     if (userData) {
       try {
@@ -222,6 +237,25 @@ export function AuthProvider({ children }) {
   };
 
   // -------------------
+  // Refresh the cached user from Firestore (e.g. after joining/leaving a
+  // tournament) so the UI updates reactively instead of forcing a full reload.
+  // -------------------
+  const refreshUser = async () => {
+    if (!user?.uid) return null;
+    try {
+      const snap = await getDoc(doc(db, "users", user.uid));
+      if (snap.exists()) {
+        const fresh = { ...user, ...snap.data() };
+        setUserAndPersist(fresh);
+        return fresh;
+      }
+    } catch (err) {
+      console.error("Error refreshing user:", err);
+    }
+    return null;
+  };
+
+  // -------------------
   // Update Profile
   // -------------------
   const updateProfile = async (
@@ -253,14 +287,11 @@ export function AuthProvider({ children }) {
 
       const formData = new FormData();
       formData.append("file", compressedFile);
-      formData.append("upload_preset", "unsigned_preset");
+      formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
       profilePictureUrl = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open(
-          "POST",
-          "https://api.cloudinary.com/v1_1/diozpffn6/image/upload"
-        );
+        xhr.open("POST", CLOUDINARY_UPLOAD_URL);
         xhr.upload.addEventListener("progress", (event) => {
           if (event.lengthComputable && onProgress) {
             const percent = Math.round((event.loaded / event.total) * 100);
@@ -297,7 +328,12 @@ export function AuthProvider({ children }) {
   const updatePassword = async (oldPassword, newPassword) => {
     if (!user) throw new Error("No user logged in");
 
-    const match = await bcrypt.compare(oldPassword, user.password);
+    // The hash is no longer kept client-side, so re-read it to verify.
+    const snap = await getDoc(doc(db, "users", user.uid));
+    const currentHash = snap.exists() ? snap.data()?.password : null;
+    if (!currentHash) throw new Error("Unable to verify current password");
+
+    const match = await bcrypt.compare(oldPassword, currentHash);
     if (!match) throw new Error("Old password is incorrect");
 
     const newHashed = await bcrypt.hash(newPassword, 10);
@@ -307,8 +343,7 @@ export function AuthProvider({ children }) {
       { merge: true }
     );
 
-    const updatedUser = { ...user, password: newHashed };
-    setUserAndPersist(updatedUser);
+    setUserAndPersist({ ...user });
 
     return { success: true };
   };
@@ -321,6 +356,7 @@ export function AuthProvider({ children }) {
         login,
         logout,
         setUserAndPersist,
+        refreshUser,
         updateProfile,
         updatePassword,
         loading, // expose loading so we can use it in PrivateRoute if needed

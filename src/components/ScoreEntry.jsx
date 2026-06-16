@@ -77,8 +77,8 @@ export default function ScoreEntry({ tournamentId, course }) {
   }, [holeInputs]);
 
   return (
-    <div className="bg-green-50 p-6 rounded-2xl shadow-lg border border-green-100">
-      <h3 className="text-xl font-bold text-green-700 mb-6 text-center">
+    <div className="card p-6">
+      <h3 className="text-xl font-bold text-brand-600 dark:text-brand-300 mb-6 text-center">
         Enter Your With Handicaps Scores
       </h3>
 
@@ -86,14 +86,14 @@ export default function ScoreEntry({ tournamentId, course }) {
         {holeInputs.map((v, idx) => (
           <div
             key={idx}
-            className="flex flex-col items-center bg-white rounded-lg shadow-sm p-3 border border-green-100"
+            className="flex flex-col items-center rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] p-3"
           >
-            <label className="text-sm font-semibold text-green-700">
+            <label className="text-sm font-semibold text-[var(--text-strong)]">
               Hole {idx + 1}{" "}
-              <span className="text-xs text-green-600">
+              <span className="text-xs text-[var(--text-muted)]">
                 (Par {course.holes[idx].par})
               </span>
-              <span className="text-xs text-green-600 ml-1">
+              <span className="text-xs text-[var(--text-muted)] ml-1">
                 (S.I. {course.holes[idx].strokeIndex})
               </span>
             </label>
@@ -102,10 +102,10 @@ export default function ScoreEntry({ tournamentId, course }) {
               inputMode="numeric"
               value={v}
               onChange={(e) => handleInputChange(e, idx)}
-              className="mt-1 w-16 text-center border border-green-300 rounded-md py-1 focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="input min-h-0 mt-1 h-11 w-16 text-center text-base font-semibold focus:ring-2 focus:ring-brand-500"
               placeholder="-"
             />
-            <div className="text-xs text-green-600 mt-1 text-center">
+            <div className="text-xs text-[var(--text-muted)] mt-1 text-center">
               With Handicaps: {netScores[idx] || "-"} | Points:{" "}
               {netScores[idx]
                 ? Math.max(0, course.holes[idx].par + 2 - netScores[idx])
@@ -115,7 +115,7 @@ export default function ScoreEntry({ tournamentId, course }) {
         ))}
       </div>
 
-      <div className="mt-6 text-center font-semibold text-lg text-green-700">
+      <div className="mt-6 text-center font-semibold text-lg text-brand-600 dark:text-brand-300">
         Total Points: {points}
       </div>
 
@@ -131,7 +131,7 @@ export default function ScoreEntry({ tournamentId, course }) {
         <button
           type="button"
           onClick={() => navigate("/dashboard")}
-          className="px-6 py-3 bg-gray-400 text-white rounded-xl shadow-md hover:bg-gray-500 transition"
+          className="btn btn-secondary"
         >
           Back to Dashboard
         </button>

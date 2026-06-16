@@ -23,7 +23,7 @@ export default function CourseInfo() {
       backHref="/dashboard"
     >
       <div
-        className={`mobile-card p-5 border border-green-100/70 dark:border-gray-800/70 ${
+        className={`mobile-card p-5 ${
           isDropdownOpen ? "relative z-40" : ""
         }`}
       >
@@ -40,40 +40,40 @@ export default function CourseInfo() {
       </div>
 
       {selectedCourseData ? (
-        <div className="mobile-card overflow-hidden border border-gray-100 dark:border-gray-800">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="mobile-card overflow-hidden">
+          <div className="p-6 border-b border-[var(--surface-card-border)]">
+            <h3 className="text-2xl font-bold text-[var(--text-strong)]">
               {selectedCourseData.name}
             </h3>
-            <p className="text-gray-600 dark:text-gray-300 mt-1">
+            <p className="text-[var(--text-muted)] mt-1">
               {selectedCourseData.holes.length} Holes • Par {totalPar}
             </p>
           </div>
 
           {/* Mobile cards */}
-          <div className="md:hidden divide-y divide-gray-100 dark:divide-gray-800">
+          <div className="md:hidden divide-y divide-[var(--surface-card-border)]">
             {selectedCourseData.holes.map((hole) => (
               <div key={hole.holeNumber} className="p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs uppercase text-gray-500">Hole</p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    <p className="text-xs uppercase text-[var(--text-muted)]">Hole</p>
+                    <p className="text-lg font-semibold text-[var(--text-strong)]">
                       {hole.holeNumber}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs uppercase text-gray-500">Par</p>
-                    <p className="text-lg font-semibold text-green-600 dark:text-green-400">
+                    <p className="text-xs uppercase text-[var(--text-muted)]">Par</p>
+                    <p className="text-lg font-semibold text-brand-600 dark:text-brand-300">
                       {hole.par}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
+                <div className="flex items-center justify-between text-sm text-[var(--text-muted)]">
                   <span>Stroke Index</span>
                   <span className="font-semibold">{hole.strokeIndex}</span>
                 </div>
                 {hole.info && (
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-[var(--text-muted)]">
                     {hole.info}
                   </p>
                 )}
@@ -87,10 +87,8 @@ export default function CourseInfo() {
                       })
                     }
                     disabled={!hole.video}
-                    className={`w-full rounded-2xl px-4 py-2 text-sm font-semibold shadow ${
-                      hole.video
-                        ? "bg-green-600 text-white hover:bg-green-700"
-                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    className={`btn btn-block ${
+                      hole.video ? "btn-primary" : "btn-secondary"
                     }`}
                   >
                     {hole.video ? "View Flyover" : "No Flyover Available"}
@@ -101,49 +99,49 @@ export default function CourseInfo() {
           </div>
 
           {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto hide-scrollbar">
             <table className="w-full">
-              <thead className="bg-green-50 dark:bg-gray-700">
+              <thead className="bg-brand-500/15">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-strong)]">
                     Hole
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-strong)]">
                     Par
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-strong)]">
                     Stroke Index
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-strong)]">
                     Information
                   </th>
                   {showFlyover && (
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 dark:text-white">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-[var(--text-strong)]">
                       Flyover
                     </th>
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody className="divide-y divide-[var(--surface-card-border)]">
                 {selectedCourseData.holes.map((hole, index) => (
                   <tr
                     key={hole.holeNumber}
                     className={
                       index % 2 === 0
-                        ? "bg-white dark:bg-gray-800"
-                        : "bg-gray-50 dark:bg-gray-700/50"
+                        ? "bg-transparent"
+                        : "bg-[var(--surface-muted)]"
                     }
                   >
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                    <td className="px-4 py-3 text-sm font-medium text-[var(--text-strong)]">
                       {hole.holeNumber}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                    <td className="px-4 py-3 text-sm text-[var(--text-muted)]">
                       {hole.par}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                    <td className="px-4 py-3 text-sm text-[var(--text-muted)]">
                       {hole.strokeIndex}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+                    <td className="px-4 py-3 text-sm text-[var(--text-muted)]">
                       {hole.info}
                     </td>
                     {showFlyover && (
@@ -157,12 +155,12 @@ export default function CourseInfo() {
                                 course: selectedCourseData.name,
                               })
                             }
-                            className="inline-flex items-center rounded-full bg-green-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-gray-800"
+                            className="btn btn-primary btn-sm"
                           >
                             View Hole Flyover
                           </button>
                         ) : (
-                          <span className="text-sm text-gray-400 dark:text-gray-500">
+                          <span className="text-sm text-[var(--text-muted)]">
                             Not available
                           </span>
                         )}
@@ -175,9 +173,9 @@ export default function CourseInfo() {
           </div>
         </div>
       ) : (
-        <div className="mobile-card p-10 text-center border border-dashed border-green-200 dark:border-gray-700">
+        <div className="mobile-card p-10 text-center border border-dashed border-brand-500/40">
           <svg
-            className="w-16 h-16 mx-auto text-gray-400 dark:text-gray-500 mb-4"
+            className="w-16 h-16 mx-auto text-[var(--text-muted)] mb-4"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -189,27 +187,27 @@ export default function CourseInfo() {
               d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
             />
           </svg>
-          <p className="text-gray-600 dark:text-gray-300 text-base">
+          <p className="text-[var(--text-muted)] text-base">
             Select a course above to see hole-by-hole details.
           </p>
         </div>
       )}
 
       {flyover && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-          <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl dark:bg-gray-900">
-            <div className="flex items-start justify-between border-b border-gray-200 p-6 dark:border-gray-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="card card-elevated w-full max-w-3xl overflow-hidden">
+            <div className="flex items-start justify-between border-b border-[var(--surface-card-border)] p-6">
               <div>
-                <h4 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <h4 className="text-xl font-semibold text-[var(--text-strong)]">
                   {flyover.course} • Hole {flyover.holeNumber}
                 </h4>
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                <p className="mt-1 text-sm text-[var(--text-muted)]">
                   Flyover video
                 </p>
               </div>
               <button
                 onClick={() => setFlyover(null)}
-                className="rounded-full p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-offset-2 focus:ring-offset-white dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200 dark:focus:ring-offset-gray-900"
+                className="rounded-full p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--text-strong)] focus:outline-none focus:ring-2 focus:ring-brand-400"
               >
                 <span className="sr-only">Close</span>
                 <svg

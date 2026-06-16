@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import Matchplay2v2GrossScorecardModal from "./Matchplay2v2GrossScorecardModal";
 import { fetchTeamsForTournament } from "../utils/teamService";
 
@@ -13,11 +13,15 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
     const fetchLeaderboard = async () => {
       if (!game?.players || game.players.length === 0) return;
 
-      const usersSnap = await getDocs(collection(db, "users"));
-      const users = usersSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const playerIds = Array.from(
+        new Set((game?.players || []).map((p) => p.userId).filter(Boolean))
+      );
+      const userDocs = await Promise.all(
+        playerIds.map((id) => getDoc(doc(db, "users", id)))
+      );
+      const users = userDocs
+        .filter((snap) => snap.exists())
+        .map((snap) => ({ id: snap.id, ...snap.data() }));
 
       const teams =
         Array.isArray(game?.finalizedTeams) && game.finalizedTeams.length > 0
@@ -214,11 +218,11 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
+      <h1 className="text-2xl font-bold text-[var(--text-strong)] text-center mb-6">
         2v2 Matchplay Leaderboard (Without Handicaps)
       </h1>
       {leaderboard.length === 0 ? (
-        <p className="text-center text-gray-600 dark:text-gray-300">
+        <p className="text-center text-[var(--text-muted)]">
           There needs to be 2 teams for the 2v2 matchplay format
         </p>
       ) : (
@@ -226,18 +230,22 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
           {leaderboard.map((team, index) => (
             <div
               key={team.id || index}
-              className="p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
+              className={`p-4 rounded-2xl border transition-colors hover:bg-brand-500/5 ${
+                index === 0
+                  ? "bg-brand-500/10 border-brand-500/40"
+                  : "bg-[var(--surface-muted)] border-[var(--surface-card-border)]"
+              }`}
             >
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-3">
                   {/* Position Number */}
-                  <div className="w-8 h-8 bg-green-600 dark:bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                  <div className="w-8 h-8 bg-brand-500 text-white rounded-full flex items-center justify-center font-bold text-sm tabular-nums">
                     {index + 1}
                   </div>
                   
                   {/* Team Info */}
                   <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                    <h3 className="font-semibold text-[var(--text-strong)]">
                       {team.name}
                     </h3>
                     {team.players && team.players.length > 0 && (
@@ -251,34 +259,34 @@ export default function Matchplay2v2GrossLeaderboard({ game }) {
                                 className="w-5 h-5 rounded-full object-cover"
                               />
                             ) : (
-                              <div className="w-5 h-5 rounded-full bg-gray-400 dark:bg-gray-500 flex items-center justify-center text-xs text-white">
+                              <div className="w-5 h-5 rounded-full bg-[var(--surface-muted)] flex items-center justify-center text-xs text-[var(--text-muted)]">
                                 {player.displayName?.charAt(0).toUpperCase() || '?'}
                               </div>
                             )}
-                            <span className="text-xs text-gray-600 dark:text-gray-400">
+                            <span className="text-xs text-[var(--text-muted)]">
                               {player.displayName || 'Unknown'}
                             </span>
-                            {idx < team.players.length - 1 && <span className="text-xs text-gray-400">•</span>}
+                            {idx < team.players.length - 1 && <span className="text-xs text-[var(--text-muted)]">•</span>}
                           </div>
                         ))}
                       </div>
                     )}
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    <p className="text-sm text-[var(--text-muted)] mt-1">
                       {team.isRoundComplete ? 'Total strokes' : 'Current strokes'}: {team.totalStrokes}
                     </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-[var(--text-muted)]">
                       {team.isRoundComplete ? "Completed Match" : `Thru ${team.thru}`}
                     </p>
                   </div>
                 </div>
                 
                 <div className="flex items-center space-x-3">
-                  <span className="text-green-600 dark:text-green-400 font-bold text-xl">
+                  <span className="text-brand-600 dark:text-brand-300 font-bold text-xl">
                     {team.matchStatus}
                   </span>
                   <button
                     onClick={() => openModal(team)}
-                    className="px-4 py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl"
+                    className="btn btn-primary btn-sm"
                   >
                     View Scores
                   </button>

@@ -76,9 +76,9 @@ export default function SubmitSuggestion() {
       title="Submit a Suggestion"
       description="Tell us what would make Golf Trip Leaderboard better for your group."
     >
-      <form onSubmit={handleSubmit} className="space-y-6 mobile-card p-6 border border-yellow-100 dark:border-gray-700">
+      <form onSubmit={handleSubmit} className="space-y-6 mobile-card p-6">
           <div>
-            <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+            <label className="field-label">
               What should I call it?
             </label>
             <input
@@ -87,20 +87,20 @@ export default function SubmitSuggestion() {
               onChange={handleChange}
               maxLength={120}
               placeholder="e.g. Live skins tracker or allow multi-day events"
-              className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="input"
             />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+              <label className="field-label">
                 Suggestion type
               </label>
               <select
                 name="type"
                 value={form.type}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="select"
               >
                 {typeOptions.map(({ value, label }) => (
                   <option key={value} value={value}>
@@ -110,14 +110,14 @@ export default function SubmitSuggestion() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+              <label className="field-label">
                 Urgency
               </label>
               <select
                 name="urgency"
                 value={form.urgency}
                 onChange={handleChange}
-                className="w-full px-4 py-3 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="select"
               >
                 {urgencyOptions.map(({ value, label }) => (
                   <option key={value} value={value}>
@@ -129,7 +129,7 @@ export default function SubmitSuggestion() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+            <label className="field-label">
               Describe the idea or pain point
             </label>
             <textarea
@@ -138,19 +138,19 @@ export default function SubmitSuggestion() {
               onChange={handleChange}
               rows={6}
               placeholder="Let me know what you would like me to add, why it matters, and any context I should know."
-              className="w-full px-4 py-3 rounded-3xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              className="textarea"
             />
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+            <p className="text-xs text-[var(--text-muted)] mt-2">
               
             </p>
           </div>
 
           {feedback.message && (
             <div
-              className={`p-4 rounded-2xl ${
+              className={`p-4 rounded-2xl border ${
                 feedback.type === "success"
-                  ? "bg-green-50 text-green-700 border border-green-200 dark:bg-green-900/20 dark:text-green-300 dark:border-green-700"
-                  : "bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-300 dark:border-red-700"
+                  ? "bg-brand-500/15 text-brand-600 dark:text-brand-300 border-brand-500/40"
+                  : "bg-red-500/15 text-red-600 dark:text-red-300 border-red-500/40"
               }`}
             >
               {feedback.message}
@@ -161,7 +161,7 @@ export default function SubmitSuggestion() {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-6 py-3 rounded-3xl bg-yellow-500 text-white font-semibold shadow-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 disabled:opacity-50"
+              className="btn btn-accent flex-1"
             >
               {loading ? "Sending..." : "Send Suggestion"}
             </button>
@@ -171,7 +171,7 @@ export default function SubmitSuggestion() {
                 setForm(defaultForm);
                 setFeedback({ type: null, message: "" });
               }}
-              className="px-6 py-3 rounded-3xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="btn btn-secondary"
             >
               Clear Form
             </button>

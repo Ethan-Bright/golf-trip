@@ -17,43 +17,41 @@ export default function Landing() {
 
   return (
     <PageShell
-      title="Golf Trip Leaderboard"
-      description="Track your golf tournament scores and compete with friends."
       showBackButton={false}
       bodyClassName="items-center text-center"
-      backgroundClass="min-h-screen bg-green-100 dark:bg-gray-900 flex items-center justify-center p-6"
+      className="min-h-screen justify-center"
     >
-      <div className="w-full max-w-md mx-auto">
-        <div className="mb-12">
-          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-500 to-green-600 dark:from-green-400 dark:to-green-500 rounded-2xl flex items-center justify-center shadow-lg">
-            <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 24 24">
+      <div className="w-full max-w-md mx-auto flex flex-col items-center">
+        <div className="mb-10">
+          <div className="w-24 h-24 mx-auto mb-7 rounded-3xl flex items-center justify-center bg-gradient-to-br from-brand-400 via-brand-500 to-brand-700 shadow-[0_24px_60px_-20px_rgba(18,183,106,0.7)] ring-1 ring-white/15">
+            <svg className="w-12 h-12 text-[#03150d]" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
             </svg>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-2">
+          <p className="eyebrow mb-3">The trip companion</p>
+          <h1 className="text-5xl sm:text-6xl font-black tracking-tight text-[var(--text-strong)] leading-[0.95]">
             Golf Trip
           </h1>
-          <h2 className="text-xl sm:text-2xl font-semibold text-green-700 dark:text-green-300 mb-6">
+          <h2 className="mt-2 text-2xl sm:text-3xl font-bold bg-gradient-to-r from-brand-400 to-accent-400 bg-clip-text text-transparent">
             Leaderboard
           </h2>
+          <p className="mt-5 text-[var(--text-muted)] text-balance">
+            Track tournament scores, run live leaderboards, and settle the bragging rights with your mates.
+          </p>
         </div>
 
-        <div className="space-y-4 mb-12">
-          <button
-            onClick={() => navigate("/login")}
-            className="w-full py-4 bg-green-600 dark:bg-green-500 text-white font-semibold rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
-          >
+        <div className="w-full space-y-3 mb-10">
+          <button onClick={() => navigate("/login")} className="btn btn-primary btn-block">
             Sign In
           </button>
-          <button
-            onClick={() => navigate("/register")}
-            className="w-full py-4 bg-yellow-500 dark:bg-yellow-400 text-gray-900 font-semibold rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 dark:focus:ring-yellow-400 dark:focus:ring-offset-gray-800"
-          >
+          <button onClick={() => navigate("/register")} className="btn btn-secondary btn-block">
             Create Account
           </button>
         </div>
 
-        <p className="text-gray-500 dark:text-gray-400 text-sm">Golf Trip Leaderboard</p>
+        <p className="text-[var(--text-muted)] text-xs tracking-wide">
+          Built for the fairway · Plays great on your phone
+        </p>
       </div>
     </PageShell>
   );

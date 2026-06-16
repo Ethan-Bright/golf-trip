@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "../firebase";
-import { collection, query, where, getDocs, orderBy, limit, doc, getDoc, startAfter } from "firebase/firestore";
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc, startAfter, onSnapshot } from "firebase/firestore";
 import LeaderboardComponent from "../components/Leaderboard";
 import AchievementsModal from "../components/AchievementsModal";
 import RoundStatsModal from "../components/RoundStatsModal";
@@ -184,6 +184,25 @@ export default function Leaderboard({ tournamentId }) {
     }
   }, [filteredGames, selectedGameId]);
 
+  // Live-update the currently selected game so scores entered by other players
+  // appear in real time without a manual refresh.
+  useEffect(() => {
+    if (!selectedGameId) return undefined;
+    const unsub = onSnapshot(
+      doc(db, "games", selectedGameId),
+      (snap) => {
+        if (!snap.exists()) return;
+        const fresh = { id: snap.id, ...snap.data() };
+        setGame((prev) => (prev?.id === fresh.id ? fresh : prev));
+        setAllGames((prev) =>
+          prev.map((g) => (g.id === fresh.id ? fresh : g))
+        );
+      },
+      (error) => console.error("Error syncing selected game:", error)
+    );
+    return () => unsub();
+  }, [selectedGameId]);
+
   // Get unique users from all games
   const getUniqueUsers = () => {
     const users = new Map();
@@ -281,11 +300,11 @@ export default function Leaderboard({ tournamentId }) {
   if (!tournamentId && !currentTournament) {
     return (
       <PageShell {...shellProps}>
-        <div className="mobile-card p-8 text-center border border-dashed border-green-200 dark:border-gray-700">
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">
+        <div className="mobile-card p-8 text-center border border-dashed border-brand-500/40">
+            <h3 className="text-lg sm:text-xl font-semibold text-[var(--text-strong)] mb-2">
               Select a Tournament
             </h3>
-            <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">
+            <p className="text-[var(--text-muted)] text-sm sm:text-base">
               Choose a tournament from the dashboard to view its games.
             </p>
           </div>
@@ -296,11 +315,11 @@ export default function Leaderboard({ tournamentId }) {
   if (!game && isLoadingGames)
     return (
       <PageShell {...shellProps}>
-        <div className="mobile-card p-8 text-center border border-green-100 dark:border-gray-800">
+        <div className="mobile-card p-8 text-center">
           <div className="inline-flex h-10 w-10 items-center justify-center mx-auto">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-green-200 border-t-green-600"></div>
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-500/30 border-t-brand-500"></div>
           </div>
-          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading games...</p>
+          <p className="mt-4 text-[var(--text-muted)]">Loading games...</p>
         </div>
       </PageShell>
     );
@@ -313,17 +332,17 @@ export default function Leaderboard({ tournamentId }) {
 
       return (
         <PageShell {...shellProps}>
-          <div className="mobile-card p-6 border border-red-100 dark:border-red-900/50">
-              <h3 className="text-lg sm:text-xl font-semibold text-red-600 dark:text-red-400 mb-2">
+          <div className="mobile-card p-6 border border-red-500/40">
+              <h3 className="text-lg sm:text-xl font-semibold text-red-500 mb-2">
                 Unable to load games
               </h3>
-              <p className="text-gray-700 dark:text-gray-200 text-sm sm:text-base mb-4 break-words">
+              <p className="text-[var(--text-muted)] text-sm sm:text-base mb-4 break-words">
                 {needsIndex
                 ? "Firestore needs a composite index for the games query (tournamentId + createdAt). Create it using the suggestion below, then refresh."
                   : loadError.message}
               </p>
               {needsIndex && (
-                <div className="text-xs sm:text-sm bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-200 rounded-xl p-4 space-y-2">
+                <div className="text-xs sm:text-sm bg-red-500/10 text-red-500 rounded-xl p-4 space-y-2">
                   <p className="font-semibold">Steps to create the index:</p>
                   <ol className="list-decimal ml-5 space-y-1">
                     <li>Open Firebase Console → Firestore Database → Indexes.</li>
@@ -345,15 +364,15 @@ export default function Leaderboard({ tournamentId }) {
     return (
       <PageShell {...shellProps}>
         <div className="mobile-card p-8 text-center">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
-              <svg className="w-6 h-6 sm:w-8 sm:h-8 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-brand-500/15 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4">
+              <svg className="w-6 h-6 sm:w-8 sm:h-8 text-brand-600 dark:text-brand-300" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
               </svg>
             </div>
-          <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">
+          <h3 className="text-lg sm:text-xl font-semibold text-[var(--text-strong)] mb-2">
             No Active Games
           </h3>
-          <p className="text-gray-600 dark:text-gray-300 text-sm sm:text-base">
+          <p className="text-[var(--text-muted)] text-sm sm:text-base">
             Create a game first to view the leaderboard.
           </p>
         </div>
@@ -366,27 +385,27 @@ export default function Leaderboard({ tournamentId }) {
       <div className="max-w-4xl mx-auto w-full">
         <button
           onClick={() => navigate("/dashboard")}
-          className="mb-6 sm:mb-8 px-4 py-2 text-gray-600 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 rounded-xl text-sm sm:text-base"
+          className="btn btn-ghost btn-sm mb-6 sm:mb-8"
         >
           ← Back to Dashboard
         </button>
 
         {allGames.length > 1 && (
-          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-4 sm:p-6 mb-4 sm:mb-6">
+          <div className="card p-4 sm:p-6 mb-4 sm:mb-6">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+              <h3 className="text-base sm:text-lg font-semibold text-[var(--text-strong)]">
                 Filter Games
               </h3>
               <button
                 onClick={clearFilters}
-                className="text-xs sm:text-sm text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 font-medium"
+                className="text-xs sm:text-sm text-brand-600 dark:text-brand-300 hover:text-brand-700 font-medium"
               >
                 Clear Filters
               </button>
             </div>
 
             <div className="relative mb-3 sm:mb-4" ref={dropdownRef}>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="field-label">
                 Select Game ({filteredGames.length} games)
               </label>
               <div className="relative">
@@ -396,7 +415,7 @@ export default function Leaderboard({ tournamentId }) {
                     setIsDropdownOpen(!isDropdownOpen);
                     setSearchTerm("");
                   }}
-                  className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 text-left flex items-center justify-between"
+                  className="input text-left flex items-center justify-between"
                 >
                   <span>
                     {game
@@ -416,20 +435,20 @@ export default function Leaderboard({ tournamentId }) {
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg">
-                    <div className="p-2 border-b border-gray-200 dark:border-gray-600">
+                  <div className="absolute z-10 w-full mt-1 card border border-[var(--surface-card-border)] overflow-hidden">
+                    <div className="p-2 border-b border-[var(--surface-card-border)]">
                       <input
                         type="text"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Type to search game names..."
-                        className="w-full p-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-700"
+                        className="input text-sm"
                         autoFocus
                       />
                     </div>
                     <div className="max-h-60 overflow-y-auto">
                       {filteredGames.length === 0 ? (
-                        <div className="p-3 text-gray-500 dark:text-gray-400 text-center">
+                        <div className="p-3 text-[var(--text-muted)] text-center">
                           No games found matching your filters
                         </div>
                       ) : (
@@ -437,14 +456,14 @@ export default function Leaderboard({ tournamentId }) {
                           <button
                             key={gameItem.id}
                             onClick={() => handleGameSelect(gameItem.id)}
-                            className={`w-full p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors ${
+                            className={`w-full p-3 text-left hover:bg-brand-500/5 transition-colors ${
                               selectedGameId === gameItem.id
-                                ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                                : "text-gray-900 dark:text-white"
+                                ? "bg-brand-500/15 text-brand-600 dark:text-brand-300"
+                                : "text-[var(--text-strong)]"
                             }`}
                           >
                             <div className="font-medium">{gameItem.name}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                            <div className="text-sm text-[var(--text-muted)]">
                               {gameItem.course?.name || "Unknown Course"} • {getMatchFormatLabel(gameItem.matchFormat)}
                               {gameItem.createdAt && (
                                 <span>
@@ -464,14 +483,14 @@ export default function Leaderboard({ tournamentId }) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="field-label">
                   Filter by Players ({selectedUsers.length} selected)
                 </label>
                 <div className="relative" ref={userDropdownRef}>
                   <button
                     type="button"
                     onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-                    className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 text-left flex items-center justify-between"
+                    className="input text-left flex items-center justify-between"
                   >
                     <span>
                       {selectedUsers.length === 0
@@ -493,23 +512,23 @@ export default function Leaderboard({ tournamentId }) {
                   </button>
 
                   {isUserDropdownOpen && (
-                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 card border border-[var(--surface-card-border)] max-h-60 overflow-y-auto">
                       {getUniqueUsers().map((user) => (
                         <button
                           key={user.userId}
                           onClick={() => toggleUser(user.userId)}
-                          className={`w-full p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors flex items-center ${
+                          className={`w-full p-3 text-left hover:bg-brand-500/5 transition-colors flex items-center ${
                             selectedUsers.includes(user.userId)
-                              ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                              : "text-gray-900 dark:text-white"
+                              ? "bg-brand-500/15 text-brand-600 dark:text-brand-300"
+                              : "text-[var(--text-strong)]"
                           }`}
                         >
                           <div className="flex items-center">
                             <div
                               className={`w-4 h-4 border-2 rounded mr-3 flex items-center justify-center ${
                                 selectedUsers.includes(user.userId)
-                                  ? "border-green-500 bg-green-500"
-                                  : "border-gray-300 dark:border-gray-600"
+                                  ? "border-brand-500 bg-brand-500"
+                                  : "border-[var(--surface-card-border)]"
                               }`}
                             >
                               {selectedUsers.includes(user.userId) && (
@@ -537,12 +556,12 @@ export default function Leaderboard({ tournamentId }) {
                       return (
                         <span
                           key={userId}
-                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-brand-500/15 text-brand-600 dark:text-brand-300"
                         >
                           {user?.name || "Unknown"}
                           <button
                             onClick={() => toggleUser(userId)}
-                            className="ml-1 hover:text-green-600 dark:hover:text-green-400"
+                            className="ml-1 hover:text-brand-700 dark:hover:text-brand-300"
                           >
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                               <path
@@ -563,7 +582,7 @@ export default function Leaderboard({ tournamentId }) {
                     <button
                       type="button"
                       onClick={() => setIsPlayerFilterDropdownOpen(!isPlayerFilterDropdownOpen)}
-                      className="w-full p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 text-left flex items-center justify-between text-sm"
+                      className="input text-left flex items-center justify-between text-sm"
                     >
                       <span>
                         {getGamesByPlayers().length} game{getGamesByPlayers().length !== 1 ? "s" : ""} with selected
@@ -582,22 +601,22 @@ export default function Leaderboard({ tournamentId }) {
                     </button>
 
                     {isPlayerFilterDropdownOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                      <div className="absolute z-10 w-full mt-1 card border border-[var(--surface-card-border)] max-h-60 overflow-y-auto">
                         {getGamesByPlayers().length === 0 ? (
-                          <div className="p-3 text-gray-500 dark:text-gray-400 text-center text-sm">No games found</div>
+                          <div className="p-3 text-[var(--text-muted)] text-center text-sm">No games found</div>
                         ) : (
                           getGamesByPlayers().map((gameItem) => (
                             <button
                               key={gameItem.id}
                               onClick={() => handleGameSelect(gameItem.id)}
-                              className={`w-full p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors ${
+                              className={`w-full p-3 text-left hover:bg-brand-500/5 transition-colors ${
                                 selectedGameId === gameItem.id
-                                  ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                                  : "text-gray-900 dark:text-white"
+                                  ? "bg-brand-500/15 text-brand-600 dark:text-brand-300"
+                                  : "text-[var(--text-strong)]"
                               }`}
                             >
                               <div className="font-medium text-sm">{gameItem.name}</div>
-                              <div className="text-xs text-gray-600 dark:text-gray-400">
+                              <div className="text-xs text-[var(--text-muted)]">
                                 {gameItem.course?.name || "Unknown Course"} • {getMatchFormatLabel(gameItem.matchFormat)}
                               </div>
                             </button>
@@ -610,13 +629,13 @@ export default function Leaderboard({ tournamentId }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="field-label">
                   Filter by Format
                 </label>
                 <select
                   value={selectedFormat}
                   onChange={(e) => setSelectedFormat(e.target.value)}
-                  className="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800"
+                  className="select"
                 >
                   <option value="">All Formats</option>
                   {getUniqueFormats().map((format) => (
@@ -631,7 +650,7 @@ export default function Leaderboard({ tournamentId }) {
                     <button
                       type="button"
                       onClick={() => setIsFormatFilterDropdownOpen(!isFormatFilterDropdownOpen)}
-                      className="w-full p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 text-left flex items-center justify-between text-sm"
+                      className="input text-left flex items-center justify-between text-sm"
                     >
                       <span>
                         {getGamesByFormat().length} game{getGamesByFormat().length !== 1 ? "s" : ""} with this format
@@ -649,22 +668,22 @@ export default function Leaderboard({ tournamentId }) {
                     </button>
 
                     {isFormatFilterDropdownOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                      <div className="absolute z-10 w-full mt-1 card border border-[var(--surface-card-border)] max-h-60 overflow-y-auto">
                         {getGamesByFormat().length === 0 ? (
-                          <div className="p-3 text-gray-500 dark:text-gray-400 text-center text-sm">No games found</div>
+                          <div className="p-3 text-[var(--text-muted)] text-center text-sm">No games found</div>
                         ) : (
                           getGamesByFormat().map((gameItem) => (
                             <button
                               key={gameItem.id}
                               onClick={() => handleGameSelect(gameItem.id)}
-                              className={`w-full p-3 text-left hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors ${
+                              className={`w-full p-3 text-left hover:bg-brand-500/5 transition-colors ${
                                 selectedGameId === gameItem.id
-                                  ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                                  : "text-gray-900 dark:text-white"
+                                  ? "bg-brand-500/15 text-brand-600 dark:text-brand-300"
+                                  : "text-[var(--text-strong)]"
                               }`}
                             >
                               <div className="font-medium text-sm">{gameItem.name}</div>
-                              <div className="text-xs text-gray-600 dark:text-gray-400">
+                              <div className="text-xs text-[var(--text-muted)]">
                                 {gameItem.course?.name || "Unknown Course"} • {getMatchFormatLabel(gameItem.matchFormat)}
                               </div>
                             </button>
@@ -684,23 +703,23 @@ export default function Leaderboard({ tournamentId }) {
             <button
               onClick={() => loadGames(false)}
               disabled={isLoadingGames}
-              className="inline-flex items-center justify-center rounded-2xl px-6 py-3 bg-green-600 dark:bg-green-500 text-white font-semibold shadow-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-900 disabled:opacity-60"
+              className="btn btn-primary"
             >
               {isLoadingGames ? "Loading..." : "Load More Games"}
             </button>
           </div>
         )}
 
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-6 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{game.name}</h2>
-          <p className="text-lg font-medium text-green-600 dark:text-green-400 mb-1">
+        <div className="card p-6 mb-6 text-center">
+          <h2 className="text-2xl font-bold text-[var(--text-strong)] mb-2">{game.name}</h2>
+          <p className="text-lg font-medium text-brand-600 dark:text-brand-300 mb-1">
             {game.course?.name || "Unknown Course"}
           </p>
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <p className="text-sm font-medium text-[var(--text-muted)] mb-2">
             Match Format: {getMatchFormatLabel(game.matchFormat)}
           </p>
           {game.createdAt && (
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+            <p className="text-sm text-[var(--text-muted)] mb-3">
               {new Date(game.createdAt.seconds * 1000).toLocaleDateString()}
             </p>
           )}
@@ -708,24 +727,24 @@ export default function Leaderboard({ tournamentId }) {
             <button
               onClick={() => setShowOverallStats(true)}
               disabled={!activeTournamentId}
-              className={`px-6 py-3 rounded-2xl shadow-lg font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200 flex items-center gap-2 ${
+              className={`btn ${
                 activeTournamentId
                   ? "bg-purple-500 hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700 text-white"
-                  : "bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400"
+                  : "btn-secondary cursor-not-allowed"
               }`}
             >
               🏁 View Overall Leaderboard
             </button>
             <button
               onClick={() => setShowAchievements(true)}
-              className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white font-semibold rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-all duration-200 flex items-center gap-2"
+              className="btn bg-yellow-500 hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700 text-white"
             >
               🏆 View Achievements
             </button>
             {!game.isFunGame && game.players?.some((p) => p.trackStats ?? game.trackStats) && (
               <button
                 onClick={() => setShowRoundStats(true)}
-                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold rounded-2xl shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 flex items-center gap-2"
+                className="btn bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 text-white"
               >
                 📊 View Round Stats
               </button>
@@ -733,7 +752,7 @@ export default function Leaderboard({ tournamentId }) {
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl p-6 mb-8">
+        <div className="card p-6 mb-8">
           <LeaderboardComponent game={game} />
         </div>
 
@@ -751,7 +770,7 @@ export default function Leaderboard({ tournamentId }) {
 
         {showRoundStats && <RoundStatsModal game={game} onClose={() => setShowRoundStats(false)} />}
 
-        <div className="text-center text-gray-500 dark:text-gray-400 text-sm">
+        <div className="text-center text-[var(--text-muted)] text-sm">
           Golf Tournament Tracker
         </div>
       </div>

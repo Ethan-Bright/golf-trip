@@ -22,15 +22,15 @@ export default function RoundStatsModal({ game, onClose }) {
   const displayedHoles = course?.holes?.slice(startIndex, endIndex) || [];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6 flex justify-between items-center z-10">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="card card-elevated max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-[var(--surface-card)] backdrop-blur border-b border-[var(--surface-card-border)] p-6 flex justify-between items-center z-10">
+          <h2 className="text-2xl font-bold text-[var(--text-strong)]">
             Round Stats - {game.name}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-3xl leading-none focus:outline-none focus:ring-2 focus:ring-green-500 rounded-lg p-1"
+            className="text-[var(--text-muted)] hover:text-[var(--text-strong)] text-3xl leading-none focus:outline-none rounded-lg p-1"
           >
             ×
           </button>
@@ -68,40 +68,40 @@ export default function RoundStatsModal({ game, onClose }) {
                 return (
                   <div
                     key={player.userId}
-                    className="bg-gray-50 dark:bg-gray-700/50 rounded-2xl p-4 border border-gray-200 dark:border-gray-600"
+                    className="rounded-2xl border border-[var(--surface-card-border)] bg-[var(--surface-muted)] p-4"
                   >
                     <div className="mb-4">
-                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                      <h3 className="text-xl font-bold text-[var(--text-strong)] mb-2">
                         {player.name}
                       </h3>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <div className="text-gray-600 dark:text-gray-400">Total Putts</div>
-                          <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                          <div className="text-[var(--text-muted)] text-xs uppercase tracking-wide">Total Putts</div>
+                          <div className="text-lg font-black text-brand-600 dark:text-brand-300">
                             {totalPutts}
                           </div>
                         </div>
                         <div>
-                          <div className="text-gray-600 dark:text-gray-400">Avg Putts/Hole</div>
-                          <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                          <div className="text-[var(--text-muted)] text-xs uppercase tracking-wide">Avg Putts/Hole</div>
+                          <div className="text-lg font-black text-brand-600 dark:text-brand-300">
                             {avgPutts}
                           </div>
                         </div>
                         <div>
-                          <div className="text-gray-600 dark:text-gray-400">FIR%</div>
-                          <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                          <div className="text-[var(--text-muted)] text-xs uppercase tracking-wide">FIR%</div>
+                          <div className="text-lg font-black text-brand-600 dark:text-brand-300">
                             {firPercentage}%
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                          <div className="text-xs text-[var(--text-muted)]">
                             ({firCount}/{holesPlayed})
                           </div>
                         </div>
                         <div>
-                          <div className="text-gray-600 dark:text-gray-400">GIR%</div>
-                          <div className="text-lg font-semibold text-gray-900 dark:text-white">
+                          <div className="text-[var(--text-muted)] text-xs uppercase tracking-wide">GIR%</div>
+                          <div className="text-lg font-black text-brand-600 dark:text-brand-300">
                             {girPercentage}%
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                          <div className="text-xs text-[var(--text-muted)]">
                             ({girCount}/{holesPlayed})
                           </div>
                         </div>
@@ -109,22 +109,22 @@ export default function RoundStatsModal({ game, onClose }) {
                     </div>
 
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
+                      <table className="w-full text-sm tabular-nums">
                         <thead>
-                          <tr className="border-b border-gray-300 dark:border-gray-600">
-                            <th className="text-left py-2 px-2 text-gray-700 dark:text-gray-300 font-semibold">
+                          <tr className="border-b border-[var(--surface-card-border)]">
+                            <th className="text-left py-2 px-2 text-[var(--text-muted)] font-semibold">
                               Hole
                             </th>
-                            <th className="text-center py-2 px-2 text-gray-700 dark:text-gray-300 font-semibold">
+                            <th className="text-center py-2 px-2 text-[var(--text-muted)] font-semibold">
                               Par
                             </th>
-                            <th className="text-center py-2 px-2 text-gray-700 dark:text-gray-300 font-semibold">
+                            <th className="text-center py-2 px-2 text-[var(--text-muted)] font-semibold">
                               FIR
                             </th>
-                            <th className="text-center py-2 px-2 text-gray-700 dark:text-gray-300 font-semibold">
+                            <th className="text-center py-2 px-2 text-[var(--text-muted)] font-semibold">
                               GIR
                             </th>
-                            <th className="text-center py-2 px-2 text-gray-700 dark:text-gray-300 font-semibold">
+                            <th className="text-center py-2 px-2 text-[var(--text-muted)] font-semibold">
                               Putts
                             </th>
                           </tr>
@@ -135,37 +135,37 @@ export default function RoundStatsModal({ game, onClose }) {
                             return (
                               <tr
                                 key={idx}
-                                className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                                className="border-b border-[var(--surface-card-border)] hover:bg-[var(--surface-muted)]"
                               >
-                                <td className="py-2 px-2 text-gray-900 dark:text-white font-medium">
+                                <td className="py-2 px-2 text-[var(--text-strong)] font-medium">
                                   {startIndex + idx + 1}
                                 </td>
-                                <td className="py-2 px-2 text-center text-gray-700 dark:text-gray-300">
+                                <td className="py-2 px-2 text-center text-[var(--text-muted)]">
                                   {hole.par}
                                 </td>
                                 <td className="py-2 px-2 text-center">
                                   {score?.fir === true ? (
-                                    <span className="text-green-600 dark:text-green-400 font-semibold">
+                                    <span className="text-brand-600 dark:text-brand-300 font-semibold">
                                       ✓
                                     </span>
                                   ) : score?.fir === false ? (
                                     <span className="text-red-600 dark:text-red-400">✗</span>
                                   ) : (
-                                    <span className="text-gray-400">-</span>
+                                    <span className="text-[var(--text-muted)]">-</span>
                                   )}
                                 </td>
                                 <td className="py-2 px-2 text-center">
                                   {score?.gir === true ? (
-                                    <span className="text-green-600 dark:text-green-400 font-semibold">
+                                    <span className="text-brand-600 dark:text-brand-300 font-semibold">
                                       ✓
                                     </span>
                                   ) : score?.gir === false ? (
                                     <span className="text-red-600 dark:text-red-400">✗</span>
                                   ) : (
-                                    <span className="text-gray-400">-</span>
+                                    <span className="text-[var(--text-muted)]">-</span>
                                   )}
                                 </td>
-                                <td className="py-2 px-2 text-center text-gray-900 dark:text-white">
+                                <td className="py-2 px-2 text-center text-[var(--text-strong)]">
                                   {score?.putts ?? "-"}
                                 </td>
                               </tr>
@@ -179,16 +179,16 @@ export default function RoundStatsModal({ game, onClose }) {
               })}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-600 dark:text-gray-400">
+            <div className="text-center py-8 text-[var(--text-muted)]">
               No players found
             </div>
           )}
         </div>
 
-        <div className="sticky bottom-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-6 flex justify-center">
+        <div className="sticky bottom-0 bg-[var(--surface-card)] backdrop-blur border-t border-[var(--surface-card-border)] p-6 flex justify-center">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl font-semibold hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+            className="btn btn-secondary"
           >
             Close
           </button>

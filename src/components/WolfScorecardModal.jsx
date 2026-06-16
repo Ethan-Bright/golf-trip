@@ -196,17 +196,17 @@ export default function WolfScorecardModal({ game, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
-      <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-blue-500 dark:border-blue-400 max-w-6xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto -webkit-overflow-scrolling-touch">
+      <div className="card card-elevated max-w-6xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white pr-3">
+          <h2 className="text-base sm:text-xl font-bold text-[var(--text-strong)] pr-3">
             {game.name} • Wolf Scorecard (Gross)
           </h2>
           <div className="flex items-center gap-2">
             <button
               onClick={handleShare}
               disabled={isSharing}
-              className="px-3 py-1.5 bg-green-600 dark:bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-700 dark:hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+              className="btn btn-primary btn-sm"
               title="Share scorecard"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -216,7 +216,7 @@ export default function WolfScorecardModal({ game, onClose }) {
             </button>
             <button
               onClick={onClose}
-              className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl sm:text-3xl leading-none flex-shrink-0"
+              className="text-[var(--text-muted)] hover:text-[var(--text-strong)] text-2xl sm:text-3xl leading-none flex-shrink-0"
             >
               ×
             </button>
@@ -224,17 +224,17 @@ export default function WolfScorecardModal({ game, onClose }) {
         </div>
 
         <div className="overflow-x-auto -mx-3 sm:mx-0" ref={scorecardRef}>
-          <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px]">
+          <table className="w-full border-collapse text-xs sm:text-sm min-w-[600px] bg-gray-900 text-white tabular-nums">
             <thead>
               <tr>
-                <th className="px-2 py-1 text-left align-bottom border-2 border-solid border-blue-500 dark:border-blue-400 rounded-tl-lg">
+                <th className="px-2 py-1 text-left align-bottom border-2 border-solid border-gray-700 rounded-tl-lg bg-gray-800 text-gray-300">
                   Hole
                 </th>
                 {displayPlayers.map((p, idx) => (
                   <th
                     key={p.userId}
-                    className={`px-2 py-1 text-center font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                      "border-blue-500 dark:border-blue-400 border-solid",
+                    className={`px-2 py-1 text-center font-semibold text-gray-100 bg-gray-800 ${buildColumnBorderClasses(
+                      "border-gray-700 border-solid",
                       idx,
                       displayPlayers.length,
                       { top: true, bottom: false }
@@ -244,8 +244,8 @@ export default function WolfScorecardModal({ game, onClose }) {
                   </th>
                 ))}
                 <th
-                  className={`px-2 py-1 text-center font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                    "border-blue-500 dark:border-blue-400 border-solid",
+                  className={`px-2 py-1 text-center font-semibold text-gray-100 bg-gray-800 ${buildColumnBorderClasses(
+                    "border-gray-700 border-solid",
                     displayPlayers.length,
                     displayPlayers.length + 1,
                     { top: true, bottom: false }
@@ -425,10 +425,10 @@ export default function WolfScorecardModal({ game, onClose }) {
                   return "";
                 };
                 return (
-                  <tr key={i} className="border-t border-blue-500 dark:border-blue-400">
+                  <tr key={i} className="border-t border-gray-700">
                     <td
-                      className={`px-2 py-1 font-medium text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                        "border-blue-500 dark:border-blue-400 border-solid",
+                      className={`px-2 py-1 font-medium text-gray-100 ${buildColumnBorderClasses(
+                        "border-gray-700 border-solid",
                         0,
                         1,
                         {
@@ -440,15 +440,15 @@ export default function WolfScorecardModal({ game, onClose }) {
                     >
                       <div>
                         <span className="font-bold">{i + 1}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                        <span className="text-xs text-gray-400 ml-1">
                           Par {hole.par ?? "?"}
                         </span>
                         {info.wolfId && (
-                          <span className="ml-2 text-[10px] font-semibold text-green-700 dark:text-green-300">
+                          <span className="ml-2 text-[10px] font-semibold text-emerald-400">
                             Wolf: {getPlayerById(info.wolfId)?.name || "-"}
                           </span>
                         )}
-                        <div className="text-[10px] mt-0.5 text-gray-600 dark:text-gray-300">
+                        <div className="text-[10px] mt-0.5 text-gray-400">
                           Choice:{" "}
                           {info.decision === "blind"
                             ? "Blind Lone Wolf (+6pts)"
@@ -492,8 +492,8 @@ export default function WolfScorecardModal({ game, onClose }) {
                         return (
                           <td
                             key={`${p.userId}-${i}`}
-                            className={`px-2 py-1 text-center text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                              "border-blue-500 dark:border-blue-400 border-solid",
+                            className={`px-2 py-1 text-center text-gray-100 ${buildColumnBorderClasses(
+                              "border-gray-700 border-solid",
                               idx,
                               displayPlayers.length,
                               {
@@ -503,18 +503,18 @@ export default function WolfScorecardModal({ game, onClose }) {
                                   displayIndex === holeCount - 1 &&
                                   idx === displayPlayers.length - 1,
                               }
-                            )} ${borderLeft ? "border-l-4 border-blue-300 dark:border-blue-700" : ""} ${borderRight ? "border-r-4 border-blue-300 dark:border-blue-700" : ""} ${
+                            )} ${borderLeft ? "border-l-4 border-emerald-700" : ""} ${borderRight ? "border-r-4 border-emerald-700" : ""} ${
                               isTeam
-                                ? "bg-green-50 dark:bg-green-900/20"
+                                ? "bg-emerald-500/10"
                                 : isOpp
-                                ? "bg-gray-50 dark:bg-gray-800/40"
+                                ? "bg-gray-800/40"
                                 : ""
                             }`}
                           >
                             <div
                               className={`inline-block px-2 py-0.5 rounded ${
                                 isHighlight
-                                  ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 font-bold"
+                                  ? "bg-emerald-500/20 text-emerald-400 font-bold"
                                   : ""
                               }`}
                             >
@@ -525,8 +525,8 @@ export default function WolfScorecardModal({ game, onClose }) {
                       });
                     })()}
                     <td
-                      className={`px-2 py-1 text-center text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                        "border-blue-500 dark:border-blue-400 border-solid",
+                      className={`px-2 py-1 text-center text-gray-100 ${buildColumnBorderClasses(
+                        "border-gray-700 border-solid",
                         displayPlayers.length,
                         displayPlayers.length + 1,
                         {
@@ -538,7 +538,7 @@ export default function WolfScorecardModal({ game, onClose }) {
                       )}`}
                       title={getPointsTooltip() || undefined}
                     >
-                      <div className="text-xs font-semibold text-green-700 dark:text-green-300">
+                      <div className="text-xs font-semibold text-emerald-400">
                         {renderPoints()}
                       </div>
                     </td>
@@ -547,10 +547,10 @@ export default function WolfScorecardModal({ game, onClose }) {
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t-2 border-blue-500 dark:border-blue-400 bg-gray-100 dark:bg-gray-800">
+              <tr className="border-t-2 border-gray-700 bg-gray-800">
                 <td
-                  className={`px-2 py-3 font-bold text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                    "border-blue-500 dark:border-blue-400 border-solid",
+                  className={`px-2 py-3 font-bold text-gray-100 ${buildColumnBorderClasses(
+                    "border-gray-700 border-solid",
                     0,
                     1,
                     {
@@ -576,8 +576,8 @@ export default function WolfScorecardModal({ game, onClose }) {
                   return (
                     <td
                       key={`total-${player.userId}`}
-                      className={`px-2 py-3 text-center font-semibold text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                        "border-blue-500 dark:border-blue-400 border-solid",
+                      className={`px-2 py-3 text-center font-semibold text-gray-100 ${buildColumnBorderClasses(
+                        "border-gray-700 border-solid",
                         idx,
                         displayPlayers.length,
                         {
@@ -589,7 +589,7 @@ export default function WolfScorecardModal({ game, onClose }) {
                     >
                       <div className="space-y-0.5">
                         <div className="text-sm">{grossTotal > 0 ? grossTotal : "—"}</div>
-                        <div className="text-xs font-bold text-green-600 dark:text-green-400">
+                        <div className="text-xs font-bold text-emerald-400">
                           {pointsTotal} pts
                         </div>
                       </div>
@@ -597,8 +597,8 @@ export default function WolfScorecardModal({ game, onClose }) {
                   );
                 })}
                 <td
-                  className={`px-2 py-3 text-center text-gray-900 dark:text-white ${buildColumnBorderClasses(
-                    "border-blue-500 dark:border-blue-400 border-solid",
+                  className={`px-2 py-3 text-center text-gray-100 ${buildColumnBorderClasses(
+                    "border-gray-700 border-solid",
                     displayPlayers.length,
                     displayPlayers.length + 1,
                     {
@@ -618,7 +618,7 @@ export default function WolfScorecardModal({ game, onClose }) {
         <div className="mt-4 sm:mt-6 flex justify-center px-3 sm:px-0">
           <button
             onClick={onClose}
-            className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl sm:rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 min-h-[44px]"
+            className="btn btn-secondary w-full sm:w-auto"
           >
             Close
           </button>

@@ -58,13 +58,13 @@ export default function HowToUse() {
         <div className="flex gap-2">
           <button
             onClick={() => navigate(-1)}
-            className="px-4 py-2 rounded-2xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+            className="btn btn-secondary btn-sm"
           >
             Go Back
           </button>
           <button
             onClick={() => navigate("/dashboard")}
-            className="px-5 py-2 rounded-2xl bg-green-600 text-white font-semibold shadow-lg hover:bg-green-700 transition"
+            className="btn btn-primary btn-sm"
           >
             Dashboard
           </button>
@@ -75,13 +75,13 @@ export default function HowToUse() {
         {flowSteps.map(({ title, description, tips }) => (
           <article
             key={title}
-            className="mobile-card p-6 border border-green-100/60 dark:border-gray-700/70"
+            className="mobile-card p-6"
           >
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-xl font-bold text-[var(--text-strong)]">
               {title}
             </h2>
-            <p className="text-gray-700 dark:text-gray-300 mt-2">{description}</p>
-            <ul className="mt-4 text-sm text-gray-600 dark:text-gray-400 space-y-1 list-disc pl-5">
+            <p className="text-[var(--text-muted)] mt-2">{description}</p>
+            <ul className="mt-4 text-sm text-[var(--text-muted)] space-y-1 list-disc pl-5">
               {tips.map((tip) => (
                 <li key={tip}>{tip}</li>
               ))}
@@ -90,11 +90,11 @@ export default function HowToUse() {
         ))}
       </section>
 
-      <section className="mobile-card p-6 border border-dashed border-green-200 dark:border-gray-700">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+      <section className="mobile-card p-6">
+        <h3 className="text-lg font-semibold text-[var(--text-strong)] mb-3">
           Quick Help
         </h3>
-        <ul className="space-y-2 text-gray-700 dark:text-gray-300 list-disc pl-5">
+        <ul className="space-y-2 text-[var(--text-muted)] list-disc pl-5">
           {quickHelp.map((item) => (
             <li key={item}>{item}</li>
           ))}
@@ -102,13 +102,13 @@ export default function HowToUse() {
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             onClick={() => navigate("/submit-suggestion")}
-            className="px-5 py-2 rounded-2xl bg-yellow-500 text-white font-semibold shadow hover:bg-yellow-600 transition"
+            className="btn btn-accent"
           >
             Submit a Suggestion
           </button>
           <button
             onClick={() => navigate("/scores")}
-            className="px-5 py-2 rounded-2xl border border-green-500 text-green-600 dark:text-green-300 font-semibold hover:bg-green-50 dark:hover:bg-green-900/20 transition"
+            className="btn btn-secondary"
           >
             Practice Entering Scores
           </button>

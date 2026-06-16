@@ -37,8 +37,21 @@ describe("ThemeProvider", () => {
     document.documentElement.classList.remove("dark");
   });
 
-  it("respects system preference when no stored value", () => {
+  it("defaults to dark when no stored value, regardless of system preference", () => {
     window.matchMedia = mockMatchMedia(false);
+
+    render(
+      <ThemeProvider>
+        <ThemeToggleTester />
+      </ThemeProvider>
+    );
+
+    expect(screen.getByRole("button")).toHaveTextContent("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+  });
+
+  it("respects a stored light preference over the dark default", () => {
+    localStorage.setItem("golfTripTheme", "light");
 
     render(
       <ThemeProvider>
@@ -50,9 +63,8 @@ describe("ThemeProvider", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(false);
   });
 
-  it("toggles between light and dark modes and persists choice", async () => {
+  it("toggles between dark and light modes and persists choice", async () => {
     const user = userEvent.setup();
-    window.matchMedia = mockMatchMedia(false);
 
     render(
       <ThemeProvider>
@@ -60,18 +72,19 @@ describe("ThemeProvider", () => {
       </ThemeProvider>
     );
 
-    const [toggleButton] = screen.getAllByRole("button", { name: /^light$/i });
-    await user.click(toggleButton);
-
-    expect(toggleButton).toHaveTextContent("dark");
-    expect(localStorage.getItem("golfTripTheme")).toBe("dark");
-    expect(document.documentElement.classList.contains("dark")).toBe(true);
-
+    // Dark is the default starting state.
+    const [toggleButton] = screen.getAllByRole("button", { name: /^dark$/i });
     await user.click(toggleButton);
 
     expect(toggleButton).toHaveTextContent("light");
     expect(localStorage.getItem("golfTripTheme")).toBe("light");
     expect(document.documentElement.classList.contains("dark")).toBe(false);
+
+    await user.click(toggleButton);
+
+    expect(toggleButton).toHaveTextContent("dark");
+    expect(localStorage.getItem("golfTripTheme")).toBe("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
 });
 

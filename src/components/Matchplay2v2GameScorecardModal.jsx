@@ -9,18 +9,18 @@ export default function Matchplay2v2GameScorecardModal({ game, teamsData, onClos
 
   if (!players || players.length === 0 || !teamsData || teamsData.length === 0) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div className="bg-gray-50 dark:bg-gray-700 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4 text-center">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div className="card card-elevated max-w-md w-full p-6 overflow-y-auto max-h-[90vh]">
+          <h2 className="text-xl font-bold text-[var(--text-strong)] mb-4 text-center">
             {game.name}
           </h2>
-          <p className="text-center text-gray-600 dark:text-gray-300 mb-4">
+          <p className="text-center text-[var(--text-muted)] mb-4">
             {!teamsData || teamsData.length === 0 ? "Not enough teams found for this game." : "No players found for this game."}
           </p>
           <div className="mt-6 flex justify-center">
             <button
               onClick={onClose}
-              className="px-6 py-2 bg-green-600 dark:bg-green-500 text-white rounded-2xl text-sm font-medium"
+              className="btn btn-secondary btn-sm"
             >
               Close
             </button>
@@ -78,15 +78,15 @@ export default function Matchplay2v2GameScorecardModal({ game, teamsData, onClos
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
-      <div className="bg-gray-50 dark:bg-gray-700 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-600 max-w-4xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto">
+      <div className="card card-elevated max-w-4xl w-full p-3 sm:p-6 overflow-y-auto max-h-[95vh]">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <h2 className="text-base sm:text-xl font-bold text-gray-900 dark:text-white pr-3">
+          <h2 className="text-base sm:text-xl font-bold text-[var(--text-strong)] pr-3">
             {game.name} - Game Scorecard
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl sm:text-3xl leading-none flex-shrink-0"
+            className="text-[var(--text-muted)] hover:text-[var(--text-strong)] text-2xl sm:text-3xl leading-none flex-shrink-0"
           >
             ×
           </button>
@@ -94,15 +94,15 @@ export default function Matchplay2v2GameScorecardModal({ game, teamsData, onClos
 
         {/* Responsive Table */}
         <div className="overflow-x-auto -mx-3 sm:mx-0">
-          <table className="w-full border-separate border-spacing-1 text-xs sm:text-sm min-w-[500px]">
+          <table className="w-full border-separate border-spacing-1 text-xs sm:text-sm min-w-[500px] bg-gray-900 text-white tabular-nums rounded-xl">
             <thead>
               <tr>
-                <th className="px-1 py-2 text-center bg-gray-100 dark:bg-gray-800 w-12">Hole</th>
-                {course && <th className="px-2 py-2 text-center bg-gray-100 dark:bg-gray-800">Par</th>}
+                <th className="px-1 py-2 text-center bg-gray-800 text-gray-300 w-12">Hole</th>
+                {course && <th className="px-2 py-2 text-center bg-gray-800 text-gray-300">Par</th>}
                 {teamsData.map((team) => (
                   <th
                     key={team.id}
-                    className="px-2 py-2 text-center font-semibold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800"
+                    className="px-2 py-2 text-center font-semibold text-gray-100 bg-gray-800"
                   >
                     {team.name || team.displayName}
                   </th>
@@ -119,13 +119,13 @@ export default function Matchplay2v2GameScorecardModal({ game, teamsData, onClos
                 return (
                   <tr
                     key={displayIndex}
-                    className="border-t border-gray-200 dark:border-gray-600"
+                    className="border-t border-gray-700"
                   >
-                    <td className="px-1 py-2 text-center font-medium text-gray-900 dark:text-white">
+                    <td className="px-1 py-2 text-center font-medium text-gray-100">
                       {holeIndex + 1}
                     </td>
                     {course && (
-                      <td className="px-2 py-2 text-center text-gray-600 dark:text-gray-300">
+                      <td className="px-2 py-2 text-center text-gray-300">
                         {par}
                       </td>
                     )}
@@ -138,7 +138,7 @@ export default function Matchplay2v2GameScorecardModal({ game, teamsData, onClos
                           key={`${team.id}-${holeIndex}`}
                           className={`px-2 py-2 text-center ${
                             isWinner
-                              ? "bg-green-300 dark:bg-green-800/70 font-bold rounded-xl border-2 border-green-600 dark:border-green-400 shadow-md"
+                              ? "bg-emerald-500/20 text-emerald-300 font-bold rounded-xl border-2 border-emerald-500 shadow-md"
                               : ""
                           }`}
                         >
@@ -146,7 +146,7 @@ export default function Matchplay2v2GameScorecardModal({ game, teamsData, onClos
                             <div>
                               <div>{teamScore.score}</div>
                               {isWinner && (
-                                <div className="text-xs text-green-800 dark:text-green-200 mt-1">
+                                <div className="text-xs text-emerald-300 mt-1">
                                   {teamScore.playerName}
                                 </div>
                               )}
@@ -167,7 +167,7 @@ export default function Matchplay2v2GameScorecardModal({ game, teamsData, onClos
         <div className="mt-4 sm:mt-6 flex justify-center px-3 sm:px-0">
           <button
             onClick={onClose}
-            className="w-full sm:w-auto px-6 py-3 sm:py-2 bg-green-600 dark:bg-green-500 text-white rounded-xl sm:rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-green-400 dark:focus:ring-offset-gray-800 min-h-[44px]"
+            className="btn btn-secondary w-full sm:w-auto"
           >
             Close
           </button>

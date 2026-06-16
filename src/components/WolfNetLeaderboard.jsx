@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { normalizeMatchFormat } from "../lib/matchFormats";
 import { db } from "../firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import WolfNetScorecardModal from "./WolfNetScorecardModal";
 import { strokesReceivedForHole } from "../lib/scoring";
 
@@ -20,16 +20,25 @@ export default function WolfNetLeaderboard({ game }) {
 
   useEffect(() => {
     const loadUsers = async () => {
-      const usersSnap = await getDocs(collection(db, "users"));
+      // Only fetch the users actually playing this game, not the whole collection.
+      const ids = Array.from(
+        new Set((players || []).map((player) => player.userId).filter(Boolean))
+      );
+      if (ids.length === 0) {
+        setUsers([]);
+        return;
+      }
+      const userDocs = await Promise.all(
+        ids.map((id) => getDoc(doc(db, "users", id)))
+      );
       setUsers(
-        usersSnap.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
+        userDocs
+          .filter((snap) => snap.exists())
+          .map((snap) => ({ id: snap.id, ...snap.data() }))
       );
     };
     loadUsers();
-  }, []);
+  }, [players]);
 
   const userMap = useMemo(() => {
     const m = new Map();
@@ -208,7 +217,7 @@ export default function WolfNetLeaderboard({ game }) {
 
   if (normalizeMatchFormat(game?.matchFormat) !== "wolf-handicap") {
     return (
-      <div className="text-center text-gray-600 dark:text-gray-300">
+      <div className="text-center text-[var(--text-muted)]">
         Invalid format for Wolf Net Leaderboard.
       </div>
     );
@@ -217,10 +226,10 @@ export default function WolfNetLeaderboard({ game }) {
   if (!exactlyThree) {
     return (
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white text-center mb-4">
+        <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-strong)] text-center mb-4">
           Wolf Leaderboard (With Handicaps)
         </h1>
-        <p className="text-center text-yellow-700 dark:text-yellow-300">
+        <p className="text-center text-yellow-600 dark:text-yellow-300">
           Wolf requires exactly 3 players. Waiting for others to join.
         </p>
       </div>
@@ -229,11 +238,11 @@ export default function WolfNetLeaderboard({ game }) {
 
   return (
     <div>
-      <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white text-center mb-6">
+      <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-strong)] text-center mb-6">
         Wolf Leaderboard (With Handicaps)
       </h1>
       {rows.length === 0 ? (
-        <p className="text-center text-gray-600 dark:text-gray-300 text-sm sm:text-base">
+        <p className="text-center text-[var(--text-muted)] text-sm sm:text-base">
           No players found.
         </p>
       ) : (
@@ -241,14 +250,18 @@ export default function WolfNetLeaderboard({ game }) {
           {rows.map((row, index) => (
             <div
               key={row.userId}
-              className="p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-2xl border border-gray-200 dark:border-gray-600"
+              className={`p-3 sm:p-4 rounded-2xl border transition-colors hover:bg-brand-500/5 ${
+                index === 0
+                  ? "bg-brand-500/10 border-brand-500/40"
+                  : "bg-[var(--surface-muted)] border-[var(--surface-card-border)]"
+              }`}
             >
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  <div className="w-8 h-8 bg-green-600 dark:bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0">
+                  <div className="w-8 h-8 bg-brand-500 text-white rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 tabular-nums">
                     {index + 1}
                   </div>
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-300 dark:bg-gray-600 flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full overflow-hidden bg-[var(--surface-muted)] flex-shrink-0">
                     {row.profilePictureUrl ? (
                       <img
                         src={row.profilePictureUrl}
@@ -256,30 +269,30 @@ export default function WolfNetLeaderboard({ game }) {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-600 dark:text-gray-300 text-sm font-medium">
+                      <div className="w-full h-full flex items-center justify-center text-[var(--text-muted)] text-sm font-medium">
                         {row.name.charAt(0).toUpperCase()}
                       </div>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base truncate">
+                    <h3 className="font-semibold text-[var(--text-strong)] text-sm sm:text-base truncate">
                       {row.name}
                     </h3>
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-xs sm:text-sm text-[var(--text-muted)]">
                     {row.isRoundComplete ? "Total strokes" : "Current strokes"}: {row.totalStrokes}
                   </p>
-                  <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-xs sm:text-sm text-[var(--text-muted)]">
                     {row.isRoundComplete ? "Completed Match" : `Thru ${row.thru}`}
                   </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-3 w-full sm:w-auto">
-                  <span className="text-green-700 dark:text-green-300 font-bold text-lg sm:text-xl">
+                  <span className="text-brand-600 dark:text-brand-300 font-bold text-lg sm:text-xl tabular-nums">
                     {row.total} pts
                   </span>
                   <button
                     onClick={() => openModal(row)}
-                    className="px-3 py-2 text-sm bg-green-600 dark:bg-green-500 text-white rounded-xl flex-1 sm:flex-none whitespace-nowrap"
+                    className="btn btn-primary btn-sm flex-1 sm:flex-none whitespace-nowrap"
                   >
                     View Scores
                   </button>

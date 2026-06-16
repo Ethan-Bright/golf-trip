@@ -8,7 +8,8 @@ const getInitialScheme = () => {
   if (stored) {
     return stored === "dark";
   }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  // Modern revamp ships dark-first; users can still toggle to light.
+  return true;
 };
 
 export function ThemeProvider({ children }) {
@@ -20,18 +21,6 @@ export function ThemeProvider({ children }) {
     root.classList.toggle("dark", isDark);
     localStorage.setItem("golfTripTheme", isDark ? "dark" : "light");
   }, [isDark]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleChange = (event) => {
-      const stored = localStorage.getItem("golfTripTheme");
-      if (stored) return;
-      setIsDark(event.matches);
-    };
-    media.addEventListener("change", handleChange);
-    return () => media.removeEventListener("change", handleChange);
-  }, []);
 
   const toggleTheme = () => {
     setIsDark((prev) => {
