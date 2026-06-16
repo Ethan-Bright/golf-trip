@@ -4,6 +4,8 @@ import {
   Routes,
   Route,
   Navigate,
+  useNavigate,
+  useSearchParams,
 } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
@@ -27,6 +29,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import HowToUse from "./pages/HowToUse";
 import SubmitSuggestion from "./pages/SubmitSuggestion";
 import InviteFriend from "./pages/InviteFriend";
+import JoinGame from "./pages/JoinGame";
 import MobileNav from "./components/layout/MobileNav";
 import PWARefreshControl from "./components/PWARefreshControl";
 import InstallPrompt from "./components/InstallPrompt";
@@ -38,18 +41,29 @@ function PrivateRoute({ children }) {
   return children;
 }
 
-function App() {
+function InviteGameRedirect() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const inviteGameId = searchParams.get("inviteGame");
+
+  React.useEffect(() => {
+    if (inviteGameId) {
+      navigate(`/join-game/${inviteGameId}`, { replace: true });
+    }
+  }, [inviteGameId, navigate]);
+
+  return null;
+}
+
+function AppRoutes() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <TournamentProvider>
-          <Router>
-            <ErrorBoundary>
-              <>
-                <Routes>
+    <>
+      <InviteGameRedirect />
+      <Routes>
                   <Route path="/" element={<Landing />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
+                  <Route path="/join-game/:gameId" element={<JoinGame />} />
                   <Route
                     path="/scores"
                     element={
@@ -142,10 +156,21 @@ function App() {
                   />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
-                <MobileNav />
-                <PWARefreshControl />
-                <InstallPrompt />
-              </>
+      <MobileNav />
+      <PWARefreshControl />
+      <InstallPrompt />
+    </>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <TournamentProvider>
+          <Router>
+            <ErrorBoundary>
+              <AppRoutes />
             </ErrorBoundary>
           </Router>
         </TournamentProvider>

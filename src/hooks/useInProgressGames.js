@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
+import { getForceJoinGameId } from "../lib/gameInvite";
 
 export default function useInProgressGames({
   currentTournament,
@@ -45,6 +46,7 @@ export default function useInProgressGames({
     if (
       incompleteForUser &&
       !gameId &&
+      !getForceJoinGameId() &&
       onAutoResume &&
       resumedGameId !== incompleteForUser.id
     ) {

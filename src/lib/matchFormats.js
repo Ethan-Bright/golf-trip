@@ -122,6 +122,49 @@ export function getAllMatchFormatLabels() {
   return MATCH_FORMAT_SELECT_OPTIONS.map((option) => option.label);
 }
 
+/** Max roster size for formats with a fixed player count; null = no cap. */
+export const MATCH_FORMAT_PLAYER_LIMITS = {
+  "1v1matchplayhandicaps": 2,
+  "1v1matchplaynohandicap": 2,
+  "2v2matchplayhandicaps": 4,
+  "2v2matchplaynohandicap": 4,
+  wolf: 3,
+  "wolf-handicap": 3,
+};
+
+export function getMatchFormatPlayerLimit(format) {
+  const normalized = normalizeMatchFormat(format);
+  return MATCH_FORMAT_PLAYER_LIMITS[normalized] ?? null;
+}
+
+export function getGamePlayerCapacity(game) {
+  const max = getMatchFormatPlayerLimit(game?.matchFormat);
+  const current = Array.isArray(game?.players) ? game.players.length : 0;
+  const isFull = max !== null && current >= max;
+  const spotsRemaining = max !== null ? Math.max(0, max - current) : null;
+
+  return { current, max, isFull, spotsRemaining };
+}
+
+export function formatPlayerCapacityLabel(game) {
+  const { current, max } = getGamePlayerCapacity(game);
+  if (max === null) {
+    return `${current} player${current === 1 ? "" : "s"} joined`;
+  }
+  return `${current}/${max} players`;
+}
+
+export function canJoinGame(game) {
+  if (!game || game.status !== "inProgress") return false;
+  return !getGamePlayerCapacity(game).isFull;
+}
+
+export function getGameFullMessage(game) {
+  const { max } = getGamePlayerCapacity(game);
+  if (max === null) return "This game is no longer accepting players.";
+  return `This game is full (${max} players max).`;
+}
+
 
 
 

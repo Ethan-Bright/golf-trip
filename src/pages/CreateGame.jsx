@@ -21,6 +21,7 @@ import {
   getMatchFormatLabel,
 } from "../lib/matchFormats";
 import SearchableCourseDropdown from "../components/SearchableCourseDropdown";
+import ShareGameButton from "../components/ShareGameButton";
 import PageShell from "../components/layout/PageShell";
 
 function useIncompleteGameChecker(userId, currentTournament) {
@@ -102,6 +103,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
   const [isLoadingUserGames, setIsLoadingUserGames] = useState(false);
   const [editingGameId, setEditingGameId] = useState(null);
   const [isFunGame, setIsFunGame] = useState(false);
+  const [createdGame, setCreatedGame] = useState(null);
   const { incompleteGame, isChecking, refetchIncompleteGame } = useIncompleteGameChecker(
     userId,
     currentTournament
@@ -455,13 +457,12 @@ export default function CreateGame({ userId, user, courses = [] }) {
         updatedAt: serverTimestamp(),
       };
 
-      await addDoc(collection(db, "games"), gamePayload);
+      const docRef = await addDoc(collection(db, "games"), gamePayload);
+      const newGame = { id: docRef.id, ...gamePayload };
       await fetchUserGames();
       await refetchIncompleteGame();
 
-      showSuccess("Game created! Redirecting you to enter scores.", "Success");
-
-      navigate("/scores", { replace: true });
+      setCreatedGame(newGame);
     } catch (error) {
       console.error("Error creating game:", error);
       showError("Failed to create game. Please try again.", "Error");
@@ -750,7 +751,9 @@ export default function CreateGame({ userId, user, courses = [] }) {
                       Last updated: {formatUpdatedAt(game.updatedAt)}
                     </p>
                   </div>
-                  <div className="flex gap-2 w-full sm:w-auto">
+                  <div className="flex flex-col gap-2 w-full sm:w-auto">
+                    <ShareGameButton game={game} variant="primary" label="Invite" showCopy={false} />
+                    <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => handleEditGame(game)}
@@ -767,6 +770,7 @@ export default function CreateGame({ userId, user, courses = [] }) {
                     >
                       Delete
                     </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -813,6 +817,47 @@ export default function CreateGame({ userId, user, courses = [] }) {
       </PageShell>
 
       <Modal {...modal} onClose={hideModal} />
+
+      {createdGame && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="card card-elevated max-w-md w-full p-6 space-y-5">
+            <div>
+              <h2 className="text-2xl font-bold text-[var(--text-strong)]">
+                Game created!
+              </h2>
+              <p className="text-[var(--text-muted)] mt-2">
+                Invite your playing partners on WhatsApp or any messaging app.
+                They&apos;ll join the tournament and game automatically.
+              </p>
+            </div>
+            <ShareGameButton
+              game={createdGame}
+              variant="primary"
+              label="Share on WhatsApp"
+              className="w-full"
+            />
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setCreatedGame(null);
+                  navigate("/scores", { replace: true });
+                }}
+                className="btn btn-primary flex-1"
+              >
+                Enter scores
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreatedGame(null)}
+                className="btn btn-secondary flex-1"
+              >
+                Stay here
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Format Help Modal */}
       {showFormatHelp && (

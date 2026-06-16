@@ -15,11 +15,18 @@ import useModal from "../hooks/useModal";
 import useInProgressGames from "../hooks/useInProgressGames";
 import InProgressGamesList from "../components/scoreEntry/InProgressGamesList";
 import ScorecardGrid from "../components/scoreEntry/ScorecardGrid";
+import ShareGameButton from "../components/ShareGameButton";
 import { useTournament } from "../context/TournamentContext";
 import {
   getMatchFormatLabel,
   normalizeMatchFormat,
+  canJoinGame,
+  getGameFullMessage,
 } from "../lib/matchFormats";
+import {
+  clearForceJoinGameId,
+  getForceJoinGameId,
+} from "../lib/gameInvite";
 import { strokesReceivedForHole } from "../lib/scoring";
 import {
   fetchTeamsForTournament,
@@ -55,6 +62,11 @@ export default function EnterScore({ userId, user }) {
   const saveInFlightRef = useRef(false); // a save is currently writing
   const pendingSaveRef = useRef(null); // queued save (auto flag) while one is in flight
   const wolfOrderWriteRef = useRef(false); // prevents duplicate wolfOrder writes
+
+  const normalizedFormat = normalizeMatchFormat(matchFormat);
+  const isWolfFormat =
+    normalizedFormat === "wolf" || normalizedFormat === "wolf-handicap";
+  const isWolfHandicapFormat = normalizedFormat === "wolf-handicap";
 
   const sanitizeWolfDecisions = useCallback(
     (decisions, length) => {
@@ -250,6 +262,13 @@ export default function EnterScore({ userId, user }) {
       showError("This game is missing course data and can't be joined.", "Error");
       return;
     }
+
+    const alreadyInGame = game.players?.some((p) => p.userId === userId);
+    if (!alreadyInGame && !canJoinGame(game)) {
+      showError(getGameFullMessage(game), "Game Full");
+      return;
+    }
+
     const initialScores = game.course.holes.map(() => ({
       gross: null,
       net: null,
@@ -369,10 +388,18 @@ export default function EnterScore({ userId, user }) {
     onAutoResume: joinGame,
   });
 
-  // --- Wolf helpers ---
-  const normalizedFormat = normalizeMatchFormat(matchFormat);
-  const isWolfFormat = normalizedFormat === "wolf" || normalizedFormat === "wolf-handicap";
-  const isWolfHandicapFormat = normalizedFormat === "wolf-handicap";
+  // After accepting a game invite, open that specific game (not another in-progress round).
+  useEffect(() => {
+    const forcedGameId = getForceJoinGameId();
+    if (!forcedGameId || gameId || isLoadingGames) return;
+
+    const forcedGame = inProgressGames.find((g) => g.id === forcedGameId);
+    if (forcedGame) {
+      clearForceJoinGameId();
+      joinGame(forcedGame);
+    }
+  }, [gameId, inProgressGames, isLoadingGames, joinGame]);
+
   const totalHolesInGame = holeCount || selectedCourse?.holes?.length || 18;
   const startIndex = useMemo(
     () => (nineType === "back" ? 9 : 0),
@@ -964,6 +991,7 @@ export default function EnterScore({ userId, user }) {
                 games={inProgressGames}
                 onJoinGame={joinGame}
                 isGameIncompleteForUser={isGameIncompleteForUser}
+                currentUserId={userId}
               />
             </div>
           )}
@@ -1041,6 +1069,26 @@ export default function EnterScore({ userId, user }) {
                     </span>
                   </>
                 )}
+              </div>
+
+              <div className="flex justify-center mb-4 sm:mb-6">
+                <ShareGameButton
+                  game={{
+                    id: gameId,
+                    name: gameName,
+                    course: selectedCourse,
+                    matchFormat,
+                    holeCount,
+                    nineType,
+                    startingHole,
+                    players: gamePlayers,
+                    tournamentId: currentTournament,
+                    createdBy: userId,
+                  }}
+                  label="Invite players"
+                  variant="secondary"
+                  className="justify-center"
+                />
               </div>
 
               <ScorecardGrid

@@ -1,10 +1,16 @@
 import React from "react";
-import { getMatchFormatLabel } from "../../lib/matchFormats";
+import {
+  canJoinGame,
+  formatPlayerCapacityLabel,
+  getMatchFormatLabel,
+} from "../../lib/matchFormats";
+import ShareGameButton from "../ShareGameButton";
 
 export default function InProgressGamesList({
   games,
   onJoinGame,
   isGameIncompleteForUser,
+  currentUserId,
 }) {
   if (!games || games.length === 0) {
     return (
@@ -18,6 +24,8 @@ export default function InProgressGamesList({
     <div className="max-h-64 sm:max-h-72 overflow-y-auto space-y-2">
       {games.map((game) => {
         const incompleteForUser = isGameIncompleteForUser(game);
+        const alreadyJoined = game.players?.some((p) => p.userId === currentUserId);
+        const joinable = alreadyJoined || canJoinGame(game);
         return (
           <div
             key={game.id}
@@ -37,19 +45,39 @@ export default function InProgressGamesList({
                   Format: {getMatchFormatLabel(game.matchFormat)}
                 </span>
               )}
+              <span className="text-sm text-[var(--text-muted)]">
+                {formatPlayerCapacityLabel(game)}
+              </span>
+              {!joinable && (
+                <span className="badge badge-muted mt-1 self-center sm:self-start">
+                  Full
+                </span>
+              )}
               {incompleteForUser && (
                 <span className="badge badge-muted mt-1 self-center sm:self-start">
                   Incomplete for you
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => onJoinGame(game)}
-              className="btn btn-primary btn-sm w-full sm:w-auto"
-            >
-              {incompleteForUser ? "Resume" : "Join"}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              {(game.createdBy === currentUserId ||
+                game.managerIds?.includes(currentUserId)) && (
+                <ShareGameButton
+                  game={game}
+                  label="Invite"
+                  showCopy={false}
+                  className="w-full sm:w-auto"
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => onJoinGame(game)}
+                disabled={!joinable}
+                className="btn btn-primary btn-sm w-full sm:w-auto disabled:opacity-50"
+              >
+                {!joinable ? "Full" : incompleteForUser ? "Resume" : "Join"}
+              </button>
+            </div>
           </div>
         );
       })}
