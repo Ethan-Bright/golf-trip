@@ -328,13 +328,18 @@ export default function EnterScore({ userId, user }) {
       setWolfHoles(
         Array.isArray(gameData.wolfHoles) ? gameData.wolfHoles : null
       );
+      const joinPlayers = gameData.players || [];
+      const allowedUserIds = new Set(joinPlayers.map((p) => p.userId));
+      const rawWolfDecisions = Array.isArray(gameData.wolfDecisions)
+        ? gameData.wolfDecisions
+        : Array(holeLen).fill(null);
       setWolfDecisions(
-        sanitizeWolfDecisions(
-          Array.isArray(gameData.wolfDecisions)
-            ? gameData.wolfDecisions
-            : Array(holeLen).fill(null),
-          holeLen
-        )
+        Array.from({ length: holeLen }, (_, i) => {
+          const v = rawWolfDecisions[i];
+          if (v === "lone" || v === "blind") return v;
+          if (typeof v === "string" && allowedUserIds.has(v)) return v;
+          return null;
+        })
       );
       setIsFunGame(Boolean(gameData.isFunGame));
       setSelectedCourse(game.course);
@@ -369,7 +374,6 @@ export default function EnterScore({ userId, user }) {
   }, [
     deriveTrackStatsPreference,
     deriveTrackStatsLockState,
-    sanitizeWolfDecisions,
     showError,
     user?.displayName,
     user?.handicap,
@@ -947,7 +951,7 @@ export default function EnterScore({ userId, user }) {
             </button>
           </div>
 
-          {isLoadingGames && (
+          {isLoadingGames && !gameId && (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-brand-500/30 border-t-brand-500"></div>
               <p className="mt-2 text-[var(--text-muted)]">Loading games...</p>

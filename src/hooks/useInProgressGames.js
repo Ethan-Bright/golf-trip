@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { collection, getDocs, query, where, orderBy } from "firebase/firestore";
 import { db } from "../firebase";
 import { getForceJoinGameId } from "../lib/gameInvite";
@@ -12,15 +12,26 @@ export default function useInProgressGames({
   const [games, setGames] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [resumedGameId, setResumedGameId] = useState(null);
+  const loadedTournamentRef = useRef(null);
+  const onAutoResumeRef = useRef(onAutoResume);
+  const isGameIncompleteForUserRef = useRef(isGameIncompleteForUser);
+
+  onAutoResumeRef.current = onAutoResume;
+  isGameIncompleteForUserRef.current = isGameIncompleteForUser;
 
   const fetchGames = useCallback(async () => {
     if (!currentTournament) {
       setGames([]);
       setIsLoading(false);
+      loadedTournamentRef.current = null;
       return;
     }
 
-    setIsLoading(true);
+    const isInitialLoad = loadedTournamentRef.current !== currentTournament;
+    if (isInitialLoad) {
+      setIsLoading(true);
+    }
+
     const gamesQuery = query(
       collection(db, "games"),
       where("status", "==", "inProgress"),
@@ -38,20 +49,21 @@ export default function useInProgressGames({
 
     setGames(sorted);
 
+    const incompleteChecker = isGameIncompleteForUserRef.current;
     const incompleteForUser =
-      typeof isGameIncompleteForUser === "function"
-        ? sorted.find(isGameIncompleteForUser)
+      typeof incompleteChecker === "function"
+        ? sorted.find(incompleteChecker)
         : null;
 
     if (
       incompleteForUser &&
       !gameId &&
       !getForceJoinGameId() &&
-      onAutoResume &&
+      onAutoResumeRef.current &&
       resumedGameId !== incompleteForUser.id
     ) {
       try {
-        await onAutoResume(incompleteForUser);
+        await onAutoResumeRef.current(incompleteForUser);
         setResumedGameId(incompleteForUser.id);
       } catch (error) {
         console.error("Failed to resume game", error);
@@ -59,12 +71,14 @@ export default function useInProgressGames({
       }
     }
 
+    loadedTournamentRef.current = currentTournament;
     setIsLoading(false);
-  }, [currentTournament, gameId, isGameIncompleteForUser, onAutoResume, resumedGameId]);
+  }, [currentTournament, gameId, resumedGameId]);
 
   useEffect(() => {
+    if (gameId) return;
     fetchGames();
-  }, [fetchGames]);
+  }, [fetchGames, gameId]);
 
   return {
     inProgressGames: games,
@@ -73,4 +87,3 @@ export default function useInProgressGames({
     resumedGame: Boolean(resumedGameId),
   };
 }
-
