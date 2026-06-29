@@ -15,6 +15,7 @@ import useModal from "../hooks/useModal";
 import useInProgressGames from "../hooks/useInProgressGames";
 import InProgressGamesList from "../components/scoreEntry/InProgressGamesList";
 import ScorecardGrid from "../components/scoreEntry/ScorecardGrid";
+import ScoringDelegatePanel from "../components/scoreEntry/ScoringDelegatePanel";
 import ShareGameButton from "../components/ShareGameButton";
 import { useTournament } from "../context/TournamentContext";
 import {
@@ -32,6 +33,16 @@ import {
   fetchTeamsForTournament,
   normalizeTeamPlayers,
 } from "../utils/teamService";
+import {
+  approveDelegateRequest,
+  canScoreForPlayer,
+  createDelegateRequest,
+  declineDelegateRequest,
+  normalizeScoringDelegates,
+  removeDelegatesForUser,
+  revokeApprovedDelegate,
+  upsertDelegateEntry,
+} from "../lib/scoringDelegates";
 
 export default function EnterScore({ userId, user }) {
   const navigate = useNavigate();
@@ -55,6 +66,9 @@ export default function EnterScore({ userId, user }) {
   const [wolfDecisions, setWolfDecisions] = useState([]); // per-hole: 'lone' | partnerUserId | null
   const [wolfHoles, setWolfHoles] = useState(null); // per-hole: { wolfId, decision } | null
   const [hasAutoScrolled, setHasAutoScrolled] = useState(false);
+  const [scoringDelegates, setScoringDelegates] = useState([]);
+  const [activeScoringTargetUserId, setActiveScoringTargetUserId] =
+    useState(null);
 
   // Concurrency / live-sync guards.
   const seededGameIdRef = useRef(null); // which gameId's score buffer we've seeded
@@ -67,6 +81,26 @@ export default function EnterScore({ userId, user }) {
   const isWolfFormat =
     normalizedFormat === "wolf" || normalizedFormat === "wolf-handicap";
   const isWolfHandicapFormat = normalizedFormat === "wolf-handicap";
+
+  const effectiveScoringUserId = activeScoringTargetUserId || userId;
+  const scoringForFriend =
+    Boolean(activeScoringTargetUserId) &&
+    activeScoringTargetUserId !== userId;
+  const activeScoringPlayer = useMemo(
+    () =>
+      (gamePlayers || []).find((p) => p.userId === effectiveScoringUserId) ||
+      null,
+    [gamePlayers, effectiveScoringUserId]
+  );
+
+  const normalizePlayerScores = useCallback((playerScores) => {
+    return (playerScores || []).map((score) => ({
+      ...score,
+      fir: score.fir ?? null,
+      gir: score.gir ?? null,
+      putts: score.putts ?? null,
+    }));
+  }, []);
 
   const sanitizeWolfDecisions = useCallback(
     (decisions, length) => {
@@ -102,6 +136,23 @@ export default function EnterScore({ userId, user }) {
       gameData?.trackStats ??
       false,
     []
+  );
+
+  const seedScoresFromPlayer = useCallback(
+    (player, gameData) => {
+      if (!player) return;
+      const normalizedScores = normalizePlayerScores(player.scores);
+      setScores(normalizedScores);
+      setTrackStats(deriveTrackStatsPreference(player, gameData));
+      setTrackStatsLocked(deriveTrackStatsLockState(player, gameData));
+      setPoints(normalizedScores.reduce((sum, s) => sum + (s.net ?? 0), 0));
+      isDirtyRef.current = false;
+    },
+    [
+      deriveTrackStatsPreference,
+      deriveTrackStatsLockState,
+      normalizePlayerScores,
+    ]
   );
 
   const isGameIncompleteForUser = useCallback(
@@ -172,6 +223,11 @@ export default function EnterScore({ userId, user }) {
         );
         setIsFunGame(Boolean(gameData.isFunGame));
 
+        const liveDelegates = normalizeScoringDelegates(
+          gameData.scoringDelegates
+        );
+        setScoringDelegates(liveDelegates);
+
         // Sanitize wolf decisions against the live roster (avoids a stale-closure
         // dependency on gamePlayers, which would force a resubscribe each change).
         const allowedIds = new Set(remotePlayers.map((p) => p.userId));
@@ -190,26 +246,23 @@ export default function EnterScore({ userId, user }) {
         // Seed the editable buffer + per-round prefs only on the first snapshot
         // for this game (or after a fresh join), never on subsequent updates.
         if (seededGameIdRef.current !== gameId) {
+          const scoringTarget = activeScoringTargetUserId || userId;
+          const targetPlayer = remotePlayers.find(
+            (p) => p.userId === scoringTarget
+          );
           const me = remotePlayers.find((p) => p.userId === userId);
-          if (me) {
-            const normalizedScores = (me.scores || []).map((score) => ({
-              ...score,
-              fir: score.fir ?? null,
-              gir: score.gir ?? null,
-              putts: score.putts ?? null,
-            }));
-            setScores(normalizedScores);
+          const playerToSeed =
+            targetPlayer &&
+            canScoreForPlayer(liveDelegates, userId, scoringTarget)
+              ? targetPlayer
+              : me;
+          if (playerToSeed) {
+            seedScoresFromPlayer(playerToSeed, gameData);
             setHoleCount(totalHoles);
             setNineType(
               totalHoles === 9 && gameData.nineType ? gameData.nineType : "front"
             );
             setStartingHole(gameData.startingHole || 1);
-            setTrackStats(deriveTrackStatsPreference(me, gameData));
-            setTrackStatsLocked(deriveTrackStatsLockState(me, gameData));
-            setPoints(
-              normalizedScores.reduce((sum, s) => sum + (s.net ?? 0), 0)
-            );
-            isDirtyRef.current = false;
             seededGameIdRef.current = gameId;
           }
         }
@@ -220,7 +273,33 @@ export default function EnterScore({ userId, user }) {
     );
 
     return () => unsub();
-  }, [gameId, userId, deriveTrackStatsPreference, deriveTrackStatsLockState]);
+  }, [gameId, userId, activeScoringTargetUserId, seedScoresFromPlayer]);
+
+  // If delegate access is revoked while scoring for a friend, switch back to self.
+  useEffect(() => {
+    if (!activeScoringTargetUserId || !userId) return;
+    if (
+      canScoreForPlayer(scoringDelegates, userId, activeScoringTargetUserId)
+    ) {
+      return;
+    }
+    setActiveScoringTargetUserId(null);
+    const me = gamePlayers.find((p) => p.userId === userId);
+    if (me) {
+      seedScoresFromPlayer(me, {
+        trackStats,
+        trackStatsLocked,
+      });
+    }
+  }, [
+    activeScoringTargetUserId,
+    scoringDelegates,
+    userId,
+    gamePlayers,
+    seedScoresFromPlayer,
+    trackStats,
+    trackStatsLocked,
+  ]);
 
   // Ensure a wolf order exists once a wolf game has exactly 3 players. Guarded by
   // a transaction so concurrent clients can't each randomize a different order.
@@ -345,13 +424,8 @@ export default function EnterScore({ userId, user }) {
       setSelectedCourse(game.course);
       setGameName(game.name || "");
 
-      const playerScores = (joinedPlayer.scores || initialScores).map(
-        (score) => ({
-          ...score,
-          fir: score.fir ?? null,
-          gir: score.gir ?? null,
-          putts: score.putts ?? null,
-        })
+      const playerScores = normalizePlayerScores(
+        joinedPlayer.scores || initialScores
       );
       setScores(playerScores);
       setPoints(playerScores.reduce((sum, s) => sum + (s.net ?? 0), 0));
@@ -361,6 +435,8 @@ export default function EnterScore({ userId, user }) {
       setTrackStatsLocked(
         isExisting ? deriveTrackStatsLockState(joinedPlayer, gameData) : false
       );
+      setScoringDelegates(normalizeScoringDelegates(gameData.scoringDelegates));
+      setActiveScoringTargetUserId(null);
 
       // Mark this game's buffer as seeded so the live snapshot won't overwrite
       // the scores we just set, then activate the game.
@@ -374,6 +450,7 @@ export default function EnterScore({ userId, user }) {
   }, [
     deriveTrackStatsPreference,
     deriveTrackStatsLockState,
+    normalizePlayerScores,
     showError,
     user?.displayName,
     user?.handicap,
@@ -643,6 +720,142 @@ export default function EnterScore({ userId, user }) {
     }
   };
 
+  const updateScoringDelegates = async (nextDelegates) => {
+    if (!gameId) return;
+    const gameRef = doc(db, "games", gameId);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(gameRef);
+      if (!snap.exists()) throw new Error("Game not found");
+      tx.update(gameRef, {
+        scoringDelegates: nextDelegates,
+        updatedAt: serverTimestamp(),
+      });
+    });
+    setScoringDelegates(nextDelegates);
+  };
+
+  const handleRequestScoring = async (playerUserId) => {
+    if (!gameId || !userId || playerUserId === userId) return;
+    const target = gamePlayers.find((p) => p.userId === playerUserId);
+    if (!target) {
+      showError("That player is not in this game.", "Error");
+      return;
+    }
+    const existing = scoringDelegates.find(
+      (d) =>
+        d.scorerUserId === userId &&
+        d.playerUserId === playerUserId &&
+        (d.status === "pending" || d.status === "approved")
+    );
+    if (existing) {
+      showError("You already have a pending or approved request.", "Error");
+      return;
+    }
+    try {
+      const next = upsertDelegateEntry(
+        scoringDelegates,
+        createDelegateRequest({
+          scorerUserId: userId,
+          scorerName: user?.displayName,
+          playerUserId,
+          playerName: target.name,
+        })
+      );
+      await updateScoringDelegates(next);
+      showSuccess(
+        `Request sent to ${target.name}. They must approve before you can enter their scores.`,
+        "Request sent"
+      );
+    } catch (error) {
+      console.error("Failed to request scoring delegate:", error);
+      showError("Failed to send scoring request", "Error");
+    }
+  };
+
+  const handleCancelScoringRequest = async (playerUserId) => {
+    if (!gameId || !userId) return;
+    try {
+      const next = scoringDelegates.filter(
+        (d) =>
+          !(
+            d.scorerUserId === userId &&
+            d.playerUserId === playerUserId &&
+            d.status === "pending"
+          )
+      );
+      await updateScoringDelegates(next);
+    } catch (error) {
+      console.error("Failed to cancel scoring request:", error);
+      showError("Failed to cancel request", "Error");
+    }
+  };
+
+  const handleRespondToScoringRequest = async (requestId, approved) => {
+    if (!gameId || !userId) return;
+    const request = scoringDelegates.find((d) => d.id === requestId);
+    if (!request || request.playerUserId !== userId) return;
+    try {
+      const next = approved
+        ? approveDelegateRequest(scoringDelegates, requestId)
+        : declineDelegateRequest(scoringDelegates, requestId);
+      await updateScoringDelegates(next);
+      showSuccess(
+        approved
+          ? `${request.scorerName} can now enter scores for you.`
+          : "Scoring request declined.",
+        approved ? "Access granted" : "Request declined"
+      );
+    } catch (error) {
+      console.error("Failed to respond to scoring request:", error);
+      showError("Failed to update request", "Error");
+    }
+  };
+
+  const handleRevokeScoringDelegate = async (scorerUserId, playerUserId) => {
+    if (!gameId || !userId || playerUserId !== userId) return;
+    try {
+      const next = revokeApprovedDelegate(
+        scoringDelegates,
+        scorerUserId,
+        playerUserId
+      );
+      await updateScoringDelegates(next);
+      showSuccess("Scoring access revoked.", "Success");
+    } catch (error) {
+      console.error("Failed to revoke scoring delegate:", error);
+      showError("Failed to revoke access", "Error");
+    }
+  };
+
+  const handleSwitchScoringTarget = async (targetUserId) => {
+    const nextTarget =
+      !targetUserId || targetUserId === userId ? null : targetUserId;
+    if (nextTarget === activeScoringTargetUserId) return;
+
+    if (nextTarget && !canScoreForPlayer(scoringDelegates, userId, nextTarget)) {
+      showError("You do not have permission to score for that player.", "Error");
+      return;
+    }
+
+    if (isDirtyRef.current) {
+      await saveScores(true);
+    }
+
+    const targetPlayer = gamePlayers.find(
+      (p) => p.userId === (nextTarget || userId)
+    );
+    if (targetPlayer) {
+      seedScoresFromPlayer(targetPlayer, {
+        trackStats,
+        trackStatsLocked,
+      });
+    }
+
+    seededGameIdRef.current = gameId;
+    setActiveScoringTargetUserId(nextTarget);
+    setHasAutoScrolled(false);
+  };
+
   // --- Handle score changes ---
   const handleScoreChange = (holeIndex, value) => {
     const lockState = getHoleLockState(holeIndex);
@@ -673,12 +886,12 @@ export default function EnterScore({ userId, user }) {
     if (
       !isWolfFormat &&
       selectedCourse &&
-      user?.handicap != null &&
+      activeScoringPlayer?.handicap != null &&
       numericValue != null
     ) {
       const hole = selectedCourse.holes[holeIndex];
       const strokeAdjustment = strokesReceivedForHole(
-        user?.handicap ?? 0,
+        activeScoringPlayer.handicap ?? 0,
         hole.strokeIndex
       );
 
@@ -719,6 +932,7 @@ export default function EnterScore({ userId, user }) {
   };
 
   const handleTrackStatsToggle = async (value) => {
+    if (scoringForFriend) return;
     if (value === trackStats) return;
 
     if (value) {
@@ -784,8 +998,13 @@ export default function EnterScore({ userId, user }) {
         const updatedPlayers = (gameData.players || []).filter(
           (p) => p.userId !== userId
         );
+        const cleanedDelegates = removeDelegatesForUser(
+          gameData.scoringDelegates || [],
+          userId
+        );
         tx.update(gameRef, {
           players: updatedPlayers,
+          scoringDelegates: cleanedDelegates,
           updatedAt: serverTimestamp(),
           playerIds: arrayRemove(userId),
         });
@@ -808,6 +1027,8 @@ export default function EnterScore({ userId, user }) {
         setTrackStatsLocked(false);
         setIsFunGame(false);
         setHasAutoScrolled(false);
+        setScoringDelegates([]);
+        setActiveScoringTargetUserId(null);
         
         showSuccess("Left game successfully!", "Success");
       }
@@ -823,6 +1044,14 @@ export default function EnterScore({ userId, user }) {
   // overlapping saves so a slow write can't land after a newer one.
   const saveScores = async (auto = false) => {
     if (!gameId || !userId) return;
+
+    const targetUserId = effectiveScoringUserId;
+    if (!canScoreForPlayer(scoringDelegates, userId, targetUserId)) {
+      if (!auto) {
+        showError("You do not have permission to save these scores.", "Error");
+      }
+      return;
+    }
 
     if (saveInFlightRef.current) {
       // Queue the latest save; keep a manual save sticky over an auto one.
@@ -843,7 +1072,7 @@ export default function EnterScore({ userId, user }) {
         if (!snap.exists()) return;
         const gameData = snap.data();
         const updatedPlayers = (gameData.players || []).map((p) =>
-          p.userId === userId ? { ...p, scores: scoresSnapshot } : p
+          p.userId === targetUserId ? { ...p, scores: scoresSnapshot } : p
         );
 
         gameIsComplete = isGameComplete({
@@ -895,7 +1124,14 @@ export default function EnterScore({ userId, user }) {
         }
       }
 
-      if (!auto) showSuccess("Scores saved successfully!", "Success");
+      if (!auto) {
+        showSuccess(
+          scoringForFriend
+            ? `Scores saved for ${activeScoringPlayer?.name || "player"}!`
+            : "Scores saved successfully!",
+          "Success"
+        );
+      }
     } catch (error) {
       console.error("Error saving scores:", error);
       if (!auto) showError("Failed to save scores", "Error");
@@ -1010,43 +1246,6 @@ export default function EnterScore({ userId, user }) {
                   Fun Game enabled: scores from this round will not be included in any player stats.
                 </div>
               )}
-              <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={trackStats}
-                    onChange={(e) => handleTrackStatsToggle(e.target.checked)}
-                    disabled={trackStatsLocked}
-                    className="w-5 h-5 text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 border-blue-400 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                  />
-                  <span className="text-[var(--text-strong)] font-semibold">
-                    Track my stats this round
-                  </span>
-                  {trackStatsLocked && (
-                    <span className="text-xs font-semibold text-brand-600 dark:text-brand-300 bg-brand-500/15 px-2 py-0.5 rounded-full">
-                      Locked
-                    </span>
-                  )}
-                </label>
-                <p className="text-sm text-[var(--text-muted)] space-y-1">
-                  <span className="block">
-                    When enabled, you'll enter FIR, GIR, and putts just for your scorecard.
-                  </span>
-                  <span className="block text-[var(--text-strong)] font-medium">
-                    Once you turn this on for a game it stays on for the round.
-                  </span>
-                  {isFunGame && (
-                    <span className="block text-purple-800 dark:text-purple-200 font-semibold">
-                      Fun Game is on: scores won’t be included in stats even if tracking is enabled.
-                    </span>
-                  )}
-                  {trackStatsLocked && (
-                    <span className="block text-brand-600 dark:text-brand-300 font-semibold">
-                      Tracking locked for this round.
-                    </span>
-                  )}
-                </p>
-              </div>
               <div className="text-center text-brand-600 dark:text-brand-300 mb-4 sm:mb-6">
                 Game:{" "}
                 <span className="font-semibold">
@@ -1073,8 +1272,14 @@ export default function EnterScore({ userId, user }) {
                     </span>
                   </>
                 )}
+                {scoringForFriend && activeScoringPlayer && (
+                  <>
+                    {" "}
+                    • Scoring for:{" "}
+                    <span className="font-semibold">{activeScoringPlayer.name}</span>
+                  </>
+                )}
               </div>
-
               <div className="flex justify-center mb-4 sm:mb-6">
                 <ShareGameButton
                   game={{
@@ -1093,6 +1298,69 @@ export default function EnterScore({ userId, user }) {
                   variant="secondary"
                   className="justify-center"
                 />
+              </div>
+
+              <ScoringDelegatePanel
+                gamePlayers={gamePlayers}
+                currentUserId={userId}
+                scoringDelegates={scoringDelegates}
+                activeScoringTargetUserId={activeScoringTargetUserId}
+                onSwitchTarget={handleSwitchScoringTarget}
+                onRequestScoring={handleRequestScoring}
+                onRespondToRequest={handleRespondToScoringRequest}
+                onRevokeDelegate={handleRevokeScoringDelegate}
+                onCancelRequest={handleCancelScoringRequest}
+              />
+
+              <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl">
+                {scoringForFriend ? (
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Stats tracking follows{" "}
+                    <span className="font-semibold text-[var(--text-strong)]">
+                      {activeScoringPlayer?.name}
+                    </span>
+                    &apos;s scorecard settings. Only they can change that
+                    preference.
+                  </p>
+                ) : (
+                  <>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={trackStats}
+                        onChange={(e) => handleTrackStatsToggle(e.target.checked)}
+                        disabled={trackStatsLocked}
+                        className="w-5 h-5 text-blue-600 dark:text-blue-400 bg-white dark:bg-gray-800 border-blue-400 rounded focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                      <span className="text-[var(--text-strong)] font-semibold">
+                        Track my stats this round
+                      </span>
+                      {trackStatsLocked && (
+                        <span className="text-xs font-semibold text-brand-600 dark:text-brand-300 bg-brand-500/15 px-2 py-0.5 rounded-full">
+                          Locked
+                        </span>
+                      )}
+                    </label>
+                    <p className="text-sm text-[var(--text-muted)] space-y-1">
+                      <span className="block">
+                        When enabled, you'll enter FIR, GIR, and putts just for your scorecard.
+                      </span>
+                      <span className="block text-[var(--text-strong)] font-medium">
+                        Once you turn this on for a game it stays on for the round.
+                      </span>
+                      {isFunGame && (
+                        <span className="block text-purple-800 dark:text-purple-200 font-semibold">
+                          Fun Game is on: scores won’t be included in stats even if tracking is enabled.
+                        </span>
+                      )}
+                      {trackStatsLocked && (
+                        <span className="block text-brand-600 dark:text-brand-300 font-semibold">
+                          Tracking locked for this round.
+                        </span>
+                      )}
+                    </p>
+                  </>
+                )}
               </div>
 
               <ScorecardGrid
